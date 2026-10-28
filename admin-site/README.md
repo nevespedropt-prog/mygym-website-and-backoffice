@@ -20,3 +20,7 @@ Static site (no build step). Real data from Supabase through the `admin_*` datab
 ## Sample figures
 `config.js` has `SAMPLE_FIGURES: true`. While it is true, the three Wix-dependent items (monthly revenue, failed payments, members by plan) and the Plans and payments page show placeholder numbers with a yellow "Sample" tag and a blue banner. Everything else on the dashboard is real. Set it to `false` to hide the placeholders (those cards then say "Connect Wix payments").
 The dashboard needs `admin_insights()` too: it is in the same migration file.
+
+## Pages (2026-10-28)
+Dashboard, Schedule, Timetable, Members, Day to day (check-in, waitlist, staff rota, tasks), Analytics, Marketing, Plans and payments (sample figures), Messages (enquiries), Forms and pages, Emails, Settings and health (system health, team, business details, security checklist). Needs migrations 1 to 3 in app/supabase (all applied live on 2026-10-28).
+The waitlist is kept by hand (the app has no waitlist yet). Check-in starts counting attendance once staff use it.

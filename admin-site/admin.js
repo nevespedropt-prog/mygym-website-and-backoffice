@@ -71,16 +71,18 @@
 
   /* ---------- shell and routing ---------- */
   var ROUTES = [
-    { id: "dashboard", label: "Dashboard", roles: ["admin", "manager", "reception", "coach"], icon: "▦", view: vDashboard },
-    { id: "schedule", label: "Schedule", roles: ["admin", "manager", "reception", "coach"], icon: "◷", view: vSchedule },
+    { id: "dashboard", label: "Dashboard", roles: ["admin", "manager", "reception", "coach"], icon: "▦", view: vDashboard, section: "Overview" },
+    { id: "schedule", label: "Schedule", roles: ["admin", "manager", "reception", "coach"], icon: "◷", view: vSchedule, section: "Operations" },
     { id: "timetable", label: "Timetable", roles: ["admin", "manager", "reception", "coach"], icon: "▤", view: vTimetable },
-    { id: "members", label: "Members", roles: ["admin", "manager", "reception"], icon: "☺", view: vMembers, section: "People" },
-    { id: "enquiries", label: "Enquiries", roles: ["admin", "manager", "reception"], icon: "✉", view: vEnquiries },
+    { id: "members", label: "Members", roles: ["admin", "manager", "reception"], icon: "☺", view: vMembers },
+    { id: "daytoday", label: "Day to day", roles: ["admin", "manager", "reception", "coach"], icon: "✓", view: vDayToDay },
     { id: "analytics", label: "Analytics", roles: ["admin", "manager"], icon: "↗", view: vAnalytics, section: "Growth" },
-    { id: "emails", label: "Emails", roles: ["admin", "manager"], icon: "→", view: vEmails, section: "Communication" },
     { id: "marketing", label: "Marketing", roles: ["admin", "manager"], icon: "★", view: vMarketing },
     { id: "plans", label: "Plans and payments", roles: ["admin", "manager"], icon: "£", view: vPlans, section: "Business" },
-    { id: "settings", label: "Team and settings", roles: ["admin"], icon: "⚙", view: vSettings }
+    { id: "enquiries", label: "Messages", roles: ["admin", "manager", "reception"], icon: "✉", view: vEnquiries },
+    { id: "forms", label: "Forms and pages", roles: ["admin", "manager", "reception"], icon: "▣", view: vForms },
+    { id: "emails", label: "Emails", roles: ["admin", "manager"], icon: "→", view: vEmails },
+    { id: "settings", label: "Settings and health", roles: ["admin", "manager"], icon: "⚙", view: vSettingsHub, section: "System" }
   ];
   function buildNav() {
     var nav = clear($("nav")), sec = null;
@@ -415,7 +417,7 @@
   async function vEnquiries() {
     var rows = await rpc("admin_enquiries", { p_status: enqFilter }), root = h("div");
     var filters = [["open", "Open"], ["new", "New"], ["joined", "Joined"], ["not_now", "Not now"], ["spam", "Spam"], ["all", "Everything"]];
-    root.appendChild(pageHead("Enquiries", "Every website form. Marking an enquiry Joined, Not now or Spam stops the follow-up emails to that person.",
+    root.appendChild(pageHead("Messages", "Everything sent through the website forms. Marking an enquiry Joined, Not now or Spam stops the follow-up emails to that person.",
       [h("div", { class: "seg" }, filters.map(function (f) { return h("button", { class: enqFilter === f[0] ? "on" : "", onclick: function () { enqFilter = f[0]; route(); }, text: f[1] }); }))]));
     if (!rows.length) { root.appendChild(card("Nothing here", "", [empty("No enquiries in this view.")])); return root; }
     var wrap = h("div", { class: "grid", style: "gap:12px" });
@@ -495,6 +497,159 @@
     root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px;align-items:start"><div class="card"><div class="hd"><h3>Revenue, last 7 months ' + sampleTag() + '</h3></div><div class="bd">' + areaChart(SAMPLE.revenue, months) + '</div></div><div class="card"><div class="hd"><h3>Failed payments ' + sampleTag() + '</h3><span class="sub">retried on day 5, paused on day 21</span></div><div class="bd"><div class="list">' + fails + "</div></div></div></div>"));
     root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>Plans ' + sampleTag() + '</h3></div><div class="bd"><div class="tbl-wrap"><table class="t" style="min-width:0"><thead><tr><th>Plan</th><th>Price</th><th class="r">Members</th><th class="r">Per month</th></tr></thead><tbody>' + rows + "</tbody></table></div></div></div>"));
     return root;
+  }
+
+  /* ---------- day to day: check-in, waitlist, rota, tasks ---------- */
+  var dtTab = "in", ciDate = null, ciClass = null, rotaFrom = null;
+  function tabsBar(cur, items, setter) { return h("div", { class: "tabs" }, items.map(function (t) { return h("button", { class: cur === t[0] ? "on" : "", onclick: function () { setter(t[0]); route(); }, text: t[1] }); })); }
+  function weekStart(d) { var x = new Date(d); x.setHours(12, 0, 0, 0); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+  function fld(label, ctrl, grow) { return h("div", { class: "field", style: grow ? "flex:1;min-width:160px" : "" }, [h("label", { text: label }), ctrl]); }
+  async function vDayToDay() {
+    var root = h("div");
+    root.appendChild(pageHead("Day to day", "Check people in, keep the waitlist, plan the coaches and keep on top of the to-do list."));
+    var tabs = [["in", "Check-in"]]; if (can(["admin", "manager", "reception"])) tabs.push(["wait", "Waitlist"]); tabs.push(["rota", "Staff rota"], ["tasks", "Tasks"]);
+    if (!tabs.some(function (t) { return t[0] === dtTab; })) dtTab = "in";
+    root.appendChild(tabsBar(dtTab, tabs, function (v) { dtTab = v; }));
+    root.appendChild(await ({ "in": tabCheckin, wait: tabWait, rota: tabRota, tasks: tabTasks })[dtTab]());
+    return root;
+  }
+  async function tabCheckin() {
+    var wrap = h("div"), att = await rpc("admin_attendance"), today = iso(new Date()); if (!ciDate) ciDate = today;
+    var day = await rpc("admin_day", { p_date: ciDate }), list = day.filter(function (c) { return c.kind !== "gym"; });
+    if (list.length && !list.some(function (c) { return c.id === ciClass; })) ciClass = list[0].id;
+    var rate = att.days_used ? Math.round(100 * att.checked_30d / Math.max(1, att.past_30d)) : null;
+    wrap.appendChild(fromHtml('<div class="grid g4" style="margin-bottom:16px">' + kpiX("Attendance rate", "check", rate == null ? "-" : rate, rate == null ? "" : "%", rate == null ? "starts counting once you check people in" : "of bookings turned up (30 days)", "flat") + kpiX("Checked in today", "users", att.checked_today, "", "people", "flat") + kpiX("Bookings, last 30 days", "clip", att.past_30d, "", "that have already happened", "flat") + kpiX("Days used", "cal", att.days_used, "", "days with check-ins (30 days)", "flat") + "</div>"));
+    var pick = h("input", { class: "in", type: "date", value: ciDate, "aria-label": "Date", onchange: function (e) { ciDate = e.target.value; ciClass = null; route(); } });
+    var sel = h("select", { class: "in sel", "aria-label": "Class", onchange: function (e) { ciClass = Number(e.target.value); route(); } }, list.map(function (c) { return h("option", { value: c.id, selected: c.id === ciClass, text: String(c.start).slice(0, 5) + " " + c.name }); }));
+    var body = h("div");
+    if (!list.length) body.appendChild(empty("No classes on this day."));
+    else {
+      var r = await rpc("admin_checkin_roster", { p_class: ciClass, p_date: ciDate }), c = list.filter(function (x) { return x.id === ciClass; })[0];
+      var done = r.people.filter(function (p) { return p.checked; }).length;
+      var all = h("button", { class: "btn sm", text: "Mark all present", onclick: function () { Promise.all(r.people.filter(function (p) { return !p.checked; }).map(function (p) { return rpc("admin_checkin_set", { p_booking: p.booking_id, p_on: true }); })).then(function () { toast("Done"); route(); }).catch(function (e) { toast(e.message, true); }); } });
+      body.appendChild(h("div", { class: "toolbar" }, [h("b", { text: c.name + " · " + done + " of " + r.people.length + " checked in" }), h("span", { class: "grow" }), all]));
+      var lst = h("div", { class: "list", style: "padding:0 18px 12px" });
+      r.people.forEach(function (p) {
+        lst.appendChild(h("div", { class: "li" }, [h("span", { class: "av s", text: initials(p.name) }), h("div", { class: "tx" }, [h("b", { text: p.name }), h("small", { text: (p.source === "wix" ? "Booked on the website" : "Booked in the app") + (p.health ? "" : " · no health form") })]),
+          h("button", { class: "btn sm" + (p.checked ? " pri" : ""), text: p.checked ? "Present ✓" : "Check in", onclick: function () { rpc("admin_checkin_set", { p_booking: p.booking_id, p_on: !p.checked }).then(route).catch(function (e) { toast(e.message, true); }); } })]));
+      });
+      if (!r.people.length) lst.appendChild(empty("Nobody is booked through the app yet."));
+      if (r.other_wix) lst.appendChild(h("p", { class: "muted", text: r.other_wix + " more booked on the website only (not listed by name here)." }));
+      body.appendChild(lst);
+    }
+    wrap.appendChild(h("section", { class: "card" }, [h("div", { class: "toolbar" }, [pick, sel]), body])); return wrap;
+  }
+  async function tabWait() {
+    var wrap = h("div"), tt = await rpc("admin_timetable"), rows = await rpc("admin_waitlist");
+    var classes = tt.filter(function (c) { return c.active && c.kind !== "gym"; });
+    var classSel = h("select", { class: "in sel", "aria-label": "Class" }, classes.map(function (c) { return h("option", { value: c.id, text: c.day.slice(0, 3) + " " + String(c.time).slice(0, 5) + " " + c.name }); }));
+    var date = h("input", { class: "in", type: "date", value: iso(new Date()), "aria-label": "Date" }), name = h("input", { class: "in", placeholder: "Name", maxlength: "80", "aria-label": "Name" }), phone = h("input", { class: "in", placeholder: "Phone", maxlength: "25", "aria-label": "Phone" }), note = h("input", { class: "in", placeholder: "Note (optional)", maxlength: "200", "aria-label": "Note" });
+    var add = h("button", { class: "btn pri", text: "Add to waitlist", onclick: function () {
+      if (!name.value.trim()) return toast("Please type a name", true);
+      rpc("admin_waitlist_add", { p_class: Number(classSel.value), p_date: date.value, p_name: name.value, p_phone: phone.value, p_note: note.value }).then(function () { toast("Added"); route(); }).catch(function (e) { toast(e.message, true); });
+    } });
+    wrap.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Kept by hand. " }), document.createTextNode("When a class is full, write the person here and phone them if a space opens. The app does not run a waitlist yet, so nothing is booked automatically.")])]));
+    wrap.appendChild(card("Add someone", "", [h("div", { class: "toolbar", style: "padding:0;border:0" }, [classSel, date, name, phone, note, add])]));
+    var byKey = {}; rows.forEach(function (w) { var k = w.date + "|" + w.class_id; (byKey[k] = byKey[k] || []).push(w); });
+    var keys = Object.keys(byKey), grid = h("div", { class: "grid g3", style: "margin-top:16px" });
+    if (!keys.length) wrap.appendChild(h("div", { style: "margin-top:16px" }, [card("Waitlists", "", [empty("Nobody is waiting.")])]));
+    keys.forEach(function (k) {
+      var g = byKey[k], f = g[0], list = h("div", { class: "list" });
+      g.forEach(function (w, i) { list.appendChild(h("div", { class: "li" }, [h("span", { class: "av s", text: String(i + 1) }), h("div", { class: "tx" }, [h("b", { text: w.name }), h("small", { text: [w.phone, w.email, w.note].filter(Boolean).join(" · ") || "No contact details" })]), h("button", { class: "btn sm", text: "Remove", onclick: function () { rpc("admin_waitlist_remove", { p_id: w.id }).then(route); } })])); });
+      grid.appendChild(card(f.class, fDate(f.date) + " " + String(f.time).slice(0, 5), [h("div", { style: "display:flex;gap:8px;margin-bottom:6px" }, [chip(f.booked + "/" + f.capacity + " booked", f.booked >= f.capacity ? "warn" : "plain"), chip(g.length + " waiting", "plain")]), list]));
+    });
+    wrap.appendChild(grid); return wrap;
+  }
+  async function tabRota() {
+    var wrap = h("div"), from = rotaFrom || weekStart(new Date()); rotaFrom = from;
+    var data = await rpc("admin_rota", { p_from: iso(from) }), days = [];
+    for (var i = 0; i < 7; i++) { var d = new Date(from); d.setDate(d.getDate() + i); days.push(d); }
+    var people = Array.from(new Set(data.shifts.map(function (s) { return s.person; }).concat(data.month_hours.map(function (m) { return m.person; })))).sort();
+    wrap.appendChild(fromHtml('<div class="grid g4" style="margin-bottom:16px">' + (data.month_hours.slice(0, 3).map(function (m) { return kpiX(m.person, "users", m.hours, "h", "hours this month", "flat"); }).join("")) + kpiX("All staff", "clock", data.month_hours.reduce(function (a, m) { return a + m.hours; }, 0).toFixed(1), "h", "this month, ready for payroll", "flat") + "</div>"));
+    var head2 = h("tr", null, [h("th", { text: "Person" })].concat(days.map(function (d) { return h("th", { class: "r", text: d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric" }) }); })));
+    var body = h("tbody");
+    people.forEach(function (p) {
+      body.appendChild(h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: p })])].concat(days.map(function (d) {
+        var ss = data.shifts.filter(function (s) { return s.person === p && s.date === iso(d); });
+        return h("td", { class: "r" }, ss.map(function (s) { return h("div", { class: "num" }, [document.createTextNode(s.start + "–" + s.end + " "), can(["admin", "manager"]) ? h("button", { class: "btn sm ghost", title: "Remove", text: "×", onclick: function () { rpc("admin_shift_remove", { p_id: s.id }).then(route); } }) : null]); }));
+      }))));
+    });
+    var nav = [h("button", { class: "btn sm", text: "‹ Previous week", onclick: function () { rotaFrom = new Date(from.getTime() - 7 * 864e5); route(); } }), h("button", { class: "btn sm", text: "This week", onclick: function () { rotaFrom = weekStart(new Date()); route(); } }), h("button", { class: "btn sm", text: "Next week ›", onclick: function () { rotaFrom = new Date(from.getTime() + 7 * 864e5); route(); } })];
+    wrap.appendChild(card("Week of " + fDate(iso(from)), "", [h("div", { class: "toolbar", style: "padding:0 0 12px;border:0" }, nav), people.length ? h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:640px" }, [h("thead", null, [head2]), body])]) : empty("No shifts this week.")]));
+    if (can(["admin", "manager"])) {
+      var person = h("input", { class: "in", placeholder: "Person or coach", maxlength: "60", "aria-label": "Person" }), dt = h("input", { class: "in", type: "date", value: iso(new Date()), "aria-label": "Date" }), st = h("input", { class: "in", type: "time", value: "09:00", "aria-label": "Start" }), en = h("input", { class: "in", type: "time", value: "13:00", "aria-label": "End" }), nt = h("input", { class: "in", placeholder: "Note (optional)", maxlength: "120", "aria-label": "Note" });
+      wrap.appendChild(h("div", { style: "margin-top:16px" }, [card("Add a shift", "", [h("div", { class: "toolbar", style: "padding:0;border:0" }, [person, dt, st, en, nt, h("button", { class: "btn pri", text: "Add shift", onclick: function () {
+        if (!person.value.trim()) return toast("Please type who", true);
+        rpc("admin_shift_add", { p_person: person.value, p_date: dt.value, p_start: st.value, p_end: en.value, p_note: nt.value }).then(function () { toast("Shift added"); route(); }).catch(function (e) { toast(e.message, true); });
+      } })])])]));
+    }
+    return wrap;
+  }
+  async function tabTasks() {
+    var wrap = h("div"), tasks = await rpc("admin_tasks");
+    var title = h("input", { class: "in", placeholder: "Add a task, for example: order new mats", maxlength: "200", style: "flex:1;min-width:200px", "aria-label": "Task" }), who = h("input", { class: "in", placeholder: "Who (optional)", maxlength: "60", "aria-label": "Who" }), due = h("input", { class: "in", type: "date", "aria-label": "Due date" });
+    var add = h("button", { class: "btn pri", text: "Add", onclick: function () { rpc("admin_task_add", { p_title: title.value, p_assigned: who.value, p_due: due.value || null }).then(function () { route(); }).catch(function (e) { toast(e.message, true); }); } });
+    var list = h("div", { class: "list" });
+    tasks.forEach(function (t) {
+      var late = t.due && !t.done && t.due < iso(new Date());
+      list.appendChild(h("div", { class: "li" }, [h("button", { class: "btn sm" + (t.done ? " pri" : ""), text: t.done ? "✓" : "○", "aria-label": t.done ? "Mark not done" : "Mark done", onclick: function () { rpc("admin_task_toggle", { p_id: t.id, p_done: !t.done }).then(route); } }),
+        h("div", { class: "tx" }, [h("b", { text: t.title, style: t.done ? "text-decoration:line-through;color:var(--mut)" : "" }), h("small", { text: [t.assigned, t.due ? "due " + fDate(t.due) : ""].filter(Boolean).join(" · ") })]), late ? chip("Overdue", "bad") : null, h("button", { class: "btn sm ghost", text: "Delete", onclick: function () { rpc("admin_task_remove", { p_id: t.id }).then(route); } })]));
+    });
+    if (!tasks.length) list.appendChild(empty("No tasks. Add the first one above."));
+    wrap.appendChild(h("section", { class: "card" }, [h("div", { class: "toolbar" }, [title, who, due, add]), h("div", { class: "bd" }, [list])])); return wrap;
+  }
+
+  /* ---------- forms and pages ---------- */
+  var FORM_INFO = {
+    "contact": ["Contact", "Contact section on the FAQ page"], "pt-enquiry": ["Personal training enquiry", "Personal training quiz"], "trial-class": ["Free class", "Classes page"],
+    "landing-offer": ["Offer", "Landing pages (not built yet)"], "corporate-enquiry": ["Corporate enquiry", "Not placed on a page yet"], "kids-registration": ["Kids Gym registration", "Kids Gym page"],
+    "newsletter-signup": ["News and offers", "Footer of every page"], "pause-cancel-request": ["Pause or cancel request", "Member requests"], "feedback": ["Feedback", "After a class"], "refer-a-friend": ["Refer a friend", "Referral page"]
+  };
+  var SITE_PAGES = [["Home", "index.html"], ["Classes", "classes.html"], ["Plans and prices", "services.html"], ["Personal training", "personal-training.html"], ["Kids Gym", "kids-gym.html"], ["Book the gym", "book.html"], ["FAQ", "faq.html"], ["Refer a friend", "refer-friends.html"], ["Terms", "terms.html"], ["Privacy", "privacy.html"], ["Cookies", "cookies.html"]];
+  async function vForms() {
+    var rows = await rpc("admin_forms_summary"), root = h("div"), by = {}; rows.forEach(function (r) { by[r.form_id] = r; });
+    root.appendChild(pageHead("Forms and pages", "Every website form sends its answers to Enquiries. Here is where each form lives and how much it is used."));
+    var body = h("tbody");
+    Object.keys(FORM_INFO).forEach(function (id) {
+      var s = by[id] || { total: 0, last_30d: 0, new: 0 };
+      body.appendChild(h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: FORM_INFO[id][0] }), h("small", { class: "block muted", text: FORM_INFO[id][1] })]), h("td", { class: "num r", text: s.total }), h("td", { class: "num r", text: s.last_30d }), h("td", null, [s.new ? chip(s.new + " new", "bad") : chip("None waiting", "plain")]),
+        h("td", { class: "r" }, [h("a", { class: "btn sm", href: "https://app.mygymlondon.co.uk/f/" + id + ".html", target: "_blank", rel: "noopener", text: "Open form" })])]));
+    });
+    root.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: "Forms" })]), h("div", { class: "bd" }, [h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:600px" }, [h("thead", null, [h("tr", null, [h("th", { text: "Form" }), h("th", { class: "r", text: "Total" }), h("th", { class: "r", text: "30 days" }), h("th", { text: "Status" }), h("th")])]), body])])])]));
+    var pg = h("div", { class: "list" }); SITE_PAGES.forEach(function (p) { pg.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: p[0] })]), h("a", { class: "btn sm", href: "https://www.mygymlondon.co.uk/" + p[1], target: "_blank", rel: "noopener", text: "View" })])); });
+    root.appendChild(h("div", { class: "grid g2", style: "margin-top:16px;align-items:start" }, [card("Website pages", "", [pg]), card("Landing pages", "", [h("div", { class: "soon" }, [h("p", { text: "No landing pages yet. When you build one (for example a January offer), it will be listed here with its sign-up count." })])])]));
+    return root;
+  }
+
+  /* ---------- settings and health ---------- */
+  var setTab = "health";
+  var JOBN2 = { "sync-wix-bookings": "Wix booking sync", "sync-timetable": "Timetable sync", "class-reminder-emails": "Class reminder emails", "engagement-emails": "Engagement emails", "lead-and-referral-emails": "Lead follow-ups", "weekly-report": "Weekly report", "send-class-reminders": "Phone reminders", "weekly-purge-form-submissions": "Weekly form clean-up" };
+  async function vSettingsHub() {
+    var root = h("div"); root.appendChild(pageHead("Settings and health", "How the system is doing, who has access, and the business details."));
+    var tabs = [["health", "System health"], ["business", "Business details"], ["security", "Security checklist"]]; if (can(["admin"])) tabs.splice(1, 0, ["team", "Team"]);
+    if (!tabs.some(function (t) { return t[0] === setTab; })) setTab = "health";
+    root.appendChild(tabsBar(setTab, tabs, function (v) { setTab = v; }));
+    if (setTab === "health") root.appendChild(await tabHealth()); else if (setTab === "team") root.appendChild(await vSettings()); else if (setTab === "business") root.appendChild(tabBusiness()); else root.appendChild(tabSecurity());
+    return root;
+  }
+  async function tabHealth() {
+    var d = await rpc("admin_health"), wrap = h("div"), bad = d.jobs.filter(function (j) { return j.failed_7d > 0 || (j.status && j.status !== "succeeded"); }).length;
+    wrap.appendChild(fromHtml('<div class="grid g4">' + kpiX("Automatic jobs", "pulse", d.jobs.length, "", bad ? bad + " need a look" : "all healthy", bad ? "dn" : "up", "", bad ? "alert" : "") + kpiX("Emails that failed", "mail", d.email_failed_7d, "", "last 7 days", d.email_failed_7d ? "dn" : "up", "", d.email_failed_7d ? "alert" : "") + kpiX("Members", "users", d.counts.members, "", "app accounts", "flat") + kpiX("Bookings stored", "clip", d.counts.bookings, "", d.counts.emails + " emails sent in total", "flat") + "</div>"));
+    var rows = h("tbody", null, d.jobs.map(function (j) { var ok = j.status === "succeeded"; return h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: JOBN2[j.job] || j.job }), h("small", { class: "block muted", text: j.job })]), h("td", { text: j.schedule }), h("td", null, [j.active ? (ok ? chip("OK", "ok") : chip(j.status || "No run yet", j.status ? "bad" : "plain")) : chip("Switched off", "warn")]), h("td", { class: "num", text: j.at ? fDateTime(j.at) : "-" }), h("td", { class: "num r", text: j.failed_7d })]); }));
+    wrap.appendChild(h("div", { style: "margin-top:16px" }, [card("Automatic jobs", "run by the database on a schedule", [h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:560px" }, [h("thead", null, [h("tr", null, ["Job", "Schedule", "Last result", "Last run", "Failed (7 days)"].map(function (x, i) { return h("th", { class: i === 4 ? "r" : "", text: x }); }))]), rows])])])]));
+    var fl = d.flags.map(function (f) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: f.key === "wix_booking" ? "Wix booking sync" : f.key })]), chip(f.mode === "on" ? "On for everyone" : f.mode, f.mode === "on" ? "ok" : "warn")]); });
+    var sy = d.sync.map(function (s) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: s.id })]), h("small", { class: "muted", text: s.last_run ? "ran " + ago(s.last_run) : "no run" })]); });
+    wrap.appendChild(h("div", { class: "grid g2", style: "margin-top:16px;align-items:start" }, [card("Switches", "", [h("div", { class: "list" }, fl.length ? fl : [empty("None")])]), card("Sync history", "", [h("div", { class: "list" }, sy.length ? sy : [empty("None")])])]));
+    return wrap;
+  }
+  function tabBusiness() {
+    var kv = h("dl", { class: "kv" }); [["Business", "MyGym London (sole trader)"], ["Gym address", "Main Avenue, Bush Hill Park, Enfield, EN1 1DS"], ["Phone", "07459 020381"], ["Email", "info@mygymlondon.co.uk"], ["Opening hours", "Every day, 5am to midnight (last entry 11:30pm)"], ["App", "app.mygymlondon.co.uk"], ["Website", "www.mygymlondon.co.uk"], ["Checkout", "join.mygymlondon.co.uk (Wix)"], ["Instagram", "@mygym_london"], ["VAT", "Not VAT registered"]]
+      .forEach(function (p) { kv.appendChild(h("dt", { text: p[0] })); kv.appendChild(h("dd", { text: p[1] })); });
+    return card("Business details", "read only", [kv, h("p", { class: "muted", text: "These are shown for reference. To change them, tell Claude: they appear on the website, in emails and on the legal pages." })]);
+  }
+  function tabSecurity() {
+    var items = [["Two-step sign-in (2FA) on Wix, Supabase, GitHub, Google, Resend and the domain registrar", "Do this yourself in each account's security settings."], ["Review the 5 collaborators on the Wix site", "Remove anyone who no longer needs access."], ["Confirm the Supabase backup and restore plan", "Free plan: check what is kept and for how long."], ["Raise the email security (DMARC) setting around 19 November", "After reading the reports for about four weeks."], ["Add staff only with the role they need", "Reception sees members and enquiries. Coach sees the schedule and health forms. Health form views are logged."]];
+    return card("Security checklist", "kept here so it is not forgotten", [h("div", { class: "list" }, items.map(function (i) { return h("div", { class: "li" }, [h("span", { class: "ico warn", text: "!" }), h("div", { class: "tx" }, [h("b", { text: i[0] }), h("small", { text: i[1] })])]); }))]);
   }
 
   /* ---------- team and settings (admin) ---------- */
