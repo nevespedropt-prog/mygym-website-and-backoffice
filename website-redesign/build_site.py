@@ -65,12 +65,13 @@ PAGES = {
     "privacy": ("privacy.html", "Privacy policy | MyGym London", "How MyGym London uses your personal data."),
     "cookies": ("cookies.html", "Cookie notice | MyGym London", "How MyGym London uses cookies."),
     "login": ("login.html", "Member log in | MyGym London", "Members log in to the MyGym app."),
+    "mybookings": ("my-bookings.html", "My bookings | MyGym London", "See your upcoming MyGym London bookings and cancel up to 10 minutes before."),
 }
 LINK = {
     "#home": "index.html", "#classes": "classes.html", "#book": "book.html",
     "#services": "services.html", "#pt": "personal-training.html", "#refer": "refer-friends.html",
     "#faq": "faq.html", "#kids-gym": "kids-gym.html", "#terms": "terms.html",
-    "#privacy": "privacy.html", "#cookies": "cookies.html", "#login": "login.html",
+    "#privacy": "privacy.html", "#cookies": "cookies.html", "#login": "login.html", "#mybookings": "my-bookings.html",
 }
 
 
@@ -357,11 +358,28 @@ def font_rep(m):
 
 fcss = re.sub(r"url\((https://[^)]+)\)", font_rep, fcss)
 final_css = localise(fcss + "\n" + page_css)
+views["mybookings"] = (
+    '<section class="view" id="mybookings"><div class="phead"><div class="wrap"><span class="chip">Members</span>'
+    '<h1>My bookings</h1><p>See your upcoming classes and gym sessions, and cancel up to 10 minutes before they start.</p></div></div>'
+    '<div class="wrap sec" id="mbRoot"><noscript><p>Please turn on JavaScript to manage your bookings, or use the MyGym app.</p></noscript>'
+    '<div class="card loginf" id="mbLogin" hidden><h3>Sign in</h3><p class="sub">Use the same email and password as the MyGym app.</p>'
+    '<form id="mbForm"><label class="lb" for="mbEmail">Email</label><input id="mbEmail" class="wemail" type="email" autocomplete="username" required>'
+    '<label class="lb" for="mbPass">Password</label><input id="mbPass" class="wemail" type="password" autocomplete="current-password" required>'
+    '<button class="btn" type="submit" id="mbGo">Sign in</button></form>'
+    '<p class="fine">No account yet? <a href="login.html">Find out how to join</a>.</p></div>'
+    '<div id="mbList" hidden><p class="sub">Signed in as <b id="mbWho"></b> <button type="button" class="btn ghost" id="mbOut">Sign out</button></p><div id="mbItems"></div>'
+    '<p class="fine">Pay as you go classes you cancel in time become a credit for another class. Questions? <a href="mailto:info@mygymlondon.co.uk">info@mygymlondon.co.uk</a></p></div>'
+    '<p class="mbmsg" id="mbMsg" role="status" hidden></p></div></section>'
+)
+final_css += ".mbrow{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.mbinfo b{display:block}.mbinfo span{color:var(--mut)}.mbmsg{margin-top:16px;padding:12px 14px;border-left:4px solid var(--acc);background:#f6f5f4}.mbmsg.ok{border-color:#238a52;background:#e6f5ec}.mbmsg.bad{border-color:#a03535;background:#fdecec}.mbmsg[hidden]{display:none}#mbRoot form{max-width:420px;display:grid;gap:10px}#mbRoot [hidden]{display:none!important}"
 final_css = final_css.replace("url(assets/img/", "url(img/")
 open(os.path.join(OUT, "assets", "style.css"), "w", encoding="utf-8").write(final_css)
 open(os.path.join(OUT, "assets", "site.js"), "w", encoding="utf-8").write(SITE_JS)
 # forms: styles + script come from the app project (one copy to maintain), and the public settings
 shutil.copyfile(os.path.join(FORMS_DIR, "forms.js"), os.path.join(OUT, "assets", "forms.js"))
+os.makedirs(os.path.join(OUT, "assets", "vendor"), exist_ok=True)
+shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "vendor", "supabase.js"), os.path.join(OUT, "assets", "vendor", "supabase.js"))
+shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mybookings.js"), os.path.join(OUT, "assets", "mybookings.js"))
 open(os.path.join(OUT, "assets", "forms.css"), "w", encoding="utf-8").write(
     open(os.path.join(FORMS_DIR, "forms.css"), encoding="utf-8").read()
     + "\n.mgl-form,.mgl-form *{box-sizing:border-box}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}"
@@ -371,7 +389,7 @@ open(os.path.join(OUT, "assets", "forms-config.js"), "w", encoding="utf-8").writ
     'window.MGL_FORMS = { endpoint: "%s", supabaseUrl: "%s", anonKey: "%s" };\n' % (SUBMIT_URL, SUPABASE_URL, SUPABASE_KEY))
 
 # ---------- pages ----------
-NAV = {"home": "home", "classes": "classes", "book": "book", "services": "services", "pt": "pt", "refer": "refer", "faq": "faq", "kids-gym": "services", "login": "", "terms": "", "privacy": "", "cookies": ""}
+NAV = {"home": "home", "classes": "classes", "book": "book", "services": "services", "pt": "pt", "refer": "refer", "faq": "faq", "kids-gym": "services", "login": "", "mybookings": "", "terms": "", "privacy": "", "cookies": ""}
 
 
 def mark_active(html, key):
@@ -496,7 +514,7 @@ def add_seo(h, key, fn, title, desc):
     extra = ('<meta property="og:type" content="website"><meta property="og:url" content="%s"><meta property="og:site_name" content="MyGym London"><meta property="og:locale" content="en_GB">'
              '<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="%s"><meta name="twitter:description" content="%s"><meta name="twitter:image" content="%s/assets/img/hero-full.jpg">'
              '<meta name="robots" content="%s"><meta name="theme-color" content="#17171a">'
-             % (url, _hl.escape(title), _hl.escape(desc), SITE, 'noindex,follow' if key == 'login' else 'index,follow,max-snippet:-1,max-image-preview:large'))
+             % (url, _hl.escape(title), _hl.escape(desc), SITE, 'noindex,follow' if key in ('login', 'mybookings') else 'index,follow,max-snippet:-1,max-image-preview:large'))
     return h.replace('<link rel="stylesheet" href="assets/style.css">', extra + ld + '<link rel="stylesheet" href="assets/style.css">', 1)
 
 
@@ -512,6 +530,7 @@ def page(key, body):
         '<link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/forms.css"></head><body>%s<main>%s</main>%s'
         '<script src="assets/forms-config.js"></script><script src="assets/forms.js"></script><script src="assets/site.js"></script></body></html>'
     ) % (title, desc, SITE, "" if fn == "index.html" else fn, title, desc, SITE, mark_active(hdr, key), body, ftr)
+    if key == "mybookings": html = html.replace('<script src="assets/site.js">', '<script src="assets/vendor/supabase.js"></script><script src="assets/mybookings.js"></script><script src="assets/site.js">')
     html = html.replace("30+ classes", "25+ classes").replace("Over 30 classes", "Over 25 classes")
     # launch clean-up (2026-10-27): no sample quotes or placeholder notes on the live site; rating from the public Google listing
     html = re.sub(r'<div class="qgrid">.*?</div>', lambda m: REVIEWS_HTML, html, flags=re.S)
@@ -532,7 +551,7 @@ def page(key, body):
 
 
 written = [page("home", home_body.replace('class="view def"', 'class="view"'))]
-for key in ["classes", "book", "services", "pt", "refer", "faq", "kids-gym", "terms", "privacy", "cookies", "login"]:
+for key in ["classes", "book", "services", "pt", "refer", "faq", "kids-gym", "terms", "privacy", "cookies", "login", "mybookings"]:
     written.append(page(key, views[key]))
 
 # extras
@@ -548,7 +567,7 @@ ROBOTS_LIVE = ("User-agent: *\nAllow: /\n\n" + "".join("User-agent: %s\nAllow: /
 open(os.path.join(OUT, "robots.txt"), "w").write(ROBOTS_TEST if TEST else ROBOTS_LIVE)
 if not TEST: open(os.path.join(OUT, "sitemap.xml"), "w").write(
     '<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-    + "".join("<url><loc>%s/%s</loc><lastmod>%s</lastmod></url>" % (SITE, "" if f == "index.html" else f, __import__("datetime").date.today().isoformat()) for f in written if f != "login.html")
+    + "".join("<url><loc>%s/%s</loc><lastmod>%s</lastmod></url>" % (SITE, "" if f == "index.html" else f, __import__("datetime").date.today().isoformat()) for f in written if f not in ("login.html", "my-bookings.html"))
     + "</urlset>")
 if not TEST:
     open(os.path.join(OUT, "llms.txt"), "w", encoding="utf-8").write(LLMS_TXT)

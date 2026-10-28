@@ -520,3 +520,4 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 .lgl .others{margin-top:30px;padding-top:18px;border-top:1px solid #e1e1e5;font-size:14px}
 .legal a{display:inline;padding:0;opacity:1;text-decoration:underline;color:inherit}
 @media(max-width:900px){#terms .phead,#privacy .phead,#cookies .phead{padding:0}#terms .phead .wrap,#privacy .phead .wrap,#cookies .phead .wrap{padding:26px 20px 18px}.lgl h2{font-size:26px}.lgl{font-size:15px}}
+.mbrow{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.mbinfo b{display:block}.mbinfo span{color:var(--mut)}.mbmsg{margin-top:16px;padding:12px 14px;border-left:4px solid var(--acc);background:#f6f5f4}.mbmsg.ok{border-color:#238a52;background:#e6f5ec}.mbmsg.bad{border-color:#a03535;background:#fdecec}.mbmsg[hidden]{display:none}#mbRoot form{max-width:420px;display:grid;gap:10px}#mbRoot [hidden]{display:none!important}
