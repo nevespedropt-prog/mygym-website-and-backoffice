@@ -380,6 +380,7 @@ shutil.copyfile(os.path.join(FORMS_DIR, "forms.js"), os.path.join(OUT, "assets",
 os.makedirs(os.path.join(OUT, "assets", "vendor"), exist_ok=True)
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "vendor", "supabase.js"), os.path.join(OUT, "assets", "vendor", "supabase.js"))
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mybookings.js"), os.path.join(OUT, "assets", "mybookings.js"))
+shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram.js"), os.path.join(OUT, "assets", "instagram.js"))
 open(os.path.join(OUT, "assets", "forms.css"), "w", encoding="utf-8").write(
     open(os.path.join(FORMS_DIR, "forms.css"), encoding="utf-8").read()
     + "\n.mgl-form,.mgl-form *{box-sizing:border-box}.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}"
@@ -530,6 +531,7 @@ def page(key, body):
         '<link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/forms.css"></head><body>%s<main>%s</main>%s'
         '<script src="assets/forms-config.js"></script><script src="assets/forms.js"></script><script src="assets/site.js"></script></body></html>'
     ) % (title, desc, SITE, "" if fn == "index.html" else fn, title, desc, SITE, mark_active(hdr, key), body, ftr)
+    if key == "home": html = html.replace('<script src="assets/site.js">', '<script src="assets/instagram.js"></script><script src="assets/site.js">')
     if key == "mybookings": html = html.replace('<script src="assets/site.js">', '<script src="assets/vendor/supabase.js"></script><script src="assets/mybookings.js"></script><script src="assets/site.js">')
     html = html.replace("30+ classes", "25+ classes").replace("Over 30 classes", "Over 25 classes")
     # launch clean-up (2026-10-27): no sample quotes or placeholder notes on the live site; rating from the public Google listing
