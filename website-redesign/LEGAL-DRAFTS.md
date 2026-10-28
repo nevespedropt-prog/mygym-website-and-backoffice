@@ -38,8 +38,8 @@ If you buy online or by phone, you normally have a right to cancel within 14 day
 ## Booking classes and gym slots
 
 - Booking is limited by the spaces available. Booking a place does not guarantee a place if you arrive late.
-- You can cancel a booking in the app up to 10 minutes before the session starts. Please cancel as early as you can, or contact us, so that someone else can take your place.
-- No charge is taken for a booking, whether you cancel it or not.
+- You can cancel a booking in the app or on our website up to 10 minutes before the session starts. Please cancel as early as you can, or contact us, so that someone else can take your place.
+- We do not give refunds for classes or gym sessions. If you cancel a class you paid for as a pay as you go session, we give you a credit to use for another class. Bookings made with a membership plan are not charged separately.
 - We may change or cancel a class or session, for example because of illness or low numbers. If we cancel, we will tell you and you will not be charged for it.
 - The timetable shown on the website and in the app is a guide. Times and availability can change.
 

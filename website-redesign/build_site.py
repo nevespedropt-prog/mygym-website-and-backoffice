@@ -55,7 +55,7 @@ PAGES = {
     "services": ("services.html", "Gym membership prices in Enfield | MyGym London",
                  "Gym from £26 a month, classes £26, both £35, pay as you go gym £4 and classes £6. No contract, no joining fees. Bush Hill Park, Enfield."),
     "pt": ("personal-training.html", "Personal trainer in Enfield | Free first session | MyGym London",
-           "One to one and small group personal training in Bush Hill Park, Enfield from £32.50 a session. Your first PT session is free."),
+           "One to one and small group personal training in Bush Hill Park, Enfield from £32.50 for a 30-minute session. Your first PT session is free."),
     "refer": ("refer-friends.html", "Refer friends | MyGym London",
               "Refer a friend to MyGym London and get rewarded."),
     "faq": ("faq.html", "FAQ: prices, opening hours, booking | MyGym London", "Answers about MyGym London in Enfield: no contract, open 5am to midnight, prices, booking, induction and personal training."),
@@ -409,7 +409,7 @@ LLMS_TXT = """# MyGym London
 - Exercise class only membership: 26 pounds a month
 - Gym and exercise class membership: 35 pounds a month, or 400 pounds a year (includes a free induction and introductory health check)
 - Small group personal training: 60 pounds a month for 2 to 4 people (15 pounds each per session, minimum 4 sessions a month)
-- Personal training: sessions from 32.50 pounds, first session free
+- Personal training: 30-minute sessions from 32.50 pounds, first session free
 - Kids Gym: 20 pounds a month, Tuesdays and Thursdays 4pm to 5pm, minimum age 8
 
 ## Pages
@@ -489,7 +489,7 @@ def add_seo(h, key, fn, title, desc):
     if key == "faq" and faq_node(h):
         graph.append(faq_node(h))
     if key == "pt":
-        graph.append({"@type": "Service", "serviceType": "Personal training", "name": "Personal training in Enfield", "provider": {"@id": GYM_ID}, "areaServed": "Enfield", "description": "One to one and small group personal training. First session free.", "offers": {"@type": "Offer", "price": "32.50", "priceCurrency": "GBP", "description": "Sessions from 32.50 pounds. First PT session is free."}})
+        graph.append({"@type": "Service", "serviceType": "Personal training", "name": "Personal training in Enfield", "provider": {"@id": GYM_ID}, "areaServed": "Enfield", "description": "One to one and small group personal training. First session free.", "offers": {"@type": "Offer", "price": "32.50", "priceCurrency": "GBP", "description": "30-minute sessions from 32.50 pounds. First PT session is free."}})
     if key == "kids-gym":
         graph.append({"@type": "Service", "serviceType": "Kids gym sessions", "name": "Kids Gym in Enfield", "provider": {"@id": GYM_ID}, "audience": {"@type": "PeopleAudience", "suggestedMinAge": 8}, "description": "Kids gym sessions every Tuesday and Thursday 4pm to 5pm, up to 12 children.", "offers": {"@type": "Offer", "price": "20.00", "priceCurrency": "GBP"}})
     ld = '<script type="application/ld+json">' + json.dumps({"@context": "https://schema.org", "@graph": graph}, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/") + "</script>"
