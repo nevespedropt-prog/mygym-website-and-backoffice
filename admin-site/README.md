@@ -1,0 +1,18 @@
+# MY GYM London back office (admin site)
+
+Static site (no build step). Real data from Supabase through the `admin_*` database functions (see `app/supabase/migration-admin-backend.sql`). Roles: owner/admin, manager, reception, coach.
+
+## Before it can work (one time)
+1. Apply `app/supabase/migration-admin-backend.sql` to the live database (adds the `staff` table and the functions). A rolled-back test run on 2026-10-28 passed: owner sees everything; coach sees only dashboard, schedule and health forms; reception sees members and enquiries but not health forms; signed-out and non-staff people are refused.
+2. The owner is admin because `profiles.is_admin` is already true for the owner's app account. Add staff later in the back office under Team and settings (they need an app account first).
+
+## Upload to Hostinger (when the account exists)
+1. hPanel, Domains, Subdomains: create `admin.mygymlondon.co.uk`. Note its folder (for example `public_html/admin`).
+2. Upload the CONTENTS of this folder (index.html, admin.js, admin.css, config.js, .htaccess, robots.txt, fonts/, img/, vendor/) into that folder. Do not upload README.md if you prefer to keep it private.
+3. DNS is held at Wix: add an `A` record for `admin` pointing to the same Hostinger IP as `www`. Wait for it to resolve.
+4. Open https://admin.mygymlondon.co.uk, sign in with the owner's app email and password.
+5. Check: Dashboard loads, Members shows the real members, Schedule shows today's classes. Turn on 2FA for the owner's accounts.
+
+## What is not here yet
+- Plans and payments (still in Wix), coach access to health forms (needs a coach view of the roster), campaign editor (the existing page at app.mygymlondon.co.uk/admin-campaign.html is linked), staff invitations by email.
+- Test with fake data locally: serve this folder with any static server and replace `vendor/supabase.js` with a stub; do not point it at real data from a shared computer.

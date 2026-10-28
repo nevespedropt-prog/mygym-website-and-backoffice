@@ -3,6 +3,7 @@
 !/.gitignore
 !/website-code/
 !/website-redesign/
+!/admin-site/
 # generated or bulky, can be rebuilt or is not source
 /website-redesign/previews/
 /website-redesign/public-preview/
