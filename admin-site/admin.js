@@ -648,9 +648,10 @@
     return card("Business details", "read only", [kv, h("p", { class: "muted", text: "These are shown for reference. To change them, tell Claude: they appear on the website, in emails and on the legal pages." })]);
   }
   function tabSecurity() {
-    var items = [["Two-step sign-in (2FA) on Wix, Supabase, GitHub, Google, Resend and the domain registrar", "Do this yourself in each account's security settings."], ["Review the 5 collaborators on the Wix site", "Remove anyone who no longer needs access."], ["Confirm the Supabase backup and restore plan", "Free plan: check what is kept and for how long."], ["Raise the email security (DMARC) setting around 19 November", "After reading the reports for about four weeks."], ["Add staff only with the role they need", "Reception sees members and enquiries. Coach sees the schedule and health forms. Health form views are logged."]];
+    var items = [["Keep the Google Workspace mailboxes paid (they are billed through Wix)", "If the payment stops, the mailboxes would be cancelled."], ["Weekly report email: check it arrives on Mondays", "It starts with [ATTENTION] when a check fails."], ["Raise the email security (DMARC) setting around 19 November", "After reading the reports for about four weeks."], ["Add staff only with the role they need", "Reception sees members and enquiries. Coach sees the schedule and health forms. Health form views are logged."], ["Keep access to the Facebook login behind the Instagram feed", "The Instagram token renews itself; if it ever fails, sign in there to make a new one."]];
     return card("Security checklist", "kept here so it is not forgotten", [h("div", { class: "list" }, items.map(function (i) { return h("div", { class: "li" }, [h("span", { class: "ico warn", text: "!" }), h("div", { class: "tx" }, [h("b", { text: i[0] }), h("small", { text: i[1] })])]); }))]);
   }
+
 
   /* ---------- team and settings (admin) ---------- */
   async function vSettings() {

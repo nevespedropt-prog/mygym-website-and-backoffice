@@ -63,6 +63,8 @@ Written 2026-10-28. Target date: 11 November 2026 (set when ready). Tick as you 
 - [ ] Phone check: open the new site on your phone on mobile data (not wifi).
 
 ## 5. Same day: the things that point at the old site
+- [ ] **Email accounts:** the Google mailboxes are billed through Wix. Do NOT stop paying Wix for them. Confirm in Wix (Settings, Google Workspace or Domains and email) what is billed and when it renews. Moving the billing to Google directly is optional, later, and must be planned so no mailbox is cancelled.
+- [ ] **Timetable rules still right after the sync:** Kids Gym Tue and Thu 4pm to 5pm (no gym slots then), HIIT Wednesday 07:00 for 30 minutes with Pedro, HIIT Glow gone. Look at the app timetable and the website Classes page.
 - [ ] Google Business Profile: website link to https://www.mygymlondon.co.uk, check hours and photos (hours stay as they are).
 - [ ] Google Search Console and Bing Webmaster Tools: add the site, verify (DNS or file), submit https://www.mygymlondon.co.uk/sitemap.xml.
 - [ ] Instagram bio link, any QR codes, flyers or email signatures that use old Wix addresses (they redirect, but update the main ones).
@@ -81,7 +83,9 @@ These are the "everything from our system" steps decided on 2026-10-28. Do them 
 - [ ] Check the first real new-member sign-up in the logs (member-signup, check-gym-access).
 - [ ] Netlify deploy credits return 19 November: push the waiting app commits (App terms links, enquiries page); then point gym alert emails to the enquiries page.
 - [ ] DMARC: read the reports, then raise the policy from pct=10.
-- [ ] Turn on 2FA for Hostinger, Wix, Supabase, GitHub, Google, Resend, the registrar and the Facebook account used for the Instagram app.
+- [ ] (2FA and the Wix collaborators: owner decided not to change these. Skip.)
+- [ ] Take down the old public test website (GitHub repo `mygym-website-test`: make it private or turn off GitHub Pages) so only the real site is online.
+- [ ] Check Monday's weekly report email arrives at info@ (the weekly-report job) and does not start with [ATTENTION].
 - [ ] Back up the website and back office (a private GitHub copy).
 
 ## Rollback (if something is badly wrong on the day)
