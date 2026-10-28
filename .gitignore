@@ -1,0 +1,14 @@
+# Only the website source is tracked here. Everything else in this folder (client files, spreadsheets, the app repo) is ignored.
+/*
+!/.gitignore
+!/website-code/
+!/website-redesign/
+# generated or bulky, can be rebuilt or is not source
+/website-redesign/previews/
+/website-redesign/public-preview/
+/website-redesign/offline-assets/
+/website-redesign/site-offline.html
+/website-redesign/*.bak*
+/website-redesign/__pycache__/
+__pycache__/
+*.pyc

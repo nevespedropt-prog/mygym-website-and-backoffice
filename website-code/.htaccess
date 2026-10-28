@@ -1,0 +1,49 @@
+# MyGym London website: Hostinger (Apache / LiteSpeed). Upload this file with the site into public_html.
+# Written 2026-10-27. Test it on the real address after upload (see README, "Before going live").
+
+# 1. HTTPS and the www address
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://www.mygymlondon.co.uk%{REQUEST_URI} [L,R=301]
+RewriteCond %{HTTP_HOST} ^mygymlondon\.co\.uk$ [NC]
+RewriteRule ^ https://www.mygymlondon.co.uk%{REQUEST_URI} [L,R=301]
+
+# 2. Old Wix addresses to the new pages (so Google and members do not hit dead links)
+Redirect 301 /our-classes /classes.html
+Redirect 301 /schedule /classes.html
+Redirect 301 /book-the-gym /book.html
+Redirect 301 /our-personal-training-offer /personal-training.html
+Redirect 301 /book-a-free-class /classes.html
+Redirect 301 /services-4 /services.html
+Redirect 301 /refer-friends /refer-friends.html
+Redirect 301 /referral /refer-friends.html
+Redirect 301 /privacy-notice /privacy.html
+RedirectMatch 301 ^/privacy/?$ /privacy.html
+RedirectMatch 301 ^/terms/?$ /terms.html
+RedirectMatch 301 ^/cookies/?$ /cookies.html
+Redirect 301 /t-and-cs /terms.html
+Redirect 301 /home /
+Redirect 301 /copy-of-home-1 /
+Redirect 301 /pricing-plans/memberships https://join.mygymlondon.co.uk
+ErrorDocument 404 /404.html
+
+# 3. Security headers (the site loads only its own scripts and styles; forms talk to our Supabase)
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://*.supabase.co; frame-src 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+  <FilesMatch "\.(woff2|jpg|jpeg|png|webp|css|js)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+# Links in emails already sent (2026-10-28): keep them working on the new site
+RedirectMatch 301 ^/timetable/?$ /classes.html
+RedirectMatch 301 ^/trial/?$ /classes.html
+RedirectMatch 301 ^/memberships/?$ /services.html

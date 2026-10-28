@@ -1,0 +1,176 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MY GYM London: form previews</title><link rel="stylesheet" href="forms.css">
+<style>@font-face{font-family:"Barlow Condensed";font-weight:800;src:url(fonts/barlow-condensed-800.woff2) format("woff2")}@font-face{font-family:"Barlow Condensed";font-weight:700;src:url(fonts/barlow-condensed-700.woff2) format("woff2")}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 Inter,-apple-system,Segoe UI,Arial,sans-serif;background:#f6f5f4;display:grid;grid-template-columns:320px 1fr;min-height:100vh}
+nav{background:#fff;border-right:1px solid #e6e4e4;padding:16px 0;position:sticky;top:0;height:100vh;overflow:auto}nav h1{font:800 22px "Barlow Condensed",sans-serif;letter-spacing:.06em;text-transform:uppercase;padding:0 18px 12px}
+nav button{display:block;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;padding:9px 18px;cursor:pointer;font:600 14px inherit}nav button small{display:block;font-weight:400;color:#62616a;font-size:12px}nav button.on{background:#fdecec;border-left-color:#e03939}
+main{padding:28px 20px}.meta{max-width:560px;margin:14px auto 0;color:#62616a;font-size:12.5px;text-align:center}@media(max-width:800px){body{grid-template-columns:1fr}nav{position:static;height:auto;max-height:220px}}</style></head><body>
+<nav><h1>Forms</h1><button data-i="0">Get in touch<small>www: Contact page and footer</small></button><button data-i="1">Personal training enquiry<small>www: Personal Training page</small></button><button data-i="2">Book a free trial class<small>www: Join page, Instagram link, landing pages</small></button><button data-i="3">Claim this offer<small>www: landing pages such as /january (one form, the offer name is a hidden field)</small></button><button data-i="4">Group sessions for your team<small>www: Corporate wellness page</small></button><button data-i="5">Kids Gym registration<small>www: Kids Gym page; app: before a first Kids Gym booking</small></button><button data-i="6">Pause or cancel my membership<small>app: Profile, Membership · members only</small></button><button data-i="7">How was your class?<small>app: after a class; link in the review-request email · members only</small></button><button data-i="8">Bring a friend<small>app: Profile, Refer a friend · members only</small></button><button data-i="9">Get news and offers<small>www: footer on every page</small></button></nav><main><section data-i="0" hidden><form class="mgl-form" data-form="contact" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Get in touch</h2>
+  <p class="intro">Questions about classes, memberships or anything else? Send us a message and we will reply within one working day.</p>
+  <div class="field"><label for="contact-full_name">Your name <span class="req" aria-hidden="true">*</span></label><input type="text" name="full_name" id="contact-full_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="contact-email">Email address <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="contact-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="contact-phone">Phone number (optional)</label><input type="tel" name="phone" id="contact-phone" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+  <div class="field"><label for="contact-topic">What is it about? <span class="req" aria-hidden="true">*</span></label><select name="topic" id="contact-topic" required aria-required="true"><option value="">Choose…</option><option>Memberships and prices</option><option>Classes and timetable</option><option>Personal training</option><option>Kids Gym</option><option>Something else</option></select></div>
+  <div class="field"><label for="contact-message">How can we help? <span class="req" aria-hidden="true">*</span></label><textarea name="message" id="contact-message" rows="5" maxlength="1500" required aria-required="true"></textarea></div>
+  <input type="hidden" name="utm_source" id="contact-utm_source">
+  <input type="hidden" name="utm_medium" id="contact-utm_medium">
+  <input type="hidden" name="utm_campaign" id="contact-utm_campaign">
+  <input type="hidden" name="page_url" id="contact-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label></div>
+  <p class="privacy">We use your details only to reply to you. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks, we have your message. We will reply within one working day."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>enquiry-autoreply</b> · kept for 730 days</p></section>
+<section data-i="1" hidden><form class="mgl-form" data-form="pt-enquiry" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Personal training enquiry</h2>
+  <p class="intro">Tell us what you want to achieve and a coach will get in touch to talk it through.</p>
+  <div class="field"><label for="pt-enquiry-full_name">Your name <span class="req" aria-hidden="true">*</span></label><input type="text" name="full_name" id="pt-enquiry-full_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="pt-enquiry-email">Email address <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="pt-enquiry-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="pt-enquiry-phone">Phone number <span class="req" aria-hidden="true">*</span></label><input type="tel" name="phone" id="pt-enquiry-phone" maxlength="25" autocomplete="tel" inputmode="tel" required aria-required="true"></div>
+  <div class="field"><label for="pt-enquiry-goal">Your main goal <span class="req" aria-hidden="true">*</span></label><select name="goal" id="pt-enquiry-goal" required aria-required="true"><option value="">Choose…</option><option>Lose weight</option><option>Build strength</option><option>Get fitter</option><option>Recover from an injury</option><option>Train for an event</option><option>Something else</option></select></div>
+  <fieldset class="field group"><legend>How would you describe your training so far? <span class="req" aria-hidden="true">*</span></legend><label class="opt"><input type="radio" name="experience" value="New to it" required> <span>New to it</span></label><label class="opt"><input type="radio" name="experience" value="Some experience"> <span>Some experience</span></label><label class="opt"><input type="radio" name="experience" value="Experienced"> <span>Experienced</span></label></fieldset>
+  <fieldset class="field group"><legend>Best times for you</legend><label class="opt"><input type="checkbox" name="times" value="Mornings"> <span>Mornings</span></label><label class="opt"><input type="checkbox" name="times" value="Daytime"> <span>Daytime</span></label><label class="opt"><input type="checkbox" name="times" value="Evenings"> <span>Evenings</span></label><label class="opt"><input type="checkbox" name="times" value="Weekends"> <span>Weekends</span></label></fieldset>
+  <div class="field"><label for="pt-enquiry-health_note">Anything we should know? (optional)</label><textarea name="health_note" id="pt-enquiry-health_note" rows="3" maxlength="600" aria-describedby="pt-enquiry-health_note-help"></textarea><p class="help" id="pt-enquiry-health_note-help">Only share what you are comfortable with. We will talk through health details in person.</p></div>
+  <input type="hidden" name="utm_source" id="pt-enquiry-utm_source">
+  <input type="hidden" name="utm_medium" id="pt-enquiry-utm_medium">
+  <input type="hidden" name="utm_campaign" id="pt-enquiry-utm_campaign">
+  <input type="hidden" name="page_url" id="pt-enquiry-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label></div>
+  <p class="privacy">We use your details only to arrange your training. If you mention health information we use it only to keep you safe in sessions. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks! A coach will contact you within one working day."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>pt-enquiry-autoreply</b> · kept for 730 days</p></section>
+<section data-i="2" hidden><form class="mgl-form" data-form="trial-class" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Book a free trial class</h2>
+  <p class="intro">Your first class is on us. Pick a class and we will confirm your place by email.</p>
+  <div class="field"><label for="trial-class-full_name">Your name <span class="req" aria-hidden="true">*</span></label><input type="text" name="full_name" id="trial-class-full_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="trial-class-email">Email address <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="trial-class-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="trial-class-phone">Phone number <span class="req" aria-hidden="true">*</span></label><input type="tel" name="phone" id="trial-class-phone" maxlength="25" autocomplete="tel" inputmode="tel" required aria-required="true"></div>
+  <div class="field"><label for="trial-class-class">Which class? <span class="req" aria-hidden="true">*</span></label><select name="class" id="trial-class-class" data-options-from="timetable" required aria-required="true" aria-describedby="trial-class-class-help"><option value="">Choose…</option></select><p class="help" id="trial-class-class-help">The list comes from the live timetable.</p></div>
+  <div class="field"><label for="trial-class-date">Which day? <span class="req" aria-hidden="true">*</span></label><input type="date" name="date" id="trial-class-date" data-min-days="1" data-max-days="30" required aria-required="true"></div>
+  <fieldset class="field group"><legend>Have you trained before?</legend><label class="opt"><input type="radio" name="experience" value="Yes, regularly"> <span>Yes, regularly</span></label><label class="opt"><input type="radio" name="experience" value="A bit"> <span>A bit</span></label><label class="opt"><input type="radio" name="experience" value="Not for a while"> <span>Not for a while</span></label><label class="opt"><input type="radio" name="experience" value="Never"> <span>Never</span></label></fieldset>
+  <input type="hidden" name="utm_source" id="trial-class-utm_source">
+  <input type="hidden" name="utm_medium" id="trial-class-utm_medium">
+  <input type="hidden" name="utm_campaign" id="trial-class-utm_campaign">
+  <input type="hidden" name="page_url" id="trial-class-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label><label class="opt consent"><input type="checkbox" name="consent_health_ready" value="1" required aria-required="true"> <span>I am fit to exercise, or I will tell the coach before the class about anything that might affect me. <span class="req" aria-hidden="true">*</span></span></label></div>
+  <p class="privacy">We use your details only to reply to you. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks! We will confirm your free trial by email shortly."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>enquiry-autoreply</b> · kept for 730 days</p></section>
+<section data-i="3" hidden><form class="mgl-form" data-form="landing-offer" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Claim this offer</h2>
+  <p class="intro">Leave your details and we will get you started.</p>
+  <div class="field"><label for="landing-offer-full_name">Your name <span class="req" aria-hidden="true">*</span></label><input type="text" name="full_name" id="landing-offer-full_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="landing-offer-email">Email address <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="landing-offer-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="landing-offer-phone">Phone number <span class="req" aria-hidden="true">*</span></label><input type="tel" name="phone" id="landing-offer-phone" maxlength="25" autocomplete="tel" inputmode="tel" required aria-required="true"></div>
+  <input type="hidden" name="offer_name" id="landing-offer-offer_name">
+  <input type="hidden" name="utm_source" id="landing-offer-utm_source">
+  <input type="hidden" name="utm_medium" id="landing-offer-utm_medium">
+  <input type="hidden" name="utm_campaign" id="landing-offer-utm_campaign">
+  <input type="hidden" name="page_url" id="landing-offer-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label></div>
+  <p class="privacy">We use your details only to reply to you. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks, you are on the list. We will be in touch within one working day."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>offer-autoreply</b> · kept for 730 days</p></section>
+<section data-i="4" hidden><form class="mgl-form" data-form="corporate-enquiry" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Group sessions for your team</h2>
+  <p class="intro">Tell us about your team and we will come back with options and a quote.</p>
+  <div class="field"><label for="corporate-enquiry-full_name">Your name <span class="req" aria-hidden="true">*</span></label><input type="text" name="full_name" id="corporate-enquiry-full_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="corporate-enquiry-company">Company <span class="req" aria-hidden="true">*</span></label><input type="text" name="company" id="corporate-enquiry-company" maxlength="100" required aria-required="true"></div>
+  <div class="field"><label for="corporate-enquiry-email">Work email <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="corporate-enquiry-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="corporate-enquiry-phone">Phone number (optional)</label><input type="tel" name="phone" id="corporate-enquiry-phone" maxlength="25" autocomplete="tel" inputmode="tel"></div>
+  <div class="field"><label for="corporate-enquiry-team_size">Roughly how many people? <span class="req" aria-hidden="true">*</span></label><select name="team_size" id="corporate-enquiry-team_size" required aria-required="true"><option value="">Choose…</option><option>Under 10</option><option>10 to 20</option><option>20 to 50</option><option>More than 50</option></select></div>
+  <fieldset class="field group"><legend>Preferred days</legend><label class="opt"><input type="checkbox" name="days" value="Monday"> <span>Monday</span></label><label class="opt"><input type="checkbox" name="days" value="Tuesday"> <span>Tuesday</span></label><label class="opt"><input type="checkbox" name="days" value="Wednesday"> <span>Wednesday</span></label><label class="opt"><input type="checkbox" name="days" value="Thursday"> <span>Thursday</span></label><label class="opt"><input type="checkbox" name="days" value="Friday"> <span>Friday</span></label><label class="opt"><input type="checkbox" name="days" value="Saturday"> <span>Saturday</span></label></fieldset>
+  <div class="field"><label for="corporate-enquiry-message">Anything else we should know?</label><textarea name="message" id="corporate-enquiry-message" rows="5" maxlength="1500"></textarea></div>
+  <input type="hidden" name="utm_source" id="corporate-enquiry-utm_source">
+  <input type="hidden" name="utm_medium" id="corporate-enquiry-utm_medium">
+  <input type="hidden" name="utm_campaign" id="corporate-enquiry-utm_campaign">
+  <input type="hidden" name="page_url" id="corporate-enquiry-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label></div>
+  <p class="privacy">We use your details only to reply to you. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks! We will come back to you within two working days."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>corporate-autoreply</b> · kept for 730 days</p></section>
+<section data-i="5" hidden><form class="mgl-form" data-form="kids-registration" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Kids Gym registration</h2>
+  <p class="intro">For children aged 8 and over, with a parent or guardian's consent. We confirm each place within two working days.</p>
+  <div class="field"><label for="kids-registration-parent_name">Parent or guardian name <span class="req" aria-hidden="true">*</span></label><input type="text" name="parent_name" id="kids-registration-parent_name" maxlength="80" autocomplete="name" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-email">Parent or guardian email <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="kids-registration-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-phone">Parent or guardian phone <span class="req" aria-hidden="true">*</span></label><input type="tel" name="phone" id="kids-registration-phone" maxlength="25" autocomplete="tel" inputmode="tel" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-child_first_name">Child's first name <span class="req" aria-hidden="true">*</span></label><input type="text" name="child_first_name" id="kids-registration-child_first_name" maxlength="40" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-child_last_name">Child's last name <span class="req" aria-hidden="true">*</span></label><input type="text" name="child_last_name" id="kids-registration-child_last_name" maxlength="40" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-child_dob">Child's date of birth <span class="req" aria-hidden="true">*</span></label><input type="date" name="child_dob" id="kids-registration-child_dob" data-age-min="8" data-age-max="17" required aria-required="true" aria-describedby="kids-registration-child_dob-help"><p class="help" id="kids-registration-child_dob-help">Kids Gym is for children aged 8 and over.</p></div>
+  <div class="field"><label for="kids-registration-emergency_name">Emergency contact name <span class="req" aria-hidden="true">*</span></label><input type="text" name="emergency_name" id="kids-registration-emergency_name" maxlength="80" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-emergency_phone">Emergency contact phone <span class="req" aria-hidden="true">*</span></label><input type="tel" name="emergency_phone" id="kids-registration-emergency_phone" maxlength="25" inputmode="tel" required aria-required="true"></div>
+  <div class="field"><label for="kids-registration-medical">Medical conditions, allergies or additional needs (optional)</label><textarea name="medical" id="kids-registration-medical" rows="3" maxlength="600" aria-describedby="kids-registration-medical-help"></textarea><p class="help" id="kids-registration-medical-help">Only what a coach needs to know to keep your child safe.</p></div>
+  <input type="hidden" name="utm_source" id="kids-registration-utm_source">
+  <input type="hidden" name="utm_medium" id="kids-registration-utm_medium">
+  <input type="hidden" name="utm_campaign" id="kids-registration-utm_campaign">
+  <input type="hidden" name="page_url" id="kids-registration-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_parental_responsibility" value="1" required aria-required="true"> <span>I have parental responsibility for this child and I consent to them taking part in Kids Gym sessions. <span class="req" aria-hidden="true">*</span></span></label><label class="opt consent"><input type="checkbox" name="consent_medical_use" value="1"> <span>I agree MY GYM London may use the medical information above only to keep my child safe in sessions. (Needed if you have filled in the medical box.)</span></label><label class="opt consent"><input type="checkbox" name="consent_photos" value="1"> <span>I am happy for photos that include my child to be used on MY GYM London's website and social media.</span></label><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1"> <span>Send me news and offers from MY GYM London by email. I can unsubscribe at any time.</span></label></div>
+  <p class="privacy">We keep your child's details private and use them only for their sessions and for contacting you. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks! We will confirm your child's place within two working days."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-enquiry</b> · to the person: <b>kids-registration-received</b> · kept for 365 days</p></section>
+<section data-i="6" hidden><form class="mgl-form" data-form="pause-cancel-request" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Pause or cancel my membership</h2>
+  <p class="intro">Tell us what you need and we will sort it. We will confirm by email.</p>
+  <fieldset class="field group"><legend>What would you like to do? <span class="req" aria-hidden="true">*</span></legend><label class="opt"><input type="radio" name="request_type" value="Pause my membership" required> <span>Pause my membership</span></label><label class="opt"><input type="radio" name="request_type" value="Cancel my membership"> <span>Cancel my membership</span></label><label class="opt"><input type="radio" name="request_type" value="Change my plan"> <span>Change my plan</span></label></fieldset>
+  <div class="field"><label for="pause-cancel-request-from_date">From which date? <span class="req" aria-hidden="true">*</span></label><input type="date" name="from_date" id="pause-cancel-request-from_date" data-min-days="0" data-max-days="90" required aria-required="true"></div>
+  <div class="field"><label for="pause-cancel-request-reason">Mind telling us why? (optional)</label><select name="reason" id="pause-cancel-request-reason"><option value="">Choose…</option><option>Moving away</option><option>Cost</option><option>Injury or health</option><option>Not enough time</option><option>Not what I expected</option><option>Other</option></select></div>
+  <div class="field"><label for="pause-cancel-request-message">Anything else?</label><textarea name="message" id="pause-cancel-request-message" rows="3" maxlength="600"></textarea></div>
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  
+  <p class="privacy">We use this to manage your membership. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thanks, we have your request and will confirm by email within two working days."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-change-request</b> · to the person: <b>none</b> · kept for 1095 days</p></section>
+<section data-i="7" hidden><form class="mgl-form" data-form="feedback" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>How was your class?</h2>
+  <p class="intro">Two quick questions. It really helps us improve.</p>
+  <fieldset class="field group rating"><legend>Overall, how was it? <span class="req" aria-hidden="true">*</span></legend><div class="stars"><input type="radio" name="rating" id="feedback-rating-5" value="5" required><label for="feedback-rating-5" title="5 out of 5"><span class="sr">5 out of 5</span>★</label><input type="radio" name="rating" id="feedback-rating-4" value="4"><label for="feedback-rating-4" title="4 out of 5"><span class="sr">4 out of 5</span>★</label><input type="radio" name="rating" id="feedback-rating-3" value="3"><label for="feedback-rating-3" title="3 out of 5"><span class="sr">3 out of 5</span>★</label><input type="radio" name="rating" id="feedback-rating-2" value="2"><label for="feedback-rating-2" title="2 out of 5"><span class="sr">2 out of 5</span>★</label><input type="radio" name="rating" id="feedback-rating-1" value="1"><label for="feedback-rating-1" title="1 out of 5"><span class="sr">1 out of 5</span>★</label></div></fieldset>
+  <div class="field"><label for="feedback-class">Which class?</label><select name="class" id="feedback-class" data-options-from="recent-classes"><option value="">Choose…</option></select></div>
+  <div class="field"><label for="feedback-message">Anything we could do better? (optional)</label><textarea name="message" id="feedback-message" rows="4" maxlength="800"></textarea></div>
+  <fieldset class="field group"><label class="opt"><input type="checkbox" name="follow_up" value="You can contact me about this"> <span>You can contact me about this</span></label></fieldset>
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  
+  <p class="privacy">We use feedback to improve our classes. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send feedback</button>
+  <p class="status" role="status" aria-live="polite" data-success="Thank you for the feedback." data-success-high="Thank you! If you have a minute, a Google review helps a small gym a lot."></p>
+</form><p class="meta">Sent to the gym as: <b>admin-new-review</b> · to the person: <b>none</b> · kept for 730 days</p></section>
+<section data-i="8" hidden><form class="mgl-form" data-form="refer-a-friend" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Bring a friend</h2>
+  <p class="intro">Invite a friend to come and see MY GYM London.</p>
+  <div class="field"><label for="refer-a-friend-friend_name">Your friend's first name <span class="req" aria-hidden="true">*</span></label><input type="text" name="friend_name" id="refer-a-friend-friend_name" maxlength="40" required aria-required="true"></div>
+  <div class="field"><label for="refer-a-friend-friend_email">Your friend's email <span class="req" aria-hidden="true">*</span></label><input type="email" name="friend_email" id="refer-a-friend-friend_email" maxlength="120" required aria-required="true"></div>
+  <div class="field"><label for="refer-a-friend-message">Add a personal note (optional)</label><textarea name="message" id="refer-a-friend-message" rows="3" maxlength="300"></textarea></div>
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_friend_ok" value="1" required aria-required="true"> <span>My friend knows I am sending this invite. They will get one email from MY GYM London and no more unless they join. <span class="req" aria-hidden="true">*</span></span></label></div>
+  <p class="privacy">We use your friend's email only to send this one invite. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Send invite</button>
+  <p class="status" role="status" aria-live="polite" data-success="Invite sent! We will let you know when your friend joins."></p>
+</form><p class="meta">Sent to the gym as: <b>none</b> · to the person: <b>referral-invite</b> · kept for 365 days</p></section>
+<section data-i="9" hidden><form class="mgl-form" data-form="newsletter-signup" data-min-seconds="3" method="post" action="#" novalidate>
+  <h2>Get news and offers</h2>
+  <p class="intro">Occasional updates, offers and class news. No spam.</p>
+  <div class="field"><label for="newsletter-signup-first_name">First name (optional)</label><input type="text" name="first_name" id="newsletter-signup-first_name" maxlength="40"></div>
+  <div class="field"><label for="newsletter-signup-email">Email address <span class="req" aria-hidden="true">*</span></label><input type="email" name="email" id="newsletter-signup-email" maxlength="120" autocomplete="email" required aria-required="true"></div>
+  <input type="hidden" name="page_url" id="newsletter-signup-page_url">
+  <div class="hp" aria-hidden="true"><label>Leave this field empty <input type="text" name="company_website" tabindex="-1" autocomplete="off"></label></div>
+  <div class="consents"><label class="opt consent"><input type="checkbox" name="consent_marketing" value="1" required aria-required="true"> <span>Yes, send me news and offers from MY GYM London by email. I can unsubscribe at any time. <span class="req" aria-hidden="true">*</span></span></label></div>
+  <p class="privacy">We will only email you if you confirm. See our <a href="https://www.mygymlondon.co.uk/privacy">Privacy Notice</a>.</p>
+  <button type="submit" class="btn">Sign me up</button>
+  <p class="status" role="status" aria-live="polite" data-success="Almost done! Please check your email and tap the confirm button."></p>
+</form><p class="meta">Sent to the gym as: <b>none</b> · to the person: <b>newsletter-welcome</b> · kept for 1095 days</p></section></main>
+<script>window.MGL_FORMS={endpoint:"about:blank"};
+const b=[...document.querySelectorAll("nav button")],s=[...document.querySelectorAll("main section")];function show(i){b.forEach((x,k)=>x.classList.toggle("on",k===i));s.forEach((x,k)=>x.hidden=k!==i)}b.forEach((x,i)=>x.onclick=()=>show(i));show(0);
+document.addEventListener("submit",e=>{e.preventDefault();e.stopImmediatePropagation();const f=e.target;if(!f.checkValidity()){f.reportValidity();return}const st=f.querySelector(".status");st.textContent=st.dataset.success+" (preview only, nothing was sent)";st.className="status ok"},true);</script>
+<script src="forms.js"></script></body></html>

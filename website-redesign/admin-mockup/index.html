@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MY GYM London Back End (design mock-up)</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="img/logo-header.png">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+<div class="ribbon">Design mock-up with <b>sample data</b>. Nothing here is real or saved. Click around: every page, panel and button is clickable.</div>
+<div class="app">
+  <aside class="side" id="side" aria-label="Main menu">
+    <div class="brand"><img src="img/logo-header.png" alt=""><div><b>My Gym</b><small>Back office</small></div></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="me"><div class="av">PN</div><div><b>Pedro Neves</b><small>Owner · full access</small></div></div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <button class="burger" id="burger" aria-label="Open menu"></button>
+      <label class="search"><span class="sr">Search</span><span id="searchIcon"></span><input id="gsearch" type="search" placeholder="Search members, bookings, classes…" autocomplete="off"><kbd>/</kbd></label>
+      <div class="grow"></div>
+      <a class="btn sm hide-s" href="#" id="gmail"><span data-i="mail"></span> Open info@ Gmail</a>
+      <button class="ibtn" id="bell" aria-label="Notifications"><span data-i="bell"></span><span class="dot"></span></button>
+    </header>
+    <main class="page" id="page" tabindex="-1"></main>
+  </div>
+</div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div class="modal" id="modal" role="dialog" aria-modal="true"></div>
+<div class="toast" id="toast" role="status"></div>
+<div class="tip" id="tip"></div>
+<script src="data.js"></script>
+<script src="data2.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
