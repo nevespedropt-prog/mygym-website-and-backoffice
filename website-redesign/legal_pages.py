@@ -56,6 +56,7 @@ PRIVACY = ("Privacy policy", "How MyGym London looks after your personal informa
         "We do not sell your information. We share it only with companies that help us run the service, and only as needed:",
         ["Supabase, which hosts the app database, logins and background functions.",
          "Hostinger, which hosts the MyGym London website.",
+         "Instagram (Meta), which supplies the pictures in the photo strip on our home page. Your browser loads them from Instagram's servers, so Meta can see your IP address when the strip loads. We do not add Instagram's tracking code to our pages.",
          "Wix, which runs our memberships, online checkout, payments and some gym bookings.",
          "Resend, which sends our emails from info@mygymlondon.co.uk: booking confirmations and cancellations, class reminders, welcome emails, replies to your enquiries and, only if you opted in, news and offers. It receives your email address, your first name and the details in the email (for example the class, date and time), and keeps its own delivery records for 30 days. We use its Ireland (EU) sending region.",
          "GitHub, which hosts the app files. It can see technical details, such as your IP address, when your device loads the app.",
@@ -196,6 +197,7 @@ COOKIES = ("Cookie notice", "What the website and app store on your device, and 
     ]),
     ("Links to other sites", [
         "Links to Instagram take you to that company's site, which has its own cookies and policy.",
+        "The photo strip on the home page shows our latest Instagram posts. The pictures load from Instagram's servers (Meta), which can see your IP address and device details when they load. We do not add Instagram's cookies or tracking code to our pages.",
         "The website shows a picture of a map. It links to Google Maps, which has its own cookies and policy, only if you click it.",
     ]),
     ("Your choices", [
