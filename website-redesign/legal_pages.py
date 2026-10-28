@@ -153,7 +153,7 @@ TERMS = ("Terms and conditions", "The rules for using the MyGym London website a
          "A parent or guardian must complete the health and safety form for their child, and accept these terms on their child's behalf, when booking."],
     ]),
     ("Refer a friend", [
-        ["If you refer a friend who buys a plan, you receive a 100% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.",
+        ["If you refer a friend who buys a plan, you receive a 50% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.",
          "There is no limit on how many friends you can refer, or how many rewards you can earn.",
          "We may withdraw the offer, or refuse a reward where it is being abused."],
     ]),

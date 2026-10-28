@@ -70,7 +70,7 @@ If you buy online or by phone, you normally have a right to cancel within 14 day
 
 ## Refer a friend
 
-- If you refer a friend who buys a plan, you receive a 100% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.
+- If you refer a friend who buys a plan, you receive a 50% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.
 - There is no limit on how many friends you can refer, or how many rewards you can earn.
 - We may withdraw the offer, or refuse a reward where it is being abused.
 

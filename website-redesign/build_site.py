@@ -131,7 +131,7 @@ views["login"] = (
     '<a class="btn" href="{APP}/#login">Log in on the app</a></div>'
     '<aside class="card loginnew"><h3>New to MyGym?</h3><p>Pick a plan to join. Classes start from £6.</p>'
     '<a class="btn" href="services.html">See our plans</a>'
-    '<p class="fine">Already a member? Get 100% off for each friend you refer. <a href="refer-friends.html">See Refer Friends</a></p></aside></div></div></section>'.replace("{APP}", APP)
+    '<p class="fine">Already a member? Get 50% off for each friend you refer. <a href="refer-friends.html">See Refer Friends</a></p></aside></div></div></section>'.replace("{APP}", APP)
 )
 
 # Services: real join link; everything else stays
