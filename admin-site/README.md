@@ -16,3 +16,7 @@ Static site (no build step). Real data from Supabase through the `admin_*` datab
 ## What is not here yet
 - Plans and payments (still in Wix), coach access to health forms (needs a coach view of the roster), campaign editor (the existing page at app.mygymlondon.co.uk/admin-campaign.html is linked), staff invitations by email.
 - Test with fake data locally: serve this folder with any static server and replace `vendor/supabase.js` with a stub; do not point it at real data from a shared computer.
+
+## Sample figures
+`config.js` has `SAMPLE_FIGURES: true`. While it is true, the three Wix-dependent items (monthly revenue, failed payments, members by plan) and the Plans and payments page show placeholder numbers with a yellow "Sample" tag and a blue banner. Everything else on the dashboard is real. Set it to `false` to hide the placeholders (those cards then say "Connect Wix payments").
+The dashboard needs `admin_insights()` too: it is in the same migration file.

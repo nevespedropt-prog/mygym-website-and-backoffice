@@ -85,7 +85,7 @@
     ROUTES.forEach(function (r) {
       if (!can(r.roles)) return;
       if (r.section && r.section !== sec) { sec = r.section; nav.appendChild(h("h6", { text: sec })); }
-      nav.appendChild(h("a", { href: "#/" + r.id, "data-r": r.id }, [h("span", { class: "ico", text: r.icon }), r.label]));
+      nav.appendChild(h("a", { href: "#/" + r.id, "data-r": r.id }, [h("span", { class: "nico", text: r.icon }), r.label]));
     });
   }
   function route() {
@@ -131,58 +131,117 @@
     route();
   }
 
-  /* ---------- dashboard ---------- */
-  async function vDashboard() {
-    var d = await rpc("admin_dashboard"), root = h("div");
-    var greet = new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: TZ }) * 1;
-    var first = (me.name || "").split(" ")[0];
-    root.appendChild(pageHead((greet < 12 ? "Good morning" : greet < 18 ? "Good afternoon" : "Good evening") + (first ? ", " + first : ""), "Here is how MY GYM London looks right now."));
-    var k = [];
-    if (d.members_total != null) { k.push(kpi("Members with an app account", d.members_total, d.members_7d + " new this week, " + d.members_30d + " in 30 days")); }
-    k.push(kpi("Bookings in the next 7 days", d.upcoming_7d, "classes and gym slots"));
-    if (d.enquiries_open != null) k.push(kpi("Open enquiries", d.enquiries_open, d.enquiries_new + " new, waiting for a reply", d.enquiries_new > 0));
-    if (d.subscribers != null) k.push(kpi("News and offers subscribers", d.subscribers, d.subscribers_pending + " waiting to confirm"));
-    root.appendChild(h("div", { class: "grid g4" }, k));
-    var classes = (d.today_classes || []).filter(function (c) { return c.kind !== "gym"; });
-    var gym = (d.today_classes || []).filter(function (c) { return c.kind === "gym"; });
-    var gymBooked = gym.reduce(function (a, c) { return a + c.booked; }, 0);
-    var list = h("div", { class: "list" });
-    if (!classes.length) list.appendChild(empty("No classes today."));
-    classes.forEach(function (c) {
-      var full = c.capacity && c.booked >= c.capacity;
-      list.appendChild(h("div", { class: "li" }, [h("div", { class: "time num", text: String(c.start).slice(0, 5) }), h("div", { class: "tx" }, [h("b", { text: c.name }), h("small", { text: c.coach ? "Coach " + c.coach : "No coach set" })]),
-        h("div", { style: "width:110px" }, [fill(c.booked, c.capacity)]), h("span", { class: "num", text: c.booked + "/" + c.capacity }), h("span", { class: "hide-s" }, [full ? chip("Full", "warn") : c.booked ? chip("Booked", "ok") : chip("Open", "plain")])]));
-    });
-    var top = h("div", { class: "g-main grid", style: "margin-top:16px" });
-    top.appendChild(card("Today's classes", fDate(d.today), [list, gym.length ? h("p", { class: "muted", text: "Gym floor: " + gymBooked + " booking" + (gymBooked === 1 ? "" : "s") + " across " + gym.length + " hourly slots today." }) : null]));
-    var side = h("div", { class: "grid", style: "align-content:start" });
-    var topc = h("div", { class: "list" }); (d.top_classes_30d || []).forEach(function (t, i, a) { topc.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name })]), h("div", { style: "width:90px" }, [h("div", { class: "bar" }, [h("i", { style: "width:" + Math.round(t.n / a[0].n * 100) + "%" })])]), h("span", { class: "num", text: t.n })])); });
-    if (!(d.top_classes_30d || []).length) topc.appendChild(empty("No class bookings in the last 30 days yet."));
-    side.appendChild(card("Most booked classes", "last 30 days", [topc]));
-    if (d.latest_enquiries) {
-      var le = h("div", { class: "list" }); d.latest_enquiries.forEach(function (e) { le.appendChild(h("a", { class: "li", href: "#/enquiries" }, [h("div", { class: "tx" }, [h("b", { text: e.name || "(no name)" }), h("small", { text: (FORMS[e.form_id] || e.form_id) + " · " + ago(e.at) })]), chip(STATUS[e.status] || e.status, e.status === "new" ? "bad" : "info")])); });
-      if (!d.latest_enquiries.length) le.appendChild(empty("No open enquiries. Nice."));
-      side.appendChild(card("Latest enquiries", "", [le]));
-    }
-    top.appendChild(side); root.appendChild(top);
-    root.appendChild(card("Bookings per day", "last 14 days and the next 6", [barChart(d.bookings_by_day || [], d.today)], ""));
-    root.lastChild.style.marginTop = "16px";
-    if (d.emails_7d_sent != null) {
-      root.appendChild(h("div", { class: "grid g3", style: "margin-top:16px" }, [kpi("Emails sent (7 days)", d.emails_7d_sent, "confirmations, reminders, replies"), kpi("Emails that failed", d.emails_7d_failed, d.emails_7d_failed ? "check the Emails page" : "all delivered", d.emails_7d_failed > 0), kpi("Today", fDate(d.today), "UK time")]));
-    }
-    return root;
+  /* ---------- dashboard (same design as the 25 October mock-up, real data; Wix-dependent figures are SAMPLE until connected) ---------- */
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function fromHtml(str) { var t = document.createElement("template"); t.innerHTML = str.trim(); return t.content.firstChild; }
+  var IC = {
+    clip: "M9 3h6v3H9zM7 5H5v16h14V5h-2M9 12h6M9 16h4", users: "M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 20v-2a4 4 0 0 0-3-3.9M16 2.1a4 4 0 0 1 0 7.8",
+    inbox: "M22 12h-6l-2 3h-4l-2-3H2M5.5 5h13L22 12v7H2v-7z", plus: "M12 5v14M5 12h14", alert: "M12 3l10 18H2zM12 10v5M12 18h0", clock: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7v5l3 2",
+    up: "M7 17L17 7M8 7h9v9", down: "M7 7l10 10M17 8v9H8", dumb: "M6.5 6.5v11M17.5 6.5v11M3 9v6M21 9v6M6.5 12h11", pulse: "M22 12h-4l-3 9L9 3l-3 9H2", pound: "M18 7c0-2.2-2-4-4.5-4S9 4.8 9 7v4H6m3 0v6c0 1.7-1 3-3 3h12M6 14h8",
+    mail: "M3 5h18v14H3zM3 7l9 7 9-7", cal: "M3 5h18v16H3zM3 10h18M8 3v4M16 3v4", check: "M20 6L9 17l-5-5", card: "M2 6h20v12H2zM2 10h20M6 15h4"
+  };
+  function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="' + (IC[n] || "") + '"/></svg>'; }
+  function spark(pts, color) {
+    if (!pts || pts.length < 2) return "";
+    var w = 84, hh = 30, mx = Math.max.apply(null, pts), mn = Math.min.apply(null, pts), r = (mx - mn) || 1;
+    var p = pts.map(function (v, i) { return (i / (pts.length - 1)) * w + "," + (hh - 3 - ((v - mn) / r) * (hh - 8)); }).join(" ");
+    return '<svg class="spark" width="' + w + '" height="' + hh + '" viewBox="0 0 ' + w + " " + hh + '" aria-hidden="true"><polyline fill="none" stroke="' + color + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" points="' + p + '"/></svg>';
+  }
+  function sampleTag() { return '<span class="chip warn plain sampletag" title="Placeholder figure until Wix payments are connected">Sample</span>'; }
+  function kpiX(lab, ic, val, unit, delta, dir, sp, cls, sample) {
+    return '<div class="card kpi ' + (cls || "") + '"><div class="lab">' + icon(ic) + " " + esc(lab) + (sample ? " " + sampleTag() : "") + '</div><div class="val num">' + esc(val) + (unit ? "<small>" + esc(unit) + "</small>" : "") + '</div><div class="dlt ' + (dir || "flat") + '">' + (dir === "up" ? icon("up") : dir === "dn" ? icon("down") : "") + esc(delta) + "</div>" + (sp || "") + "</div>";
   }
   function barChart(rows, today) {
-    var max = Math.max.apply(null, rows.map(function (r) { return r.n; }).concat([1])), w = 100 / Math.max(rows.length, 1);
-    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("viewBox", "0 0 100 40"); svg.setAttribute("preserveAspectRatio", "none"); svg.setAttribute("class", "bars");
+    var W = 640, H = 230, L = 32, B = 28, T = 10, mx = Math.ceil(Math.max.apply(null, rows.map(function (r) { return r.n; }).concat([1])) / 10) * 10 || 10, bw = (W - L) / rows.length, ch = H - B - T, g = "", b = "";
+    for (var i = 0; i <= 4; i++) { var y = T + ch - (ch * i) / 4; g += '<line x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#efedec"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + Math.round((mx * i) / 4) + "</text>"; }
     rows.forEach(function (r, i) {
-      var hh = r.n / max * 34, rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      rect.setAttribute("x", i * w + w * 0.14); rect.setAttribute("width", w * 0.72); rect.setAttribute("y", 36 - hh); rect.setAttribute("height", Math.max(hh, 0.4)); rect.setAttribute("rx", 0.6);
-      rect.setAttribute("fill", r.d === today ? "#e03939" : r.d > today ? "#f0b4b4" : "#cfcdd1");
-      var t = document.createElementNS("http://www.w3.org/2000/svg", "title"); t.textContent = fDate(r.d) + ": " + r.n; rect.appendChild(t); svg.appendChild(rect);
+      var hh = Math.max(3, (r.n / mx) * ch), x = L + i * bw + bw * 0.16, last = r.d === today;
+      b += '<rect x="' + x + '" y="' + (T + ch - hh) + '" width="' + bw * 0.68 + '" height="' + hh + '" rx="5" fill="' + (last ? "#e03939" : "#f1c0c0") + '"><title>' + esc(fDate(r.d) + ": " + r.n + " bookings") + "</title></rect>";
+      if (i % 2 === 0 || last) b += '<text x="' + (x + bw * 0.34) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(new Date(r.d + "T12:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })) + "</text>";
     });
-    var lab = h("div", { class: "barlab" }, [h("span", { text: rows.length ? fDate(rows[0].d) : "" }), h("span", { text: "today is red" }), h("span", { text: rows.length ? fDate(rows[rows.length - 1].d) : "" })]);
-    return h("div", null, [svg, lab]);
+    return '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Bookings per day">' + g + b + "</svg>";
+  }
+  function donut(segs) {
+    var tot = segs.reduce(function (a, s) { return a + s.v; }, 0), R = 62, C = 2 * Math.PI * R, off = 0;
+    var arcs = segs.map(function (s) { var len = (s.v / tot) * C, a = '<circle r="' + R + '" cx="80" cy="80" fill="none" stroke="' + s.c + '" stroke-width="22" stroke-dasharray="' + (len - 2) + " " + (C - len + 2) + '" stroke-dashoffset="' + -off + '" transform="rotate(-90 80 80)"><title>' + esc(s.n + ": " + s.v) + "</title></circle>"; off += len; return a; }).join("");
+    return '<svg width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="Members by plan"><circle r="' + R + '" cx="80" cy="80" fill="none" stroke="#f0eeec" stroke-width="22"/>' + arcs + '<text x="80" y="82" text-anchor="middle" style="font:800 34px var(--disp);fill:#1b1b1f">' + tot + '</text><text x="80" y="100" text-anchor="middle" style="font:600 11px sans-serif;fill:#6b6a72">members</text></svg>';
+  }
+  var WD = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  function heatHtml(rows) {
+    if (!rows || !rows.length) return '<div class="empty">No class bookings yet. This fills in as members book.</div>';
+    var times = Array.from(new Set(rows.map(function (r) { return String(r.time).slice(0, 5); }))).sort();
+    var html = '<div class="heat" style="grid-template-columns:48px repeat(7,1fr)"><span></span>' + WD.map(function (d) { return '<span class="hl" style="justify-content:center">' + d.slice(0, 3) + "</span>"; }).join("");
+    times.forEach(function (t) {
+      html += '<span class="hl">' + t + "</span>";
+      WD.forEach(function (d) {
+        var c = rows.filter(function (x) { return x.day === d && String(x.time).slice(0, 5) === t; })[0];
+        if (!c) { html += '<span class="hc" style="background:transparent;border:1px dashed #ece9e7"></span>'; return; }
+        var pc = Math.min(1, c.avg / Math.max(1, c.cap));
+        html += '<span class="hc" style="background:rgba(224,57,57,' + (0.1 + pc * 0.85).toFixed(2) + ')" title="' + esc(c.name + " · " + d + " " + t + " · " + Math.round(pc * 100) + "% full on average") + '"></span>';
+      });
+    });
+    return html + "</div>";
+  }
+  function sampleOn() { return CFG.SAMPLE_FIGURES !== false; }
+  var SAMPLE = {
+    plans: [{ n: "Gym + Classes", v: 28, c: "#e03939" }, { n: "Classes only", v: 12, c: "#2f6fd0" }, { n: "Gym only", v: 9, c: "#238a52" }, { n: "Annual", v: 4, c: "#c26b13" }, { n: "PT bundles", v: 2, c: "#7a5cc7" }],
+    revenue: [1290, 1350, 1420, 1500, 1590, 1710, 1778], failed: 2
+  };
+  async function vDashboard() {
+    var results = await Promise.all([rpc("admin_dashboard"), rpc("admin_insights")]), d = results[0], ins = results[1], root = h("div");
+    var hr = new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: TZ }) * 1, first = (me.name || "").split(" ")[0];
+    var days = d.bookings_by_day || [], last14 = days.slice(0, 14);
+    // the day to show: today, or the next day with sessions
+    var dayISO = d.today, dayLabel = "today", dayClasses = d.today_classes || [], off = 0;
+    while (!dayClasses.length && off < 7) { off++; var dd = new Date(d.today + "T12:00:00"); dd.setDate(dd.getDate() + off); dayISO = iso(dd); dayLabel = off === 1 ? "tomorrow" : WD[(dd.getDay() + 6) % 7]; dayClasses = await rpc("admin_day", { p_date: dayISO }); }
+    var booked = dayClasses.reduce(function (a, c) { return a + c.booked; }, 0), cap = dayClasses.reduce(function (a, c) { return a + (c.capacity || 0); }, 0);
+    var todayN = (days.filter(function (x) { return x.d === dayISO; })[0] || {}).n;
+    var prevD = new Date(dayISO + "T12:00:00"); prevD.setDate(prevD.getDate() - 7);
+    var lastW = (days.filter(function (x) { return x.d === iso(prevD); })[0] || {}).n;
+    var diff = lastW == null ? null : (todayN || booked) - lastW;
+    var spk = last14.map(function (x) { return x.n; });
+    var cum = 0, signups = (ins.signups_by_day || []).map(function (n) { cum += n; return cum; });
+    var k = [];
+    k.push(kpiX("Bookings " + dayLabel, "clip", booked, "/ " + cap, diff == null ? "" : (diff >= 0 ? "+" : "") + diff + " vs last " + WD[(prevD.getDay() + 6) % 7], diff > 0 ? "up" : diff < 0 ? "dn" : "flat", spark(spk, "#e03939")));
+    k.push(kpiX("Spaces left " + dayLabel, "dumb", Math.max(0, cap - booked), "", cap ? Math.round(booked / cap * 100) + "% of " + dayLabel + "'s capacity booked" : "No sessions", "flat"));
+    if (d.members_total != null) k.push(kpiX("Members with an app account", "users", d.members_total, "", "+" + d.members_30d + " in 30 days", d.members_30d > 0 ? "up" : "flat", spark(signups, "#238a52")));
+    if (sampleOn()) k.push(kpiX("Monthly revenue", "pound", "£" + SAMPLE.revenue[SAMPLE.revenue.length - 1].toLocaleString("en-GB"), "", "+4.0% vs last month", "up", spark(SAMPLE.revenue, "#e03939"), "", true));
+    else k.push(kpiX("Monthly revenue", "pound", "-", "", "Connect Wix payments", "flat"));
+    if (d.members_7d != null) { var pv = ins.members_prev_7d || 0; k.push(kpiX("New sign-ups this week", "plus", d.members_7d, "", (d.members_7d - pv >= 0 ? "+" : "") + (d.members_7d - pv) + " vs last week", d.members_7d > pv ? "up" : d.members_7d < pv ? "dn" : "flat")); }
+    k.push(kpiX("Average class fill", "pulse", ins.avg_fill_14d == null ? "-" : ins.avg_fill_14d, ins.avg_fill_14d == null ? "" : "%", "last 14 days", "flat"));
+    if (d.enquiries_new != null) k.push(kpiX("New enquiries", "inbox", d.enquiries_new, "", d.enquiries_new ? "Reply to keep response time low" : "All caught up", d.enquiries_new ? "dn" : "up", "", d.enquiries_new ? "alert" : ""));
+    if (can(["admin", "manager"])) k.push(kpiX("Failed payments", "alert", sampleOn() ? SAMPLE.failed : "-", "", sampleOn() ? "Needs a follow-up" : "Connect Wix payments", sampleOn() ? "dn" : "flat", "", sampleOn() ? "alert" : "", sampleOn()));
+
+    var nowHM = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
+    var tc = dayClasses.filter(function (c) { return c.kind !== "gym"; });
+    var tcHtml = tc.length ? tc.map(function (c) {
+      var pc = c.capacity ? Math.round(c.booked / c.capacity * 100) : 0, st = String(c.start).slice(0, 5), done = dayLabel === "today" && st < nowHM, full = c.capacity && c.booked >= c.capacity;
+      var chipH = done ? '<span class="chip plain">Done</span>' : full ? '<span class="chip warn">Full</span>' : '<span class="chip ok">Open</span>';
+      return '<div class="li"><span class="time num">' + esc(st) + '</span><div class="tx"><b>' + esc(c.name) + "</b><small>" + esc(c.coach || "No coach set") + " · " + c.booked + "/" + c.capacity + ' booked</small><div class="bar ' + (pc >= 90 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + Math.min(100, pc) + '%"></i></div></div>' + chipH + "</div>";
+    }).join("") : '<div class="empty">No classes today.</div>';
+
+    var attn = [];
+    if (can(["admin", "manager"]) && sampleOn()) attn.push('<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + SAMPLE.failed + " failed payments " + sampleTag() + "</b><small>Retry or contact the members</small></div></div>");
+    if (d.enquiries_new) attn.push('<a class="li" href="#/enquiries"><span class="ico acc">' + icon("inbox") + '</span><div class="tx"><b>' + d.enquiries_new + " new enquir" + (d.enquiries_new === 1 ? "y" : "ies") + "</b><small>Newest: " + esc(((d.latest_enquiries || [])[0] || {}).name || "") + "</small></div></a>");
+    (ins.tomorrow_busy || []).forEach(function (t) { attn.push('<div class="li"><span class="ico warn">' + icon("clock") + '</span><div class="tx"><b>' + esc(t.name) + " tomorrow is almost full</b><small>" + t.booked + " of " + t.capacity + " spaces taken</small></div></div>"); });
+    if (ins.health_missing) attn.push('<div class="li"><span class="ico warn">' + icon("users") + '</span><div class="tx"><b>' + ins.health_missing + " member" + (ins.health_missing === 1 ? "" : "s") + " without a health form</b><small>They cannot book until it is done</small></div></div>");
+    if (d.emails_7d_failed) attn.push('<a class="li" href="#/emails"><span class="ico bad">' + icon("mail") + '</span><div class="tx"><b>' + d.emails_7d_failed + " email" + (d.emails_7d_failed === 1 ? "" : "s") + " failed this week</b><small>Open the Emails page</small></div></a>");
+    if (!attn.length) attn.push('<div class="empty">Nothing needs attention right now.</div>');
+    var KIND = { booking: ["cal", "acc"], member: ["users", "ok"], enquiry: ["inbox", "acc"], email: ["mail", "bad"] };
+    var act = (ins.activity || []).map(function (a) { var k2 = KIND[a.kind] || ["check", "ok"]; return '<div class="li"><span class="ico ' + k2[1] + '">' + icon(k2[0]) + '</span><div class="tx"><b>' + esc(a.title) + "</b><small>" + esc(a.sub || "") + '</small></div><small class="hide-s" style="color:var(--faint)">' + esc(ago(a.at)) + "</small></div>"; }).join("") || '<div class="empty">Nothing yet. Activity shows here as members book and sign up.</div>';
+    var segs = SAMPLE.plans;
+    var donutHtml = sampleOn() ? '<div class="donut-wrap">' + donut(segs) + '<div class="donut-leg">' + segs.map(function (s) { return '<div><i style="background:' + s.c + '"></i>' + esc(s.n) + '<span class="num">' + s.v + "</span></div>"; }).join("") + "</div></div>" : '<div class="empty">Connect Wix plans to see members by plan.</div>';
+    var JOBN = { "sync-wix-bookings": "Wix booking sync", "sync-timetable": "Timetable sync", "class-reminder-emails": "Class reminder emails", "engagement-emails": "Engagement emails", "lead-and-referral-emails": "Lead follow-ups", "weekly-report": "Weekly report", "send-class-reminders": "Phone reminders" };
+    var health = (ins.jobs || []).map(function (j) { var ok = j.status === "succeeded"; return '<div><b style="display:flex;align-items:center;gap:8px;font:650 14px sans-serif"><span class="chip ' + (ok ? "ok" : j.status ? "bad" : "plain") + '">' + (ok ? "OK" : esc(j.status || "No run")) + "</span>" + esc(JOBN[j.job] || j.job) + '</b><small style="color:var(--mut)">' + (j.at ? "last run " + esc(ago(j.at)) : "") + "</small></div>"; }).join("");
+
+    root.appendChild(pageHead((hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + (first ? ", " + first : ""), new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ }) + " · here's how the gym is doing"));
+    if (sampleOn() && can(["admin", "manager"])) root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Items marked Sample (revenue, failed payments, members by plan) are placeholders until payments are connected. Everything else is real.")])]));
+    root.appendChild(fromHtml('<div class="grid g4">' + k.join("") + "</div>"));
+    root.appendChild(fromHtml('<div class="grid g-main" style="margin-top:16px"><div class="card"><div class="hd"><h3>Bookings, last 14 days</h3><span class="sub">' + spk.reduce(function (a, b) { return a + b; }, 0) + ' in total</span></div><div class="bd">' + barChart(last14, d.today) + '</div></div><div class="card"><div class="hd"><h3>' + (dayLabel === "today" ? "Today's" : dayLabel === "tomorrow" ? "Tomorrow's" : dayLabel + "'s") + ' classes</h3><span class="sub">' + tc.length + ' sessions</span></div><div class="bd"><div class="list">' + tcHtml + "</div></div></div></div>"));
+    root.appendChild(fromHtml('<div class="grid g-eq" style="margin-top:16px"><div class="card"><div class="hd"><h3>When people train</h3><span class="sub">average class fill, last 4 weeks</span></div><div class="bd">' + heatHtml(ins.heat) + '</div></div><div class="card"><div class="hd"><h3>Members by plan ' + (sampleOn() ? sampleTag() : "") + '</h3></div><div class="bd">' + donutHtml + "</div></div></div>"));
+    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Needs attention</h3></div><div class="bd"><div class="list">' + attn.join("") + '</div></div></div><div class="card"><div class="hd"><h3>Recent activity</h3></div><div class="bd"><div class="list">' + act + "</div></div></div></div>"));
+    if (health) root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>System health</h3><span class="sub">automatic jobs</span></div><div class="bd stat-row">' + health + "</div></div>"));
+    return root;
   }
 
   /* ---------- schedule ---------- */
@@ -350,14 +409,31 @@
   }
 
   /* ---------- plans and payments (Wix) ---------- */
+  function areaChart(vals, labels) {
+    var W = 560, H = 210, L = 44, B = 28, T = 14, mn = Math.min.apply(null, vals) * 0.9, mx = Math.max.apply(null, vals) * 1.05, ch = H - B - T, step = (W - L - 10) / (vals.length - 1);
+    var pts = vals.map(function (v, i) { return [L + i * step, T + ch - ((v - mn) / (mx - mn)) * ch]; }), line = pts.map(function (p) { return p.join(","); }).join(" "), g = "";
+    for (var i = 0; i <= 3; i++) { var y = T + ch - (ch * i) / 3, v = mn + ((mx - mn) * i) / 3; g += '<line x1="' + L + '" x2="' + W + '" y1="' + y + '" y2="' + y + '" stroke="#efedec"/><text x="' + (L - 8) + '" y="' + (y + 4) + '" text-anchor="end">\u00A3' + (v / 1000).toFixed(1) + "k</text>"; }
+    return '<svg class="chart" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="Monthly revenue"><defs><linearGradient id="ag" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#e03939" stop-opacity=".22"/><stop offset="1" stop-color="#e03939" stop-opacity="0"/></linearGradient></defs>' + g +
+      '<polygon points="' + L + "," + (T + ch) + " " + line + " " + pts[pts.length - 1][0] + "," + (T + ch) + '" fill="url(#ag)"/><polyline points="' + line + '" fill="none" stroke="#e03939" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>' +
+      pts.map(function (p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4.5" fill="#fff" stroke="#e03939" stroke-width="2.4"><title>' + esc(labels[i] + ": \u00A3" + vals[i]) + '</title></circle><text x="' + p[0] + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(labels[i]) + "</text>"; }).join("") + "</svg>";
+  }
   function vPlans() {
     var root = h("div");
     root.appendChild(pageHead("Plans and payments", "Memberships, payments and receipts."));
-    root.appendChild(h("div", { class: "soon" }, [h("h3", { text: "Not connected yet" }), h("p", { text: "Plans, payments and invoices are still handled in Wix (checkout at join.mygymlondon.co.uk). Until they move to this system, this page cannot show real figures, and it will not show made-up ones." }),
-      h("p", { text: "For now, open Wix to see plans, payments and failed payments:" }), h("p", null, [h("a", { class: "btn", href: "https://manage.wix.com/", target: "_blank", rel: "noopener", text: "Open Wix dashboard" })])]));
-    root.appendChild(h("div", { class: "grid g3", style: "margin-top:16px" }, [card("Will show here", "", [h("ul", { class: "ticks" }, ["Active members by plan", "Monthly recurring revenue", "Failed and retried payments"].map(function (x) { return h("li", { text: x }); }))]),
-      card("Why it matters", "", [h("p", { class: "muted", text: "Failed payments trigger the 3 reminder emails and the pause after 21 days. Those emails are built and wait for payment data." })]),
-      card("Planned for", "", [h("p", { class: "muted", text: "After launch, when payments and member records move off Wix." })])]));
+    if (!sampleOn()) {
+      root.appendChild(h("div", { class: "soon" }, [h("h3", { text: "Not connected yet" }), h("p", { text: "Plans, payments and invoices are still handled in Wix (checkout at join.mygymlondon.co.uk). Until they move to this system, this page cannot show real figures." }), h("p", null, [h("a", { class: "btn", href: "https://manage.wix.com/", target: "_blank", rel: "noopener", text: "Open Wix dashboard" })])]));
+      return root;
+    }
+    var price = { "Gym + Classes": 35, "Classes only": 26, "Gym only": 26, "Annual": 33, "PT bundles": 60 }, mrr = 0, subs = 0;
+    SAMPLE.plans.forEach(function (p) { mrr += (price[p.n] || 0) * p.v; subs += p.v; });
+    var months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
+    root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Plans, payments and invoices are still in Wix. These numbers are placeholders so you can see the finished page. They are replaced with real figures when payments are connected.")])]));
+    root.appendChild(fromHtml('<div class="grid g4">' + kpiX("Monthly recurring revenue", "pound", "\u00A3" + mrr.toLocaleString("en-GB"), "", "+4.0% vs last month", "up", spark(SAMPLE.revenue, "#e03939"), "", true) + kpiX("Active members on a plan", "users", subs, "", "+3 this month", "up", "", "", true) +
+      kpiX("Average per member", "card", "\u00A3" + (mrr / subs).toFixed(2), "", "per month", "flat", "", "", true) + kpiX("Failed payments", "alert", SAMPLE.failed, "", "Needs a follow-up", "dn", "", "alert", true) + "</div>"));
+    var rows = SAMPLE.plans.map(function (p) { return '<tr style="cursor:default"><td><span class="dotc" style="background:' + p.c + '"></span> <b>' + esc(p.n) + '</b></td><td class="num">\u00A3' + (price[p.n] || 0) + '</td><td class="num r">' + p.v + '</td><td class="num r">\u00A3' + ((price[p.n] || 0) * p.v).toLocaleString("en-GB") + "</td></tr>"; }).join("");
+    var fails = [["Sample member A", "\u00A335.00", "2 days ago", "Card declined"], ["Sample member B", "\u00A326.00", "4 days ago", "Insufficient funds"]].map(function (f) { return '<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + f[0] + "</b><small>" + f[3] + " \u00B7 " + f[2] + '</small></div><b class="num">' + f[1] + "</b></div>"; }).join("");
+    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px;align-items:start"><div class="card"><div class="hd"><h3>Revenue, last 7 months ' + sampleTag() + '</h3></div><div class="bd">' + areaChart(SAMPLE.revenue, months) + '</div></div><div class="card"><div class="hd"><h3>Failed payments ' + sampleTag() + '</h3><span class="sub">retried on day 5, paused on day 21</span></div><div class="bd"><div class="list">' + fails + "</div></div></div></div>"));
+    root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>Plans ' + sampleTag() + '</h3></div><div class="bd"><div class="tbl-wrap"><table class="t" style="min-width:0"><thead><tr><th>Plan</th><th>Price</th><th class="r">Members</th><th class="r">Per month</th></tr></thead><tbody>' + rows + "</tbody></table></div></div></div>"));
     return root;
   }
 

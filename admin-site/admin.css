@@ -280,9 +280,13 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 .soon h3{font:800 22px var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--txt);margin-bottom:8px}
 .soon p{margin-bottom:10px}
 .dh2 .ibtn{flex-shrink:0}
-.nav a .ico{width:18px;text-align:center;color:var(--faint)}
-.nav a.on .ico{color:var(--accd)}
+.nav a .nico{width:18px;text-align:center;color:var(--faint)}
+.nav a.on .nico{color:var(--accd)}
 .toolbar select.in{height:38px}
 @media (max-width:900px){.g-main{grid-template-columns:1fr}.page{padding:18px 14px 50px}.top{padding:10px 14px}}
 
 @media (max-width:560px){.li{gap:8px}.time{width:50px;font-size:19px}.li [style*="width:110px"],.li [style*="width:120px"]{width:60px!important}}
+
+.dotc{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.sampletag{margin-left:4px;height:20px;font-size:11px}
+.sampletag::before{display:none}
