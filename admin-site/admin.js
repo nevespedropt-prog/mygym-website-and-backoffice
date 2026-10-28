@@ -73,8 +73,10 @@
   var ROUTES = [
     { id: "dashboard", label: "Dashboard", roles: ["admin", "manager", "reception", "coach"], icon: "▦", view: vDashboard },
     { id: "schedule", label: "Schedule", roles: ["admin", "manager", "reception", "coach"], icon: "◷", view: vSchedule },
+    { id: "timetable", label: "Timetable", roles: ["admin", "manager", "reception", "coach"], icon: "▤", view: vTimetable },
     { id: "members", label: "Members", roles: ["admin", "manager", "reception"], icon: "☺", view: vMembers, section: "People" },
     { id: "enquiries", label: "Enquiries", roles: ["admin", "manager", "reception"], icon: "✉", view: vEnquiries },
+    { id: "analytics", label: "Analytics", roles: ["admin", "manager"], icon: "↗", view: vAnalytics, section: "Growth" },
     { id: "emails", label: "Emails", roles: ["admin", "manager"], icon: "→", view: vEmails, section: "Communication" },
     { id: "marketing", label: "Marketing", roles: ["admin", "manager"], icon: "★", view: vMarketing },
     { id: "plans", label: "Plans and payments", roles: ["admin", "manager"], icon: "£", view: vPlans, section: "Business" },
@@ -292,6 +294,64 @@
     });
     openModal("Class cancelled", [h("p", { text: c.name + ", " + fDate(ds) + " at " + String(c.start).slice(0, 5) + ". This emails everyone booked through the app." }), h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Reason" }), reason]), out],
       [h("button", { class: "btn", onclick: closeModal, text: "Close" }), check, send]);
+  }
+
+  /* ---------- timetable (weekly grid, read-only: classes are kept in step with Wix) ---------- */
+  var ttView = "classes", ttAll = false;
+  async function vTimetable() {
+    var rows = await rpc("admin_timetable"), root = h("div");
+    var gym = ttView === "gym", list = rows.filter(function (c) { return (gym ? c.kind === "gym" : c.kind !== "gym") && (ttAll || c.active); });
+    var acts = [h("div", { class: "seg" }, [h("button", { class: !gym ? "on" : "", onclick: function () { ttView = "classes"; route(); }, text: "Classes" }), h("button", { class: gym ? "on" : "", onclick: function () { ttView = "gym"; route(); }, text: "Gym hours" })]),
+      h("button", { class: "btn sm", onclick: function () { ttAll = !ttAll; route(); }, text: ttAll ? "Hide switched off" : "Show switched off" })];
+    root.appendChild(pageHead("Timetable", "Your weekly classes and open gym hours. They are kept in step with Wix automatically, so this page is for viewing.", acts));
+    if (!list.length) { root.appendChild(card("Nothing here", "", [empty("No sessions to show.")])); return root; }
+    var hours = list.map(function (c) { return parseInt(String(c.time).slice(0, 2), 10); }), lo = Math.min.apply(null, hours), hi = Math.max.apply(null, hours);
+    var todayIdx = (new Date().getDay() + 6) % 7, g = '<div class="wk"><div class="dh" style="border-right:0"></div>' + WD.map(function (d, i) { return '<div class="dh' + (i === todayIdx ? " today" : "") + '">' + d.slice(0, 3) + "</div>"; }).join("");
+    for (var hr = lo; hr <= hi; hr++) {
+      g += '<div class="hr">' + String(hr).padStart(2, "0") + ":00</div>";
+      WD.forEach(function (d) {
+        var inCell = list.filter(function (c) { return c.day === d && parseInt(String(c.time).slice(0, 2), 10) === hr; }), n = inCell.length, cell = "";
+        inCell.forEach(function (c, i) {
+          var pc = c.capacity ? Math.min(100, Math.round(c.avg / c.capacity * 100)) : 0, cl = !c.active ? "off" : c.kind === "gym" ? "g" : /kid/i.test(c.name) ? "k" : "c";
+          cell += '<button class="cls ' + cl + '" data-id="' + c.id + '" style="' + (n > 1 ? "right:auto;left:calc(" + (i * 100 / n) + "% + 3px);width:calc(" + (100 / n) + "% - 6px)" : "") + '"><b>' + esc(c.name) + "</b><small>" + esc(String(c.time).slice(0, 5)) + (c.coach ? " · " + esc(c.coach) : "") + '</small><span class="mini"><i style="width:' + pc + '%"></i></span></button>';
+        });
+        g += '<div class="cell">' + cell + "</div>";
+      });
+    }
+    g += "</div>";
+    var wrap = fromHtml('<div class="card" style="overflow:hidden"><div class="tbl-wrap">' + g + "</div></div>");
+    wrap.querySelectorAll(".cls").forEach(function (b) { b.addEventListener("click", function () { var c = rows.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0]; ttDrawer(c); }); });
+    root.appendChild(fromHtml('<div class="legend" style="margin-bottom:12px"><span><i style="background:#f6cfcf"></i>Class</span><span><i style="background:#cfdcf4"></i>Gym hour</span><span><i style="background:#c8e8d4"></i>Kids</span><span><i style="background:#e3e1df"></i>Switched off</span><span>The bar inside each block is the average fill over the last 4 weeks</span></div>'));
+    root.appendChild(wrap); return root;
+  }
+  function ttDrawer(c) {
+    var kv = h("dl", { class: "kv" }); [["Day and time", c.day + " " + String(c.time).slice(0, 5)], ["Type", c.kind === "gym" ? "Gym hour" : "Class"], ["Coach", c.coach || "Not set"], ["Capacity", c.capacity], ["Average booked (4 weeks)", c.avg], ["Status", c.active ? "On" : "Switched off"], ["Source", c.source === "wix" ? "Wix (kept in step automatically)" : c.source || "-"], ["Notes", c.info || "-"]]
+      .forEach(function (p) { kv.appendChild(h("dt", { text: p[0] })); kv.appendChild(h("dd", { text: p[1] })); });
+    openDrawer(c.name, [h("div", { class: "sect" }, [kv]), h("p", { class: "muted", text: "To change a class, edit it in Wix. The app and this page follow within minutes." })]);
+  }
+
+  /* ---------- analytics ---------- */
+  async function vAnalytics() {
+    var d = await rpc("admin_analytics"), root = h("div");
+    root.appendChild(pageHead("Analytics", "How members are booking and joining. Everything here is real, and fills in as more people book."));
+    var wk = d.weekly || [], tb = wk.reduce(function (a, w) { return a + w.bookings; }, 0), ts = wk.reduce(function (a, w) { return a + w.signups; }, 0);
+    var rep = d.members_booked_30d ? Math.round(100 * d.members_repeat_30d / d.members_booked_30d) : null;
+    root.appendChild(fromHtml('<div class="grid g4">' + kpiX("Bookings, 12 weeks", "clip", tb, "", "about " + Math.round(tb / 12) + " a week", "flat") + kpiX("Sign-ups, 12 weeks", "plus", ts, "", "new app accounts", "flat") +
+      kpiX("Members who booked", "users", d.members_booked_30d, "", "in the last 30 days", "flat") + kpiX("Booking again", "pulse", rep == null ? "-" : rep, rep == null ? "" : "%", "booked 2 or more times in 30 days", "flat") + "</div>"));
+    function bars(rows, key, cls) {
+      var mx = Math.max.apply(null, rows.map(function (r) { return r[key]; }).concat([1]));
+      return rows.map(function (r) { return '<div class="li"><div class="tx"><b>' + esc(r.label) + '</b></div><div style="width:46%"><div class="bar"><i style="width:' + Math.round(r[key] / mx * 100) + '%"></i></div></div><span class="num">' + r[key] + "</span></div>"; }).join("") || '<div class="empty">No data yet.</div>';
+    }
+    var chartRows = wk.map(function (w) { return { d: w.week, n: w.bookings }; });
+    var sRows = wk.map(function (w) { return { d: w.week, n: w.signups }; });
+    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Bookings per week</h3><span class="sub">last 12 weeks</span></div><div class="bd">' + barChart(chartRows, wk.length ? wk[wk.length - 1].week : "") + '</div></div><div class="card"><div class="hd"><h3>New sign-ups per week</h3><span class="sub">last 12 weeks</span></div><div class="bd">' + barChart(sRows, wk.length ? wk[wk.length - 1].week : "") + "</div></div></div>"));
+    var wd = WD.map(function (n) { var f = (d.by_weekday || []).filter(function (x) { return x.day === n; })[0]; return { label: n, n: f ? f.n : 0 }; });
+    var hrs = (d.by_hour || []).map(function (x) { return { label: x.hour + ":00", n: x.n }; });
+    var top = (d.top_classes_90d || []).map(function (x) { return { label: x.name, n: x.n }; });
+    var src = (d.bookings_by_source_90d || []).map(function (x) { return { label: x.source === "wix" ? "Website (Wix)" : "App", n: x.n }; });
+    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Busiest days</h3><span class="sub">last 90 days</span></div><div class="bd"><div class="list">' + bars(wd, "n") + '</div></div></div><div class="card"><div class="hd"><h3>Busiest hours</h3><span class="sub">last 90 days</span></div><div class="bd"><div class="list">' + bars(hrs, "n") + "</div></div></div></div>"));
+    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Most popular classes</h3><span class="sub">last 90 days</span></div><div class="bd"><div class="list">' + bars(top, "n") + '</div></div></div><div class="card"><div class="hd"><h3>Where bookings come from</h3><span class="sub">last 90 days</span></div><div class="bd"><div class="list">' + bars(src, "n") + "</div></div></div></div>"));
+    return root;
   }
 
   /* ---------- members ---------- */

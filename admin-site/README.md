@@ -13,7 +13,7 @@ Static site (no build step). Real data from Supabase through the `admin_*` datab
 4. Open https://admin.mygymlondon.co.uk, sign in with the owner's app email and password.
 5. Check: Dashboard loads, Members shows the real members, Schedule shows today's classes. Turn on 2FA for the owner's accounts.
 
-## What is not here yet
+## What is not here yet (2026-10-28 update: the migration is APPLIED live; Timetable and Analytics pages added)
 - Plans and payments (still in Wix), coach access to health forms (needs a coach view of the roster), campaign editor (the existing page at app.mygymlondon.co.uk/admin-campaign.html is linked), staff invitations by email.
 - Test with fake data locally: serve this folder with any static server and replace `vendor/supabase.js` with a stub; do not point it at real data from a shared computer.
 
