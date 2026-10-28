@@ -47,3 +47,7 @@ ErrorDocument 404 /404.html
 RedirectMatch 301 ^/timetable/?$ /classes.html
 RedirectMatch 301 ^/trial/?$ /classes.html
 RedirectMatch 301 ^/memberships/?$ /services.html
+
+# Member account pages live on the Wix checkout site (join.mygymlondon.co.uk): old links and emails keep working
+RedirectMatch 301 ^/(my-subscriptions|my-orders|my-account|my-wallet|my-addresses)/?$ https://join.mygymlondon.co.uk/$1
+RedirectMatch 301 ^/account/(.*)$ https://join.mygymlondon.co.uk/account/$1
