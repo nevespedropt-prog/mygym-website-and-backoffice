@@ -379,6 +379,11 @@ open(os.path.join(OUT, "assets", "site.js"), "w", encoding="utf-8").write(SITE_J
 shutil.copyfile(os.path.join(FORMS_DIR, "forms.js"), os.path.join(OUT, "assets", "forms.js"))
 os.makedirs(os.path.join(OUT, "assets", "vendor"), exist_ok=True)
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "vendor", "supabase.js"), os.path.join(OUT, "assets", "vendor", "supabase.js"))
+_ic = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "icons")
+os.makedirs(os.path.join(OUT, "assets", "icons"), exist_ok=True)
+for _f in ("favicon-32.png", "apple-touch-icon.png"):
+    shutil.copyfile(os.path.join(_ic, _f), os.path.join(OUT, "assets", "icons", _f))
+shutil.copyfile(os.path.join(_ic, "favicon.ico"), os.path.join(OUT, "favicon.ico"))
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mybookings.js"), os.path.join(OUT, "assets", "mybookings.js"))
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram.js"), os.path.join(OUT, "assets", "instagram.js"))
 open(os.path.join(OUT, "assets", "forms.css"), "w", encoding="utf-8").write(
@@ -525,7 +530,7 @@ def page(key, body):
         '<!doctype html><html lang="en-GB"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>%s</title><meta name=\"description\" content=\"%s\">"
-        '<link rel="canonical" href="%s/%s"><link rel="icon" href="assets/img/logo.png">'
+        '<link rel="canonical" href="%s/%s"><link rel="icon" href="favicon.ico?v=1" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1"><link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">'
         '<meta property="og:title" content="%s"><meta property="og:description" content="%s">'
         '<meta property="og:image" content="%s/assets/img/hero-full.jpg">'
         '<link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/forms.css"></head><body>%s<main>%s</main>%s'
