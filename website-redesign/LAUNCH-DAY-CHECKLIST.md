@@ -1,16 +1,16 @@
 # Launch day: move www.mygymlondon.co.uk from Wix to the new website
 
-Written 2026-10-28. Target date: 11 November 2026 (set when ready). Tick as you go. "You" = the owner, "Claude" = Claude. Where Wix or Hostinger screens differ from the words here, trust the screen and tell Claude.
+Written 2026-10-28, updated 2026-10-30. Target date: 11 November 2026 (set when ready). Tick as you go. "You" = the owner, "Claude" = Claude. Where Wix or Hostinger screens differ from the words here, trust the screen and tell Claude.
 
 **What stays at Wix after launch:** the domain registration and DNS (Wix keeps the nameservers), the Google email accounts (billed through Wix), Wix Pricing Plans (payments, plan checkout), Wix Bookings (sessions, spaces, bookings, synced with our app every 5 to 10 minutes), the Wix site itself, now at **join.mygymlondon.co.uk**.
-**What moves:** www.mygymlondon.co.uk and mygymlondon.co.uk go to Hostinger (the new website). A new address admin.mygymlondon.co.uk serves the back office. The app stays at app.mygymlondon.co.uk (Netlify).
+**What moves:** www.mygymlondon.co.uk and mygymlondon.co.uk go to Hostinger (the new website). A new address admin.mygymlondon.co.uk serves the back office. The app stays at app.mygymlondon.co.uk (Netlify now; optionally Cloudflare Pages, see the "Optional: move the app to Cloudflare" section at the end).
 
 ## DNS records as they are today (take a screenshot of the Wix DNS page too)
 | Name | Type | Value now | After launch |
 |---|---|---|---|
 | mygymlondon.co.uk (root) | A | 185.230.63.171 (Wix; earlier also .107 and .186) | Hostinger IP address (from hPanel) |
 | www | CNAME | cdn3.wixdns.net (Wix) | CNAME or A to Hostinger (hPanel tells which) |
-| app | CNAME | melodious-salamander-ad3f08.netlify.app | no change |
+| app | CNAME | melodious-salamander-ad3f08.netlify.app | no change (changes only if you move the app to Cloudflare Pages) |
 | send | CNAME | send.forge.rmta.net (Resend sending) | no change |
 | resend._domainkey | TXT | Resend DKIM key | no change |
 | _dmarc | TXT | v=DMARC1; p=quarantine; pct=10; rua=mailto:info@mygymlondon.co.uk | no change |
@@ -28,7 +28,7 @@ Written 2026-10-28. Target date: 11 November 2026 (set when ready). Tick as you 
 - [ ] Wix: lower the DNS "TTL" (time to live) of the root and www records to the smallest value a day before, so changes spread faster (if Wix lets you).
 - [ ] You: your unsaved Wix home page changes: decide (save or discard) BEFORE the day, so the Wix editor is clean. Claude checks the Personal Training page draft for the abandoned edit.
 - [ ] Back up: export Wix site contacts and orders (Wix dashboard) and keep a copy of the DNS screenshot.
-- [ ] Netlify: app deploys are paused until 19 November. If launch is before that, the app's own pages (enquiries page, terms and privacy wording, App terms links) are not live yet: fine, nothing depends on them.
+- [ ] Netlify: app builds are paused until the credits return on 19 November. All app code is already pushed to GitHub (2026-10-30), so nothing is waiting locally. If launch is before that, the app's newest parts (Log exercise search bar, Create exercise button, Watch on YouTube buttons, enquiries page, terms and privacy wording, App terms links) are not live yet: fine, nothing on launch day depends on them.
 
 ## 1. Set up the Hostinger side (before touching DNS, no one sees it yet)
 - [ ] You: upload the CONTENTS of `website-code` (including the hidden `.htaccess`) to the main site folder (public_html) in hPanel File Manager.
@@ -81,12 +81,13 @@ These are the "everything from our system" steps decided on 2026-10-28. Do them 
 - [ ] Watch Messages (enquiries), Emails (failed sends) and Settings and health for red items every day.
 - [ ] Check Search Console for errors. Check Google Business Profile shows the new link.
 - [ ] Check the first real new-member sign-up in the logs (member-signup, check-gym-access).
-- [ ] Netlify deploy credits return 19 November: push the waiting app commits (App terms links, enquiries page); then point gym alert emails to the enquiries page.
+- [ ] Netlify credits return 19 November (or move the app to Cloudflare Pages, see below). The app commits are already pushed to GitHub, so a build starts by itself: check it went live, then test the new exercise features signed in as a member (search bar, Add exercise, Create exercise, Watch on YouTube, the "Your own" list, a row appearing in exercise_suggestions), the enquiries page, and then point gym alert emails to the enquiries page.
+- [ ] Every Sunday 6 PM: exercise suggestions review (ask Claude: "Review the pending exercise suggestions for MY GYM and update the library."). Calendar file: `app/MYGYM-weekly-exercise-review.ics`, import it into Google Calendar once.
 - [ ] DMARC: read the reports, then raise the policy from pct=10.
 - [ ] (2FA and the Wix collaborators: owner decided not to change these. Skip.)
 - [ ] Take down the old public test website (GitHub repo `mygym-website-test`: make it private or turn off GitHub Pages) so only the real site is online.
 - [ ] Check Monday's weekly report email arrives at info@ (the weekly-report job) and does not start with [ATTENTION].
-- [ ] Back up the website and back office (a private GitHub copy).
+- [x] Back up the website and back office: private GitHub copy done 2026-10-30 (github.com/nevespedropt-prog/mygym-website-and-backoffice). After any change run `git push` in the MY GYM folder.
 
 ## Rollback (if something is badly wrong on the day)
 1. In Wix DNS, put the root A record back to **185.230.63.171** and the www CNAME back to **cdn3.wixdns.net**. Leave everything else.
@@ -98,3 +99,6 @@ These are the "everything from our system" steps decided on 2026-10-28. Do them 
 - Wix keeps Pricing Plans and Bookings: do not cancel the Wix plan.
 - The Wix editor draft contains an abandoned Personal Training page edit: never press Publish in the editor without checking it.
 - The new site's forms only accept posts from https://www.mygymlondon.co.uk and https://mygymlondon.co.uk. Any other address is refused.
+
+## Optional: move the app from Netlify to Cloudflare Pages (any time, independent of launch day)
+Steps page (red numbered boxes): https://claude.ai/artifact/Y8dANP5G4SEJUuBsb3t31X. Free, no build credits, the `_headers` file works as it is. Only the `app` CNAME in Wix changes (to the .pages.dev address); never touch MX, TXT or nameservers. Claude tests the .pages.dev address first. Not started yet. Rollback: put the `app` CNAME back to melodious-salamander-ad3f08.netlify.app.
