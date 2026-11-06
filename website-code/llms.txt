@@ -30,4 +30,5 @@
 - [Book the gym](https://www.mygymlondon.co.uk/book.html): how members book gym slots
 - [FAQ](https://www.mygymlondon.co.uk/faq.html): answers on contracts, hours, prices, booking and cancellation
 - [Refer friends](https://www.mygymlondon.co.uk/refer-friends.html)
+- [Free guide](https://www.mygymlondon.co.uk/guide.html): free download, Part 1 of the MyGym Ultimate Fitness Startup guide
 - [Terms](https://www.mygymlondon.co.uk/terms.html) and [Privacy](https://www.mygymlondon.co.uk/privacy.html)

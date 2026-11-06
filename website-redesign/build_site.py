@@ -61,6 +61,8 @@ PAGES = {
     "faq": ("faq.html", "FAQ: prices, opening hours, booking | MyGym London", "Answers about MyGym London in Enfield: no contract, open 5am to midnight, prices, booking, induction and personal training."),
     "kids-gym": ("kids-gym.html", "Kids Gym | MyGym London",
                  "Kids Gym at MyGym London for children aged 8 and over, Tuesday and Thursday 4pm to 5pm."),
+    "guide": ("guide.html", "Free fitness guide for beginners | MyGym London",
+              "Free download: Part 1 of the MyGym London Ultimate Fitness Startup guide. A getting started checklist, goal setting and a 6 week challenge timeline."),
     "terms": ("terms.html", "Terms and conditions | MyGym London", "Terms and conditions for MyGym London."),
     "privacy": ("privacy.html", "Privacy policy | MyGym London", "How MyGym London uses your personal data."),
     "cookies": ("cookies.html", "Cookie notice | MyGym London", "How MyGym London uses cookies."),
@@ -158,13 +160,24 @@ def with_form(view_html, fid, heading, intro):
 views["classes"] = with_form(views["classes"], "trial-class", "Try a free class", "Pick a class and a day. We confirm your place by email.")
 views["faq"] = with_form(views["faq"], "contact", "Still have a question?", "Send us a message and we will reply within one working day.")
 views["kids-gym"] = with_form(views["kids-gym"], "kids-registration", "Register your child", "For children aged 8 and over. We confirm each place within two working days.")
+# free guide page (owner decision 2026-10-31: Part 1 of the members-only ebook is free for sign-ups; Parts 2 and 3 stay for members)
+GUIDE_VIEW = (
+    '<section class="view" id="guide"><div class="phead"><div class="himg"><img src="assets/img/hero-full.jpg" alt="The MyGym London gym floor with the START turf" style="object-position:50% 72%"></div>'
+    '<div class="wrap"><span class="chip">Free guide</span><h1>Your free MyGym guide</h1><p>Part 1 of our Ultimate Fitness Startup guide, free to download.</p></div></div>'
+    '<div class="wrap sec"><div class="kg"><div class="kgtxt"><h2>Start here, at your own pace</h2>'
+    '<p>Nervous about starting, or not sure what to do on your first day? This guide is for you. It is the first part of the guide we give our members.</p>'
+    '<h2>What is inside Part 1</h2><ul><li>How we coach, and who you will train with</li><li>A getting started checklist</li><li>Body measurements and goal setting</li><li>A 6 week challenge timeline</li><li>Beginner mistakes and how to avoid them</li><li>How training can help your mental health</li><li>Reviews, FAQs and our prices</li></ul>'
+    '<h2>What about the rest?</h2><p>Part 2 (workouts) and Part 3 (food and trackers) are for MyGym members. Try a free class and see if MyGym feels like your gym.</p></div>'
+    '<aside class="card kgfacts"><h3>At a glance</h3><ul><li><b>What</b>Part 1 of the guide, a 19 page PDF</li><li><b>Price</b>Free</li><li><b>How</b>Sent to your email straight away</li></ul>'
+    '<a class="btn ghost" href="classes.html">Try a free class</a></aside></div></div></section>')
+views["guide"] = with_form(GUIDE_VIEW, "guide-signup", "Get your free guide", "Enter your first name and email and we will send it to you.")
 
 # the form's own big heading would repeat our section heading: hide it on the site (the heading stays in the form for screen readers)
 def quiet_heading(h):
     return h.replace("<h2>", '<h2 class="sr-only">', 1)
 
 
-for k in ("classes", "faq", "kids-gym"):
+for k in ("classes", "faq", "kids-gym", "guide"):
     views[k] = re.sub(r'(<form class="mgl-form"[^>]*>\s*)<h2>', r'\1<h2 class="sr-only">', views[k], count=1)
     views[k] = re.sub(r'(<form class="mgl-form"[^>]*>\s*<h2 class="sr-only">[^<]*</h2>\s*)<p class="intro">[^<]*</p>', r"\1", views[k], count=1)
 
@@ -395,7 +408,7 @@ open(os.path.join(OUT, "assets", "forms-config.js"), "w", encoding="utf-8").writ
     'window.MGL_FORMS = { endpoint: "%s", supabaseUrl: "%s", anonKey: "%s" };\n' % (SUBMIT_URL, SUPABASE_URL, SUPABASE_KEY))
 
 # ---------- pages ----------
-NAV = {"home": "home", "classes": "classes", "book": "book", "services": "services", "pt": "pt", "refer": "refer", "faq": "faq", "kids-gym": "services", "login": "", "mybookings": "", "terms": "", "privacy": "", "cookies": ""}
+NAV = {"home": "home", "classes": "classes", "book": "book", "services": "services", "pt": "pt", "refer": "refer", "faq": "faq", "kids-gym": "services", "guide": "", "login": "", "mybookings": "", "terms": "", "privacy": "", "cookies": ""}
 
 
 def mark_active(html, key):
@@ -445,6 +458,7 @@ LLMS_TXT = """# MyGym London
 - [Book the gym](https://www.mygymlondon.co.uk/book.html): how members book gym slots
 - [FAQ](https://www.mygymlondon.co.uk/faq.html): answers on contracts, hours, prices, booking and cancellation
 - [Refer friends](https://www.mygymlondon.co.uk/refer-friends.html)
+- [Free guide](https://www.mygymlondon.co.uk/guide.html): free download, Part 1 of the MyGym Ultimate Fitness Startup guide
 - [Terms](https://www.mygymlondon.co.uk/terms.html) and [Privacy](https://www.mygymlondon.co.uk/privacy.html)
 """
 
@@ -558,8 +572,16 @@ def page(key, body):
 
 
 written = [page("home", home_body.replace('class="view def"', 'class="view"'))]
-for key in ["classes", "book", "services", "pt", "refer", "faq", "kids-gym", "terms", "privacy", "cookies", "login", "mybookings"]:
+for key in ["classes", "book", "services", "pt", "refer", "faq", "kids-gym", "guide", "terms", "privacy", "cookies", "login", "mybookings"]:
     written.append(page(key, views[key]))
+
+# free guide PDF (made from the ebook by hand; see PART1-SIGNUP-BUILD-PLAN.md). Folder is /downloads/, because /guide is the page.
+_guide_pdf = os.path.join(HERE, "..", "EBOOKS", "free-guide", "MyGym-Guide-Part-1.pdf")
+if os.path.exists(_guide_pdf):
+    os.makedirs(os.path.join(OUT, "downloads"), exist_ok=True)
+    shutil.copyfile(_guide_pdf, os.path.join(OUT, "downloads", "MyGym-Guide-Part-1.pdf"))
+else:
+    print("WARNING: guide PDF missing, the guide page link would break")
 
 # extras
 open(os.path.join(OUT, "404.html"), "w", encoding="utf-8").write(

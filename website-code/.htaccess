@@ -18,6 +18,7 @@ Redirect 301 /services-4 /services.html
 Redirect 301 /refer-friends /refer-friends.html
 Redirect 301 /referral /refer-friends.html
 Redirect 301 /privacy-notice /privacy.html
+RedirectMatch 301 ^/guide/?$ /guide.html
 RedirectMatch 301 ^/privacy/?$ /privacy.html
 RedirectMatch 301 ^/terms/?$ /terms.html
 RedirectMatch 301 ^/cookies/?$ /cookies.html

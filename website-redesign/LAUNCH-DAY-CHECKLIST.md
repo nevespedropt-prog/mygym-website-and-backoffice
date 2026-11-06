@@ -1,6 +1,6 @@
 # Launch day: move www.mygymlondon.co.uk from Wix to the new website
 
-Written 2026-10-28, updated 2026-10-30. Target date: 11 November 2026 (set when ready). Tick as you go. "You" = the owner, "Claude" = Claude. Where Wix or Hostinger screens differ from the words here, trust the screen and tell Claude.
+Written 2026-10-28, updated 2026-11-06. Target date: 11 November 2026 (set when ready). Tick as you go. "You" = the owner, "Claude" = Claude. Where Wix or Hostinger screens differ from the words here, trust the screen and tell Claude.
 
 **What stays at Wix after launch:** the domain registration and DNS (Wix keeps the nameservers), the Google email accounts (billed through Wix), Wix Pricing Plans (payments, plan checkout), Wix Bookings (sessions, spaces, bookings, synced with our app every 5 to 10 minutes), the Wix site itself, now at **join.mygymlondon.co.uk**.
 **What moves:** www.mygymlondon.co.uk and mygymlondon.co.uk go to Hostinger (the new website). A new address admin.mygymlondon.co.uk serves the back office. The app stays at app.mygymlondon.co.uk (now on Cloudflare Pages, see the last section).
@@ -69,7 +69,7 @@ Written 2026-10-28, updated 2026-10-30. Target date: 11 November 2026 (set when 
 - [ ] Google Search Console and Bing Webmaster Tools: add the site, verify (DNS or file), submit https://www.mygymlondon.co.uk/sitemap.xml.
 - [ ] Instagram bio link, any QR codes, flyers or email signatures that use old Wix addresses (they redirect, but update the main ones).
 - [ ] Wix: in the Wix dashboard check the Wix site is now only reachable at join.mygymlondon.co.uk and still shows "Published". Do NOT cancel the Wix plan.
-- [ ] Wix referral reward: set to **50%** (the new site and terms say 50%).
+- [ ] Wix referral reward: the new policy is **one free month** for the referring member (not a % discount). Check whether Wix Pricing Plans has a "free month" reward option; if not, turn the Wix referral reward off and handle rewards manually until a code-based reward is built.
 
 ## 6. Switch things off at Wix (only after steps 1 to 4 pass) and switch our own on
 These are the "everything from our system" steps decided on 2026-10-28. Do them in this order:

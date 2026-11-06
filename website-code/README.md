@@ -17,16 +17,20 @@ Settings at the top of `build_site.py`: `APP`, `JOIN_URL`, `SITE`.
 
 ## Before going live (nothing below is done)
 1. **Domain.** If www.mygymlondon.co.uk points here, the Wix pages (plan checkout, members area, old links) stop being reachable on that name. Decide where Wix lives (a subdomain such as join.mygymlondon.co.uk or its wixsite address), change `JOIN_URL`, then move the domain. Needs the owner's go-ahead.
-2. Hosting: GitHub Pages in its own repo is the plan (free, same way the app is deployed).
+2. Hosting: Hostinger (see LAUNCH-DAY-CHECKLIST.md). GitHub Pages was the earlier plan; Hostinger superseded it.
 3. Legal text: the Cookie notice and Privacy policy mention Wix running the website. Once the site is code, the wording must change (the site sets no cookies and has no analytics). Do not publish the old wording; solicitor check after.
 4. The Kids Gym "Join now" goes to the Wix plans page; the £20 Kids Gym plan does not exist yet.
 5. Redirects for old Wix addresses (/our-classes, /book-the-gym, /our-personal-training-offer, /pricing-plans/memberships, /privacy-notice, /t-and-cs, /refer-friends) so Google and members do not hit dead links.
 6. Real phone check, and a check on the live address after deploy.
 7. "25+ classes a week" is a safe true minimum (about 28 sessions in the timetable); change if you prefer another number.
 
+## Update 2026-11-06: referral model changed
+- Refer a friends reward changed from 50% off one billing cycle to **one month free** on the referring member's membership. Updated in: `refer-friends.html` (page, card, all meta), `login.html`, `terms.html` (also updated "Last updated" date), `faq.html` (JSON-LD and HTML answer).
+- These are uncommitted changes (waiting for owner push approval).
+
 ## Update 2026-10-27: real forms built in (still NOT deployed)
 - Personal training quiz now ends with name, phone, email, note and consent boxes and sends the request to the back end (`submit-form`, form `pt-enquiry`). It no longer opens an email app. Tested for real on a local copy: the enquiry was stored with the quiz answers and the emails went out (test data deleted).
-- Free class form (classes page, live timetable list), contact form (FAQ page), Kids Gym registration (Kids page) and a newsletter box in the footer of every page. Forms and their styles come from `app\supabase\forms` (one copy to maintain).
+- Free class form (classes page, live timetable list), free gym session form (book page), contact form (FAQ page), Kids Gym registration (Kids page) and a newsletter box in the footer of every page. Forms and their styles come from `app\supabase\forms` (one copy to maintain).
 - Join links now go to https://join.mygymlondon.co.uk (the Wix checkout after the move; owner decision 2026-10-27). That address shows the Wix HOME page only, so make the Wix home page the plans and checkout page, and test checkout and member login there before launch.
 - The Google map embed is replaced by a map picture that links to Google Maps (keeps the site free of third-party cookies).
 - `.htaccess` for Hostinger: HTTPS and www, redirects from old Wix addresses, security headers (scripts only from the site itself; forms may talk to *.supabase.co).
