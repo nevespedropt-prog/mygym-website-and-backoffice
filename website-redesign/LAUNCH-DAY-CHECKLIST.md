@@ -74,7 +74,7 @@ Written 2026-10-28, updated 2026-11-06. Target date: 11 November 2026 (set when 
 ## 6. Switch things off at Wix (only after steps 1 to 4 pass) and switch our own on
 These are the "everything from our system" steps decided on 2026-10-28. Do them in this order:
 - [ ] Wix automations OFF (Wix dashboard, Automations): the day-before session reminder ("Remind clients about upcoming sessions"); booking emails Wix still sends (confirmation, cancelled, changes) once checked that ours cover them.
-- [ ] **Payment emails** (separate sub-launch, can be the same day or a week later): follow `app/NEXT-SESSION.md`, section "Payment and membership emails from our own system": deploy sync-wix-payments, schedule it, first run records existing orders (sends 0), Test mode to you only, then switch Wix's 12 payment/subscription automations OFF at the same time as the flag goes to On.
+- [x] **Payment emails — test mode LIVE (2026-11-08):** `sync-wix-payments` deployed, new email flow (PAR-Q, welcome-member, part2-workout, part3-nutrition) live. `app_flags_mode_check` constraint updated to allow 'off'/'test'/'on'. Flag is currently `mode = 'test'`, `test_emails = ['nevespedro.pt@gmail.com']` — emails fire only to the owner address. Steps done: (1) baseline complete (first run stored all existing orders, sent 0 emails); (2) test mode set and confirmed. **On transition day, in this order:** (3) switch Wix's 12 payment/subscription automations OFF in Wix dashboard; (4) run `update app_flags set mode = 'on' where key = 'wix_payment_emails';` to go live for everyone.
 - [ ] Wix email campaigns: stop using them (campaigns now go through our back office with Resend). Do not delete subscribers: export them first if you want a copy.
 
 ## 7. After launch (first week)
@@ -86,6 +86,7 @@ These are the "everything from our system" steps decided on 2026-10-28. Do them 
 - [ ] DMARC: read the reports, then raise the policy from pct=10.
 - [ ] (2FA and the Wix collaborators: owner decided not to change these. Skip.)
 - [ ] Take down the old public test website (GitHub repo `mygym-website-test`: make it private or turn off GitHub Pages) so only the real site is online.
+- [ ] Set GitHub repo `mygym-website-and-backoffice` back to **private** (Settings → General → scroll to bottom → Change visibility → Make private). It was made public temporarily for the GitHub Pages preview (2026-11-09). Once the real site is live on Hostinger, the public repo is no longer needed.
 - [ ] Check Monday's weekly report email arrives at info@ (the weekly-report job) and does not start with [ATTENTION].
 - [x] Back up the website and back office: private GitHub copy done 2026-10-30 (github.com/nevespedropt-prog/mygym-website-and-backoffice). After any change run `git push` in the MY GYM folder.
 
