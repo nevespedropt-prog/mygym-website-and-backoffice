@@ -758,7 +758,7 @@
     Object.keys(FORM_INFO).forEach(function (id) {
       var s = by[id] || { total: 0, last_30d: 0, new: 0 };
       body.appendChild(h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: FORM_INFO[id][0] }), h("small", { class: "block muted", text: FORM_INFO[id][1] })]), h("td", { class: "num r", text: s.total }), h("td", { class: "num r", text: s.last_30d }), h("td", null, [s.new ? chip(s.new + " new", "bad") : chip("None waiting", "plain")]),
-        h("td", { class: "r" }, [h("a", { class: "btn sm", href: "https://app.mygymlondon.co.uk/f/" + id + ".html", target: "_blank", rel: "noopener", text: "Open form" })])]));
+        h("td", { class: "r" })]));
     });
     root.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: "Forms" })]), h("div", { class: "bd" }, [h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:600px" }, [h("thead", null, [h("tr", null, [h("th", { text: "Form" }), h("th", { class: "r", text: "Total" }), h("th", { class: "r", text: "30 days" }), h("th", { text: "Status" }), h("th")])]), body])])])]));
     var pg = h("div", { class: "list" }); SITE_PAGES.forEach(function (p) { pg.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: p[0] })]), h("a", { class: "btn sm", href: "https://www.mygymlondon.co.uk/" + p[1], target: "_blank", rel: "noopener", text: "View" })])); });
