@@ -583,7 +583,7 @@ def page(key, body):
     ) % (title, desc, SITE, "" if fn == "index.html" else fn, title, desc, SITE, mark_active(hdr, key), body, ftr)
     if key == "home": html = html.replace('<script src="assets/site.js">', '<script src="assets/instagram.js"></script><script src="assets/site.js">')
     if key == "mybookings": html = html.replace('<script src="assets/site.js">', '<script src="assets/vendor/supabase.js"></script><script src="assets/mybookings.js"></script><script src="assets/site.js">')
-    html = html.replace('data-go="free-class" href="#home"', 'data-go="free-class" href="index.html#free-class"')
+    html = re.sub(r'data-go="free-class"(?: data-kind="(\w+)")? href="#home"', lambda m: 'data-go="free-class"%s href="index.html%s#free-class"' % ((' data-kind="%s"' % m.group(1)) if m.group(1) else "", ("?free=" + m.group(1)) if m.group(1) else ""), html)
     html = html.replace("30+ classes", "25+ classes").replace("Over 30 classes", "Over 25 classes")
     # launch clean-up (2026-10-27): no sample quotes or placeholder notes on the live site; rating from the public Google listing
     html = re.sub(r'<div class="qgrid">.*?</div>', lambda m: REVIEWS_HTML, html, flags=re.S)

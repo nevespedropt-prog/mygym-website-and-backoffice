@@ -575,4 +575,5 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 .bk-done p{margin:0;color:var(--mut);max-width:44ch}
 .bk-card :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 @media (max-width:560px){.bk-fields{grid-template-columns:1fr}.bk-card{padding:14px}}
+.sec.cband{padding:40px 0;background:var(--accs)}.cband-in{display:flex;gap:18px 32px;align-items:center;justify-content:space-between;flex-wrap:wrap}.cband h2{margin:0 0 6px}.cband p{margin:0;color:var(--mut);max-width:560px}.cband .hbtns{margin-top:0}
 .mbrow{display:flex;align-items:center;gap:14px;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--line)}.mbinfo b{display:block}.mbinfo span{color:var(--mut)}.mbmsg{margin-top:16px;padding:12px 14px;border-left:4px solid var(--acc);background:#f6f5f4}.mbmsg.ok{border-color:#238a52;background:#e6f5ec}.mbmsg.bad{border-color:#a03535;background:#fdecec}.mbmsg[hidden]{display:none}#mbRoot form{max-width:420px;display:grid;gap:10px}#mbRoot [hidden]{display:none!important}
