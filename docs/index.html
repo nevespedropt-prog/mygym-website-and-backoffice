@@ -340,6 +340,7 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 var D=[["Mon",5],["Tue",6],["Wed",7],["Thu",8],["Fri",9],["Sat",10],["Sun",11]];
 var C={cardio:["Cardio n Abs","cardio","45 min"],hiit:["HIIT","cardio","30 min"],box:["BoxFit","cardio","30 min"],vit:["Vitality 50+ Circuit","fifty","1 hr"],str:["Strength","strength","1 hr"],pil:["Pilates","mind","1 hr"],kids:["Kids Gym","kids","1 hr"],abs:["Abs Attack","strength","45 min"],body:["Body Conditioning","strength","45 min"]};
 var W={11:[["09:00","str",8]],5:[["07:00","cardio",6],["09:30","vit",8],["12:30","hiit",5],["18:00","box",4],["19:15","pil",7]],6:[["07:00","cardio",6],["16:00","kids",12],["18:00","hiit",3],["19:15","abs",8]],7:[["07:00","hiit",6],["07:30","cardio",5],["09:30","str",8],["18:00","box",2]],8:[["07:00","cardio",7],["16:00","kids",12],["18:00","hiit",4]],9:[["07:00","cardio",6],["09:30","vit",8],["12:30","str",5],["18:00","body",6],["19:15","abs",3]],10:[["09:00","str",8],["10:15","pil",6]]};
+window.MG_W=W;window.MG_C=C;
 var F=[["all","All classes"],["cardio","HIIT & cardio"],["strength","Strength"],["mind","Pilates"],["fifty","50+"],["kids","Kids"]];
 var sel=5,flt="all",member=true,bk=[{id:1,day:11,t:"09:00",k:"str"},{id:2,day:6,t:"18:00",k:"hiit"}],uid=3,resc=null;
 var $=function(i){return document.getElementById(i)};
@@ -417,14 +418,14 @@ function renderTimetable(){
  container.innerHTML="";
  days.forEach(function(d){
   var dow=d.getDay();
-  var slots=(W[dow]||[]);
+  var slots=(window.MG_W[(dow+6)%7+5]||[]);
   if(!slots.length)return;
   var col=document.createElement("div");
   col.className="fc-day";
   col.innerHTML='<div class="fc-day-hd'+(d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()?' today':'')+'">'+DAYS[dow]+" "+d.getDate()+" "+MONTHS[d.getMonth()]+"</div>";
   slots.forEach(function(s){
    var time=s[0],key=s[1],cap=s[2];
-   var info=C[key];if(!info)return;
+   var info=window.MG_C[key];if(!info)return;
    var name=info[0],cat=info[1],dur=info[2];
    var slotEl=document.createElement("div");
    slotEl.className="fc-slot";
@@ -497,6 +498,7 @@ form.addEventListener("submit",function(e){
  });
 });
 renderTimetable();
+document.addEventListener("click",function(e){var g=e.target.closest('[data-go="free-class"]');if(!g)return;e.preventDefault();e.stopPropagation();document.getElementById("free-class").scrollIntoView({behavior:"smooth",block:"start"})},true);
 })();
 
 (function(){var b=document.getElementById("lgBtn");if(!b)return;b.addEventListener("click",function(){var m=document.getElementById("lgMsg"),e=document.getElementById("lgEmail").value.trim(),p=document.getElementById("lgPass").value;m.textContent=!e||!p?"Enter your email and password.":"Design preview: members log in on the live site.";});})();
