@@ -46,8 +46,8 @@ for m in re.finditer(r'<section class="view" id="([a-z\-]+)">', src):
 js_all = src[src.index("<script>", src.index("</footer>")) + 8 : src.rindex("</script>")]
 
 PAGES = {
-    "home": ("index.html", "MyGym London | Private gym, classes & personal training in Enfield",
-             "Private community gym in Bush Hill Park, Enfield EN1. Personal training, 25+ classes a week from £6, open 5am to midnight, no contract."),
+    "home": ("index.html", "MyGym London | Community gym, classes & personal training in Enfield",
+             "Community gym in Bush Hill Park, Enfield EN1. Personal training, 25+ classes a week from £6, open 5am to midnight, no contract."),
     "classes": ("classes.html", "Exercise classes in Enfield | Timetable & prices | MyGym London",
                 "Weekly class timetable at MyGym London, Bush Hill Park, Enfield: 25+ classes a week, most £6, Pilates £7. Pay as you go or membership."),
     "book": ("book.html", "Book the gym | MyGym London",
@@ -158,6 +158,7 @@ def with_form(view_html, fid, heading, intro):
 
 
 views["classes"] = with_form(views["classes"], "trial-class", "Try a free class", "Pick a class and a day. We confirm your place by email.")
+views["book"] = with_form(views["book"], "trial-gym", "Book a free gym session", "Your first open gym session is on us. Pick a date and time and we will confirm by email.")
 views["faq"] = with_form(views["faq"], "contact", "Still have a question?", "Send us a message and we will reply within one working day.")
 views["kids-gym"] = with_form(views["kids-gym"], "kids-registration", "Register your child", "For children aged 8 and over. We confirm each place within two working days.")
 # free guide page (owner decision 2026-10-31: Part 1 of the members-only ebook is free for sign-ups; Parts 2 and 3 stay for members)
@@ -177,7 +178,7 @@ def quiet_heading(h):
     return h.replace("<h2>", '<h2 class="sr-only">', 1)
 
 
-for k in ("classes", "faq", "kids-gym", "guide"):
+for k in ("classes", "faq", "kids-gym", "guide", "book"):
     views[k] = re.sub(r'(<form class="mgl-form"[^>]*>\s*)<h2>', r'\1<h2 class="sr-only">', views[k], count=1)
     views[k] = re.sub(r'(<form class="mgl-form"[^>]*>\s*<h2 class="sr-only">[^<]*</h2>\s*)<p class="intro">[^<]*</p>', r"\1", views[k], count=1)
 
@@ -206,6 +207,31 @@ views["pt"] = views["pt"][:_a] + (
 views["pt"] = views["pt"].replace(' onsubmit="return false"', '')
 # Google's map embed sets cookies; use a plain map picture that links to Google Maps instead (keeps the site cookie-free)
 MAP_LINK = "https://maps.app.goo.gl/wNNUX7us7yqXQyGd9"
+# "Try it free" CTA section: two cards linking to both free-trial forms
+FREE_TRIAL_SECTION = (
+    '<section class="sec">'
+    '<div class="wrap">'
+    '<div class="shead"><div>'
+    '<h2>Try it free</h2>'
+    '<p class="sub">No contract. No commitment. Your first session is on us.</p>'
+    '</div></div>'
+    '<div style="display:flex;gap:1.5rem;flex-wrap:wrap">'
+    '<div class="card" style="flex:1;min-width:260px">'
+    '<h3>Free trial class</h3>'
+    '<p>25+ classes a week — Spin, Pilates, Body Pump, HIIT and more. From \xa36 after that.</p>'
+    '<a class="btn" href="classes.html#form-trial-class">Book a free class</a>'
+    '</div>'
+    '<div class="card" style="flex:1;min-width:260px">'
+    '<h3>Free gym session</h3>'
+    '<p>Open gym 5am–midnight, any day. Try the equipment, meet the team, no strings attached.</p>'
+    '<a class="btn ghost" href="book.html#form-trial-gym">Book a free gym session</a>'
+    '</div>'
+    '</div>'
+    '</div>'
+    '</section>'
+)
+home_body = home_body.replace('<section class="sec cta">', FREE_TRIAL_SECTION + '<section class="sec cta">', 1)
+
 home_body = re.sub(r'<iframe[^>]*maps\.google\.com[^>]*></iframe>',
                    '<a class="mapimg" href="%s" rel="noopener"><img src="map-static.jpg" alt="Map showing MyGym London, Main Avenue, Bush Hill Park, Enfield. Tap for directions." loading="lazy" style="width:100%%;height:100%%;object-fit:cover"></a>' % MAP_LINK, home_body)
 
