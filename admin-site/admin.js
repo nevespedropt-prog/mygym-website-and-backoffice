@@ -298,15 +298,60 @@
       [h("button", { class: "btn", onclick: closeModal, text: "Close" }), check, send]);
   }
 
-  /* ---------- timetable (weekly grid, read-only: classes are kept in step with Wix) ---------- */
-  var ttView = "classes", ttAll = false;
+  /* ---------- timetable: weekly grid or list; owner and manager can add, edit, switch off and remove ---------- */
+  var ttView = "classes", ttAll = false, ttLayout = "", ttDay = "all";
+  var TT_LENGTHS = ["30 min", "45 min", "1 hr", "1 hr 15 min"];
+  function ttMissing(e) { return !!e && (e.code === "PGRST202" || e.code === "42883" || /could not find the function|schema cache/i.test(e.message || "")); }
+  function ttName(c) { return c.day + " " + String(c.time).slice(0, 5) + " " + c.name; }
+  function ttSort(a, b) { var d = WD.indexOf(a.day) - WD.indexOf(b.day); return d || (a.time < b.time ? -1 : a.time > b.time ? 1 : 0); }
+
   async function vTimetable() {
-    var rows = await rpc("admin_timetable"), root = h("div");
-    var gym = ttView === "gym", list = rows.filter(function (c) { return (gym ? c.kind === "gym" : c.kind !== "gym") && (ttAll || c.active); });
-    var acts = [h("div", { class: "seg" }, [h("button", { class: !gym ? "on" : "", onclick: function () { ttView = "classes"; route(); }, text: "Classes" }), h("button", { class: gym ? "on" : "", onclick: function () { ttView = "gym"; route(); }, text: "Gym hours" })]),
+    var data = null, rows, legacy = false;
+    try { data = await rpc("admin_timetable_edit"); rows = data.rows; }
+    catch (e) { if (!ttMissing(e)) throw e; legacy = true; rows = await rpc("admin_timetable"); }
+    var mode = data ? data.mode : null, canEdit = !legacy && can(["admin", "manager"]), root = h("div"), ctx = { mode: mode, canEdit: canEdit, rows: rows, legacy: legacy };
+    var gym = ttView === "gym", layout = ttLayout || (window.innerWidth < 760 ? "list" : "grid");
+    var list = rows.filter(function (c) { return (gym ? c.kind === "gym" : c.kind !== "gym") && (ttAll || c.active) && (ttDay === "all" || c.day === ttDay); }).sort(ttSort);
+    var acts = [
+      h("div", { class: "seg" }, [h("button", { class: !gym ? "on" : "", onclick: function () { ttView = "classes"; route(); }, text: "Classes" }), h("button", { class: gym ? "on" : "", onclick: function () { ttView = "gym"; route(); }, text: "Gym hours" })]),
+      h("div", { class: "seg" }, [h("button", { class: layout === "grid" ? "on" : "", onclick: function () { ttLayout = "grid"; route(); }, text: "Grid" }), h("button", { class: layout === "list" ? "on" : "", onclick: function () { ttLayout = "list"; route(); }, text: "List" })]),
+      h("select", { class: "in sel", "aria-label": "Show one day", onchange: function (e) { ttDay = e.target.value; route(); } }, [h("option", { value: "all", text: "All days", selected: ttDay === "all" })].concat(WD.map(function (d) { return h("option", { value: d, text: d, selected: ttDay === d }); }))),
       h("button", { class: "btn sm", onclick: function () { ttAll = !ttAll; route(); }, text: ttAll ? "Hide switched off" : "Show switched off" })];
-    root.appendChild(pageHead("Timetable", "Your weekly classes and open gym hours. They are kept in step with Wix automatically, so this page is for viewing.", acts));
+    if (canEdit) acts.push(h("button", { class: "btn pri", onclick: function () { ttEdit(null, ctx); }, text: gym ? "Add gym hour" : "Add class" }));
+    var lead = legacy ? "Your weekly classes and open gym hours." : canEdit ? "Your weekly classes and open gym hours. Click one to change it, or add a new one." : "Your weekly classes and open gym hours. Ask the owner or a manager to change them.";
+    root.appendChild(pageHead("Timetable", lead, acts));
+    root.appendChild(ttBanner(ctx));
     if (!list.length) { root.appendChild(card("Nothing here", "", [empty("No sessions to show.")])); return root; }
+    root.appendChild(layout === "list" ? ttList(list, gym, ctx) : ttGrid(list, ctx));
+    return root;
+  }
+
+  function ttBanner(ctx) {
+    if (ctx.legacy) return h("div", { class: "banner" }, [h("div", null, [h("b", { text: "View only for now. " }), document.createTextNode("Classes are still changed in Wix, and the app follows within minutes.")])]);
+    if (ctx.mode === "backoffice") return h("div", { class: "banner ok" }, [h("div", null, [h("b", { text: "You control the timetable. " }), document.createTextNode("Changes made here show in the app and on the website straight away. The Wix website no longer changes it.")])]);
+    return h("div", { class: "banner" }, [
+      h("div", { style: "flex:1" }, [h("b", { text: "The timetable still syncs from the Wix website every 10 minutes. " }), document.createTextNode("Changes to classes that came from Wix are put back until you switch control to this back office. Classes you add here are never touched.")]),
+      can(["admin"]) ? h("button", { class: "btn sm", onclick: function () { ttTakeControl(ctx); }, text: "Take control of the timetable (do this on launch day)" }) : null]);
+  }
+
+  function ttNextText(c) { return c.next_date == null || c.booked_next == null ? "-" : c.booked_next + " of " + c.capacity; }
+
+  function ttList(list, gym, ctx) {
+    var tb = h("tbody", null, list.map(function (c) {
+      var over = c.booked_next != null && c.booked_next > c.capacity;
+      return h("tr", { tabindex: "0", "aria-label": ttName(c), onclick: function () { ttDrawer(c, ctx); }, onkeydown: function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ttDrawer(c, ctx); } } }, [
+        h("td", { text: c.day }), h("td", { class: "num", text: String(c.time).slice(0, 5) }),
+        h("td", null, [h("b", { text: c.name }), c.coach ? h("small", { class: "block muted", text: c.coach }) : null]),
+        h("td", { text: gym ? "-" : (c.info || "-") }), h("td", { class: "num", text: c.capacity }),
+        h("td", null, [h("span", { class: "num", text: ttNextText(c) }), over ? h("small", { class: "block" }, [chip("Over capacity", "bad")]) : null]),
+        h("td", null, [chip(c.source === "wix" ? "Wix" : "Added here", c.source === "wix" ? "info" : "plain")]),
+        h("td", null, [chip(c.active ? "On" : "Off", c.active ? "ok" : "plain")])]);
+    }));
+    var heads = ["Day", "Time", gym ? "Gym hour" : "Class", "Length", "Places", "Booked next", "Source", "Status"];
+    return h("div", { class: "card" }, [h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, heads.map(function (x) { return h("th", { text: x }); }))]), tb])])]);
+  }
+
+  function ttGrid(list, ctx) {
     var hours = list.map(function (c) { return parseInt(String(c.time).slice(0, 2), 10); }), lo = Math.min.apply(null, hours), hi = Math.max.apply(null, hours);
     var todayIdx = (new Date().getDay() + 6) % 7, g = '<div class="wk"><div class="dh" style="border-right:0"></div>' + WD.map(function (d, i) { return '<div class="dh' + (i === todayIdx ? " today" : "") + '">' + d.slice(0, 3) + "</div>"; }).join("");
     for (var hr = lo; hr <= hi; hr++) {
@@ -322,14 +367,114 @@
     }
     g += "</div>";
     var wrap = fromHtml('<div class="card" style="overflow:hidden"><div class="tbl-wrap">' + g + "</div></div>");
-    wrap.querySelectorAll(".cls").forEach(function (b) { b.addEventListener("click", function () { var c = rows.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0]; ttDrawer(c); }); });
-    root.appendChild(fromHtml('<div class="legend" style="margin-bottom:12px"><span><i style="background:#f6cfcf"></i>Class</span><span><i style="background:#cfdcf4"></i>Gym hour</span><span><i style="background:#c8e8d4"></i>Kids</span><span><i style="background:#e3e1df"></i>Switched off</span><span>The bar inside each block is the average fill over the last 4 weeks</span></div>'));
-    root.appendChild(wrap); return root;
+    wrap.querySelectorAll(".cls").forEach(function (b) { b.addEventListener("click", function () { var c = ctx.rows.filter(function (x) { return String(x.id) === b.getAttribute("data-id"); })[0]; ttDrawer(c, ctx); }); });
+    return h("div", null, [fromHtml('<div class="legend" style="margin-bottom:12px"><span><i style="background:#f6cfcf"></i>Class</span><span><i style="background:#cfdcf4"></i>Gym hour</span><span><i style="background:#c8e8d4"></i>Kids</span><span><i style="background:#e3e1df"></i>Switched off</span><span>The bar inside each block is the average fill over the last 4 weeks</span></div>'), wrap]);
   }
-  function ttDrawer(c) {
-    var kv = h("dl", { class: "kv" }); [["Day and time", c.day + " " + String(c.time).slice(0, 5)], ["Type", c.kind === "gym" ? "Gym hour" : "Class"], ["Coach", c.coach || "Not set"], ["Capacity", c.capacity], ["Average booked (4 weeks)", c.avg], ["Status", c.active ? "On" : "Switched off"], ["Source", c.source === "wix" ? "Wix (kept in step automatically)" : c.source || "-"], ["Notes", c.info || "-"]]
+
+  function ttDrawer(c, ctx) {
+    var kv = h("dl", { class: "kv" });
+    [["Day and time", c.day + " " + String(c.time).slice(0, 5)], ["Type", c.kind === "gym" ? "Gym hour" : "Class"], ["Coach", c.coach || "Not set"], ["Length", c.kind === "gym" ? "-" : (c.info || "-")], ["Places", c.capacity],
+      ["Booked next session", c.next_date == null || c.booked_next == null ? "-" : fDate(c.next_date) + ": " + c.booked_next + " of " + c.capacity], ["Booked ahead, all dates", c.booked_ahead == null ? "-" : c.booked_ahead],
+      ["Average booked (4 weeks)", c.avg], ["Status", c.active ? "On" : "Switched off"], ["Source", c.source === "wix" ? "Wix website" : "Added in this back office"]]
       .forEach(function (p) { kv.appendChild(h("dt", { text: p[0] })); kv.appendChild(h("dd", { text: p[1] })); });
-    openDrawer(c.name, [h("div", { class: "sect" }, [kv]), h("p", { class: "muted", text: "To change a class, edit it in Wix. The app and this page follow within minutes." })]);
+    var body = [h("div", { class: "sect" }, [kv])];
+    if (ctx.canEdit) {
+      body.push(h("div", { class: "btns" }, [
+        h("button", { class: "btn pri", onclick: function () { ttEdit(c, ctx); }, text: "Edit" }),
+        h("button", { class: "btn", onclick: function () { ttToggle(c); }, text: c.active ? "Switch off" : "Switch on" }),
+        h("button", { class: "btn dng", onclick: function () { ttRemove(c); }, text: "Remove" })]));
+      if (ctx.mode === "wix" && c.source === "wix") body.push(h("p", { class: "muted", text: "This one came from Wix. Until you take control of the timetable, changes to its day, time, name, length, places or on/off are put back within 10 minutes. A change of coach stays." }));
+      body.push(h("p", { class: "muted", text: "To cancel just one date and email the people booked, use the Schedule page (owner only)." }));
+    } else {
+      body.push(h("p", { class: "muted", text: ctx.legacy ? "To change a class, edit it in Wix. The app and this page follow within minutes." : "Ask the owner or a manager to change this." }));
+    }
+    openDrawer(c.name, body);
+  }
+
+  function ttEdit(c, ctx) {
+    var isNew = !c, kind = c ? c.kind : (ttView === "gym" ? "gym" : "class"), isGym = kind === "gym", dayDefault = c ? c.day : (ttDay !== "all" ? ttDay : "Monday");
+    var day = h("select", { class: "in sel", id: "ttDay" }, WD.map(function (d) { return h("option", { value: d, text: d, selected: d === dayDefault }); }));
+    var time = h("input", { class: "in", id: "ttTime", type: "time", step: "300", min: "05:00", max: "23:59", required: true, value: c ? String(c.time).slice(0, 5) : "" });
+    var name = isGym ? null : h("input", { class: "in", id: "ttName", maxlength: "60", required: true, placeholder: "For example HIIT", value: c ? c.name : "" });
+    var coach = h("input", { class: "in", id: "ttCoach", maxlength: "60", placeholder: "Optional", value: c ? (c.coach || "") : "" });
+    var info = isGym ? null : h("input", { class: "in", id: "ttInfo", maxlength: "60", list: "ttLen", placeholder: "For example 45 min", value: c ? (c.info || "") : "" });
+    var lens = h("datalist", { id: "ttLen" }, TT_LENGTHS.map(function (v) { return h("option", { value: v }); }));
+    var cap = h("input", { class: "in", id: "ttCap", type: "number", min: "0", max: "100", step: "1", inputmode: "numeric", required: true, value: c ? String(c.capacity) : (isGym ? "6" : "8") });
+    var on = h("input", { type: "checkbox", id: "ttOn", checked: c ? !!c.active : true });
+    var warn = h("p", { class: "ttwarn", role: "status", hidden: true });
+    function showWarn() {
+      var msgs = [], n = Number(cap.value);
+      if (c && c.booked_next != null && c.next_date != null && cap.value !== "" && c.booked_next > n) msgs.push(c.booked_next + " people are booked for " + fDate(c.next_date) + ", more than " + n + " places. Their bookings stay, but nobody else can book that session.");
+      if (c && ctx.mode === "wix" && c.source === "wix") msgs.push("This one came from Wix. Until you take control of the timetable, changes to its day, time, name, length, places or on/off are put back within 10 minutes. A change of coach stays.");
+      warn.textContent = msgs.join(" "); warn.hidden = !msgs.length;
+    }
+    cap.addEventListener("input", showWarn); showWarn();
+    var save = h("button", { class: "btn pri", type: "submit", form: "ttForm", text: isNew ? (isGym ? "Add gym hour" : "Add class") : "Save changes" });
+    function doSave() {
+      var payload = { id: c ? c.id : null, kind: kind, day_name: day.value, start_time: time.value, name: isGym ? "Open Gym" : name.value, coach: coach.value, info: isGym ? "" : info.value, capacity: cap.value === "" ? null : Number(cap.value), active: on.checked };
+      save.disabled = true;
+      rpc("admin_class_save", { p: payload }).then(function (res) {
+        var msg = isNew ? (isGym ? "Gym hour added." : "Class added.") : "Saved.";
+        if (res.sync_will_revert) msg += " It came from Wix, so it will be put back within 10 minutes.";
+        if (res.booked_next != null && res.booked_next > payload.capacity) msg += " " + res.booked_next + " are booked next session, more than the places.";
+        closeDrawer(); toast(msg); route();
+      }).catch(function (e) { save.disabled = false; toast(e.message, true); });
+    }
+    var form = h("form", { id: "ttForm", class: "ttform", novalidate: false, onsubmit: function (e) { e.preventDefault(); doSave(); } }, [
+      h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttDay", text: "Day" }), day]), h("div", { class: "field" }, [h("label", { for: "ttTime", text: "Start time" }), time])]),
+      isGym ? h("p", { class: "muted", text: "Gym hours are always called Open Gym." }) : h("div", { class: "field" }, [h("label", { for: "ttName", text: "Class name" }), name]),
+      h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttCoach", text: "Coach" }), coach]), isGym ? null : h("div", { class: "field" }, [h("label", { for: "ttInfo", text: "Length" }), info, lens])]),
+      h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttCap", text: "Places (capacity)" }), cap])]),
+      h("label", { class: "chkline" }, [on, h("span", { text: "On: show it in the app and on the website" })]),
+      warn]);
+    openDrawer(isNew ? (isGym ? "Add a gym hour" : "Add a class") : "Edit " + c.name, [form], [h("button", { class: "btn", type: "button", onclick: closeDrawer, text: "Cancel" }), save]);
+    (isGym ? time : name).focus();
+  }
+
+  function ttConfirm(title, kids, label, action) {
+    var go = h("button", { class: "btn dng", text: label });
+    go.addEventListener("click", function () { go.disabled = true; Promise.resolve(action()).then(function () { go.disabled = false; }); });
+    openModal(title, kids, [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+  }
+  function ttCall(fnName, args, okMsg) {
+    return rpc(fnName, args).then(function (res) {
+      var m = typeof okMsg === "function" ? okMsg(res) : okMsg;
+      if (res && res.sync_will_revert) m += " It came from Wix, so it will be put back within 10 minutes.";
+      closeModal(); closeDrawer(); toast(m); route();
+    }).catch(function (e) { toast(e.message, true); });
+  }
+  function ttToggle(c) {
+    if (!c.active) { ttCall("admin_class_set_active", { p_id: c.id, p_on: true, p_force: false }, "Switched on."); return; }
+    var kids = [h("p", { text: ttName(c) + " will disappear from the app and the website. Bookings already made are kept." })];
+    if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Schedule page (owner only)." }));
+    ttConfirm("Switch off " + c.name + "?", kids, "Switch off", function () { return ttCall("admin_class_set_active", { p_id: c.id, p_on: false, p_force: true }, "Switched off."); });
+  }
+  function ttRemove(c) {
+    var kids = [];
+    if (!c.ever) kids.push(h("p", { text: "This deletes " + ttName(c) + " for good. Nobody has ever booked it. It cannot be undone." }));
+    else {
+      kids.push(h("p", { text: ttName(c) + " has booking history, so it cannot be deleted. It will be switched off instead, and everything already booked is kept." }));
+      if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Schedule page (owner only)." }));
+    }
+    ttConfirm(c.ever ? "Switch off " + c.name + "?" : "Delete " + c.name + "?", kids, c.ever ? "Switch off" : "Delete", function () {
+      return ttCall("admin_class_remove", { p_id: c.id, p_force: true }, function (res) { return res && res.deleted ? "Deleted." : "Switched off, booking history kept."; });
+    });
+  }
+  function ttTakeControl(ctx) {
+    var n = ctx.rows.filter(function (x) { return x.source === "wix" && x.active; }).length;
+    var typed = h("input", { class: "in", id: "ttType", autocomplete: "off", placeholder: "TAKE CONTROL", "aria-label": "Type TAKE CONTROL to confirm" });
+    var go = h("button", { class: "btn dng", text: "Take control", disabled: true });
+    typed.addEventListener("input", function () { go.disabled = typed.value.trim().toUpperCase() !== "TAKE CONTROL"; });
+    go.addEventListener("click", function () {
+      go.disabled = true;
+      rpc("admin_timetable_control_set", { p_mode: "backoffice" }).then(function (res) { closeModal(); toast("You now control the timetable. " + res.converted + " classes and gym hours are managed here."); route(); })
+        .catch(function (e) { go.disabled = false; toast(e.message, true); });
+    });
+    openModal("Take control of the timetable", [
+      h("p", { text: "Do this once, on launch day. It switches off the Wix sync, and the " + n + " active classes and gym hours that came from Wix become ones you manage here. From then on the Wix website no longer changes the app or the new website." }),
+      h("div", { class: "field", style: "margin-top:12px" }, [h("label", { for: "ttType", text: "Type TAKE CONTROL to confirm" }), typed])],
+      [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    typed.focus();
   }
 
   /* ---------- analytics ---------- */

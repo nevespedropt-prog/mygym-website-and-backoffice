@@ -290,3 +290,16 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 .dotc{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .sampletag{margin-left:4px;height:20px;font-size:11px}
 .sampletag::before{display:none}
+
+/* timetable editor */
+.banner.ok{background:var(--oks);border-color:#cfe8d9;color:var(--ok)}
+.banner .btn{flex:none}
+.ttform{display:flex;flex-direction:column;gap:14px}
+.ttform .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.ttform .row2 .field{min-width:0}
+.ttform .in{width:100%}
+.chkline{display:flex;gap:9px;align-items:center;font-weight:600}
+.chkline input{width:18px;height:18px;accent-color:var(--acc)}
+.ttwarn{color:#7a5413;background:var(--warns);border-radius:8px;padding:9px 12px;font-size:13px;margin:0}
+.t tbody tr:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+@media(max-width:520px){.ttform .row2{grid-template-columns:1fr}.banner{flex-direction:column}}
