@@ -25,7 +25,7 @@ Settings at the top of `build_site.py`: `APP`, `JOIN_URL`, `SITE`.
 7. "25+ classes a week" is a safe true minimum (about 28 sessions in the timetable); change if you prefer another number.
 
 ## Update 2026-11-06: referral model changed
-- Refer a friends reward changed from 50% off one billing cycle to **one month free** on the referring member's membership. Updated in: `refer-friends.html` (page, card, all meta), `login.html`, `terms.html` (also updated "Last updated" date), `faq.html` (JSON-LD and HTML answer).
+- Refer a friend reward is **100% off the first billing cycle** for each friend who buys a plan (owner confirmed 2026-11-11). It is set in `refer-friends.html`, `login.html`, `terms.html` (Last updated 11 November 2026) and `faq.html` (HTML and JSON-LD). Change it in the source files (`site-w.html`, `gen_site3.py`, `legal_pages.py`, `build_site.py`), then run `python build_site.py`. The member app's own `terms.html` (separate repo) still says 50% and needs the same change on its next deploy.
 - These are uncommitted changes (waiting for owner push approval).
 
 ## Update 2026-10-27: real forms built in (still NOT deployed)

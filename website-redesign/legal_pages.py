@@ -8,6 +8,7 @@ import re
 
 EMAIL = "info@mygymlondon.co.uk"
 UPDATED = "26 October 2026"
+UPDATED_BY_PAGE = {"terms": "11 November 2026"}  # Terms changed (referral reward 100%)
 
 # A block is a paragraph (str) or a bullet list (list of str).
 PRIVACY = ("Privacy policy", "How MyGym London looks after your personal information on our website and in our app.", [
@@ -154,7 +155,7 @@ TERMS = ("Terms and conditions", "The rules for using the MyGym London website a
          "A parent or guardian must complete the health and safety form for their child, and accept these terms on their child's behalf, when booking."],
     ]),
     ("Refer a friend", [
-        ["If you refer a friend who buys a plan, you receive a 50% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.",
+        ["If you refer a friend who buys a plan, you receive a 100% discount on your first billing cycle of the plan shown on the Refer Friends page. The reward goes to the member who refers, not to the friend.",
          "There is no limit on how many friends you can refer, or how many rewards you can earn.",
          "We may withdraw the offer, or refuse a reward where it is being abused."],
     ]),
@@ -246,7 +247,7 @@ def _lgl(key, page, link):
     """the text of one legal page; link(k) gives the address of another legal page"""
     title, intro, sections = page
     other = [(k, p[0]) for k, p in PAGES if k != key]
-    parts = ['<div class="lgl"><span class="upd">Last updated %s</span>' % UPDATED,
+    parts = ['<div class="lgl"><span class="upd">Last updated %s</span>' % UPDATED_BY_PAGE.get(key, UPDATED),
              ]
     for h, blocks in sections:
         parts.append("<h2>%s</h2>" % _h.escape(h))
