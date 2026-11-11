@@ -316,7 +316,12 @@ fetch(URL+"/rest/v1/classes?select=day_name,start_time,name,coach,info,capacity&
 })();
 """ % {"url": SUPABASE_URL, "key": SUPABASE_KEY, "app": APP}
 
-SITE_JS = burger + "\n" + wiz + "\n" + LIVE_JS + """
+# free class / free gym session / question form on the home page (script lives in site-w.html so there is one source)
+bk0 = js_all.index("// Booking form: free class")
+bk1 = js_all.index("\n})();", js_all.index("},true);", bk0)) + 6
+BK_JS = js_all[bk0:bk1]
+
+SITE_JS = burger + "\n" + wiz + "\n" + LIVE_JS + "\n" + BK_JS + """
 document.addEventListener("click",function(e){var g=e.target.closest("[data-go]");if(g){var t=document.getElementById(g.dataset.go);if(t)t.scrollIntoView({behavior:"smooth",block:"center"})}});
 """
 
@@ -578,6 +583,7 @@ def page(key, body):
     ) % (title, desc, SITE, "" if fn == "index.html" else fn, title, desc, SITE, mark_active(hdr, key), body, ftr)
     if key == "home": html = html.replace('<script src="assets/site.js">', '<script src="assets/instagram.js"></script><script src="assets/site.js">')
     if key == "mybookings": html = html.replace('<script src="assets/site.js">', '<script src="assets/vendor/supabase.js"></script><script src="assets/mybookings.js"></script><script src="assets/site.js">')
+    html = html.replace('data-go="free-class" href="#home"', 'data-go="free-class" href="index.html#free-class"')
     html = html.replace("30+ classes", "25+ classes").replace("Over 30 classes", "Over 25 classes")
     # launch clean-up (2026-10-27): no sample quotes or placeholder notes on the live site; rating from the public Google listing
     html = re.sub(r'<div class="qgrid">.*?</div>', lambda m: REVIEWS_HTML, html, flags=re.S)

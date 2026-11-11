@@ -215,36 +215,61 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 .lgl .others{margin-top:30px;padding-top:18px;border-top:1px solid #e1e1e5;font-size:14px}
 .legal a{display:inline;padding:0;opacity:1;text-decoration:underline;color:inherit}
 @media(max-width:900px){#terms .phead,#privacy .phead,#cookies .phead{padding:0}#terms .phead .wrap,#privacy .phead .wrap,#cookies .phead .wrap{padding:26px 20px 18px}.lgl h2{font-size:26px}.lgl{font-size:15px}}
-#free-class{background:#f8f7f7}
-.fc-timetable{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;margin-bottom:28px;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
-.fc-timetable::-webkit-scrollbar{height:4px}.fc-timetable::-webkit-scrollbar-thumb{background:var(--line);border-radius:2px}
-.fc-day{min-width:140px;flex-shrink:0;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
-.fc-day-hd{background:var(--txt);color:#fff;text-align:center;padding:8px 6px;font:700 13px var(--disp);text-transform:uppercase;letter-spacing:.06em}
-.fc-day-hd.today{background:var(--acc)}
-.fc-slot{padding:9px 10px;border-bottom:1px solid var(--line);cursor:pointer;transition:background .15s}
-.fc-slot:last-child{border-bottom:none}
-.fc-slot:hover{background:var(--accs)}
-.fc-slot.picked{background:var(--accs);outline:2px solid var(--acc)}
-.fc-slot .fct{font:700 15px var(--disp);text-transform:uppercase;letter-spacing:.04em;color:var(--txt)}
-.fc-slot .fci{font-size:12px;color:var(--mut);margin-top:2px}
-.fc-slot .fcp{font-size:11px;color:var(--acc);font-weight:700;margin-top:3px}
-.fc-past{opacity:.4;cursor:not-allowed;pointer-events:none}
-.fc-form{margin-top:4px}
-.fc-fields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px}
-@media(max-width:700px){.fc-fields{grid-template-columns:1fr}}
-.fc-form .fld label{display:block;font-size:13px;font-weight:700;margin-bottom:5px;color:var(--txt);text-transform:uppercase;letter-spacing:.05em}
-.fc-form .fld input{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:6px;padding:10px 12px;font:15px inherit;color:var(--txt);background:#fff;transition:border .15s}
-.fc-form .fld input:focus{outline:none;border-color:var(--acc)}
-.fc-consent{margin-bottom:16px}
-.chk{display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:14px;line-height:1.5;color:var(--mut)}
-.chk input[type=checkbox]{margin-top:2px;accent-color:var(--acc);flex-shrink:0}
-.fc-privacy{font-size:12px;color:var(--mut);margin-bottom:20px;line-height:1.6}
-.fc-privacy a{color:var(--acc)}
-.fc-sel{background:var(--accs);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:14px;color:var(--txt)}
-.fc-actions{margin-bottom:12px}
-.fc-msg{font-size:14px;padding:12px 14px;border-radius:8px;font-weight:600}
-.fc-msg.ok{background:#e6f9ed;color:#1a7a3c}
-.fc-msg.err{background:#fdecea;color:#b71c1c}
+#free-class{background:var(--alt);scroll-margin-top:84px}
+.bk-card{position:relative;max-width:640px;margin:22px auto 0;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;min-height:440px;text-align:left}
+.bk-body{display:flex;flex-direction:column;gap:16px;min-height:404px}
+.bk-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.bk-card h3{font:700 28px/1.1 var(--disp);text-transform:uppercase;letter-spacing:.02em;margin:0;color:var(--txt)}
+.bk-card h3:focus{outline:none}
+.bk-head{display:flex;flex-direction:column;gap:8px}
+.bk-nav{display:flex;align-items:center;justify-content:space-between;min-height:30px}
+.bk-step{font-weight:600;font-size:12px;line-height:1;text-transform:uppercase;letter-spacing:.1em;color:var(--mut)}
+.bk-back{border:0;background:none;color:var(--acc);font-weight:600;font-size:14px;font-family:inherit;padding:4px 0;cursor:pointer}
+.bk-bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.bk-bar i{display:block;height:100%;background:var(--acc)}
+.bk-tiles{display:flex;flex-direction:column;gap:10px}
+.bk-tile{display:flex;justify-content:space-between;align-items:center;gap:12px;text-align:left;padding:16px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);cursor:pointer;color:var(--txt);font:inherit}
+.bk-tile:hover{border-color:var(--acc);background:var(--accs)}
+.bk-tile b{display:block;font:700 24px/1.1 var(--disp);text-transform:uppercase}
+.bk-tile small{display:block;font-size:13px;color:var(--mut);margin-top:2px}
+.bk-tile i{font-style:normal;color:var(--acc);font-size:22px}
+.bk-strip{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.bk-chip{flex:0 0 auto;min-width:58px;padding:7px 6px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);text-align:center;cursor:pointer;color:var(--txt);font:inherit}
+.bk-dw{display:block;font-weight:600;font-size:11px;line-height:1.3;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.bk-dn{display:block;font:700 22px/1.1 var(--disp)}
+.bk-chip[aria-pressed="true"]{background:var(--acc);border-color:var(--acc);color:#fff}
+.bk-chip[aria-pressed="true"] .bk-dw{color:#fff}
+.bk-list{display:flex;flex-direction:column;gap:6px;margin-top:10px;max-height:236px;overflow-y:auto}
+.bk-row{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;text-align:left;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer;color:var(--txt);font:inherit}
+.bk-part{grid-template-columns:1fr;padding:13px 12px}
+.bk-t{font:700 18px var(--disp)}
+.bk-n{font-weight:600;min-width:0}
+.bk-d{font-size:12px;color:var(--mut)}
+.bk-row:hover:not(:disabled){border-color:var(--acc)}
+.bk-row[aria-pressed="true"]{border-color:var(--acc);background:var(--accs)}
+.bk-row:disabled{opacity:.4;cursor:not-allowed}
+.bk-none{color:var(--mut);margin:0}
+.bk-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bk-fld{display:flex;flex-direction:column;gap:4px;min-width:0;margin-bottom:10px}
+.bk-fields .bk-fld{margin-bottom:0}
+.bk-fld label{font-weight:600;font-size:11px;line-height:1.3;text-transform:uppercase;letter-spacing:.07em;color:var(--mut)}
+.bk-fld input,.bk-fld select,.bk-fld textarea{width:100%;box-sizing:border-box;border:1.5px solid var(--line);border-radius:7px;padding:10px;font:inherit;background:#fff;color:var(--txt)}
+.bk-fld textarea{min-height:96px;resize:vertical}
+.bk-fld input:focus,.bk-fld select:focus,.bk-fld textarea:focus{outline:none;border-color:var(--acc)}
+.bk-chk{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--mut);margin-top:12px;cursor:pointer}
+.bk-chk input{margin-top:3px;accent-color:var(--acc);flex:0 0 auto}
+.bk-priv{font-size:12px;color:var(--mut);margin:8px 0 0}
+.bk-priv a{color:var(--acc)}
+.bk-foot{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:auto}
+.bk-sum{font-size:13px;color:var(--mut);flex:1 1 180px;min-width:0}
+.bk-card .btn:disabled{opacity:.4;cursor:not-allowed}
+.bk-err{margin:0 0 10px;padding:10px 12px;border-radius:8px;background:#fdecea;color:#b71c1c;font-weight:600;font-size:14px}
+.bk-err[hidden]{display:none}
+.bk-done{text-align:center;padding:36px 10px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.bk-ok{color:#1a7a3c!important}
+.bk-done p{margin:0;color:var(--mut);max-width:44ch}
+.bk-card :focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@media (max-width:560px){.bk-fields{grid-template-columns:1fr}.bk-card{padding:14px}}
 </style></head><body><header><div class="hw"><a href="#home"><img class="logo" src="logo.png" alt="MyGym London"></a><nav class="mnav"><a href="#home" data-n="home">Home</a><a href="#classes" data-n="classes">Classes</a><a href="#book" data-n="book">Book MyGym</a><a href="#services" data-n="services">Services</a><a href="#pt" data-n="pt">Personal Training</a><a href="#refer" data-n="refer">Refer Friends</a><a href="#faq" data-n="faq">FAQ</a></nav><div class="hr"><a class="login" href="#login">Log in</a><a class="btn sm" href="#services">Join now</a><button class="burger" type="button" aria-label="Menu"><i></i></button></div></div></header><main><section class="view def" id="home">
 <div class="hero"><div class="himg"><img src="hero-full.jpg" alt="MyGym London gym floor with the turf START lane" class="hf"></div>
 <div class="hcopy"><span class="chip">Bush Hill Park · Enfield</span>
@@ -272,24 +297,9 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 <div class="vinfo"><div class="vcard"><h3>Contact</h3><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Main Avenue, Bush Hill Park<br>Enfield, EN1 1DS</p><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg><a href="tel:+447459020381">07459 020381</a></p><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>info@mygymlondon.co.uk</p><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6"/></svg>@mygym_london</p><a class="btn" href="https://www.google.com/maps/dir/?api=1&amp;destination=MyGym%20London%2C%20Main%20Avenue%2C%20Bush%20Hill%20Park%2C%20Enfield%20EN1%201DS&amp;travelmode=driving" target="_blank" rel="noopener">Get directions</a></div>
 <div class="vcard"><h3>Opening hours</h3><div class="hrs"><div><span>Every day</span><b>5am – midnight</b></div></div><p class="open" id="openNow"></p></div>
 <div class="vcard soft"><h3>Good to know</h3><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Private studio gym</p><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Free induction &amp; health check for members</p><p><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>Classes from £6, no contract</p></div></div></div></div></section>
-<section class="sec cta"><div class="wrap"><h2>Ready to train?</h2><p>Classes from £6. No contract needed. Book in the app or online.</p><div class="hbtns"><a class="btn" href="#services">Join now</a><a class="btn ghost" href="#book">Book the gym</a><a class="btn ghost" data-go="free-class" href="#home">Try a free class</a></div></div></section>
-<section class="sec" id="free-class"><div class="wrap"><span class="chip">Free class</span><h2>Try a free class</h2><p class="lead">Pick a class from the timetable below, fill in your details, and we'll confirm your free session.</p>
-<div class="fc-timetable" id="fcTimetable"></div>
-<form class="fc-form" id="freeClassForm" novalidate>
-<input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
-<div class="fc-fields">
-<div class="fld"><label for="fc_name">Full name <span aria-hidden="true">*</span></label><input id="fc_name" name="full_name" type="text" autocomplete="name" required placeholder="Your full name"></div>
-<div class="fld"><label for="fc_email">Email address <span aria-hidden="true">*</span></label><input id="fc_email" name="email" type="email" autocomplete="email" required placeholder="you@example.com"></div>
-<div class="fld"><label for="fc_phone">Phone number <span aria-hidden="true">*</span></label><input id="fc_phone" name="phone" type="tel" autocomplete="tel" required placeholder="07700 000000"></div>
-</div>
-<div class="fc-consent">
-<label class="chk"><input type="checkbox" id="fc_health" name="health_ready" required><span>I confirm I am in good health and have no known medical conditions that would prevent me from taking part in a fitness class. <b>*</b></span></label>
-</div>
-<p class="fc-privacy">By submitting this form you agree to our <a href="https://www.mygymlondon.co.uk/privacy" target="_blank" rel="noopener">privacy policy</a>. We'll send you a confirmation email including a short health questionnaire (PAR-Q). Your data is never sold.</p>
-<div class="fc-sel" id="fcSelected" hidden><p>You are booking: <strong id="fcSelLabel">—</strong></p></div>
-<div class="fc-actions"><button class="btn" type="submit" id="fcSubmit" disabled>Request free class</button></div>
-<p class="fc-msg" id="fcMsg" hidden></p>
-</form></div></section>
+<section class="sec cta"><div class="wrap"><h2>Ready to train?</h2><p>Classes from £6. No contract needed. Book in the app or online.</p><div class="hbtns"><a class="btn" href="#services">Join now</a><a class="btn ghost" data-go="free-class" href="#home">Try a free class</a></div></div></section>
+<section class="sec" id="free-class"><div class="wrap"><span class="chip">Free to try</span><h2>Try us for free, or ask us anything</h2><p class="lead">Book a free class or a free gym session, or send us a question. We reply within one working day.</p>
+<div id="bk"><noscript><p class="lead">Please call 07459 020381 or email info@mygymlondon.co.uk.</p></noscript></div></div></section>
 </section><section class="view" id="classes"><div class="phead"><div class="himg"><img src="classes-banner.jpg" alt=""></div><div class="wrap"><span class="chip">Our classes</span><h1>Class schedule &amp; bookings</h1><p>Over 30 classes every week, from £6 a session. Pick a day, book your spot, and manage your bookings right here.</p></div></div>
 <div class="wrap sec" style="padding-bottom:20px">
 <div class="shead"><div><h2 id="timetable">Book a class</h2><p class="sub">Week starting Monday 5 October · Pilates now available to book · Sample timetable for the design preview</p></div><div class="who"><span class="dot"></span><span id="whoTxt">Preview: signed in as a member</span><button class="lnk" id="whoBtn" type="button">Switch to logged out</button></div></div>
@@ -337,7 +347,6 @@ footer p a[href^="tel:"],.vcard p a[href^="tel:"]{display:inline;padding:0;margi
 var D=[["Mon",5],["Tue",6],["Wed",7],["Thu",8],["Fri",9],["Sat",10],["Sun",11]];
 var C={cardio:["Cardio n Abs","cardio","45 min"],hiit:["HIIT","cardio","30 min"],box:["BoxFit","cardio","30 min"],vit:["Vitality 50+ Circuit","fifty","1 hr"],str:["Strength","strength","1 hr"],pil:["Pilates","mind","1 hr"],kids:["Kids Gym","kids","1 hr"],abs:["Abs Attack","strength","45 min"],body:["Body Conditioning","strength","45 min"]};
 var W={11:[["09:00","str",8]],5:[["07:00","cardio",6],["09:30","vit",8],["12:30","hiit",5],["18:00","box",4],["19:15","pil",7]],6:[["07:00","cardio",6],["16:00","kids",12],["18:00","hiit",3],["19:15","abs",8]],7:[["07:00","hiit",6],["07:30","cardio",5],["09:30","str",8],["18:00","box",2]],8:[["07:00","cardio",7],["16:00","kids",12],["18:00","hiit",4]],9:[["07:00","cardio",6],["09:30","vit",8],["12:30","str",5],["18:00","body",6],["19:15","abs",3]],10:[["09:00","str",8],["10:15","pil",6]]};
-window.MG_W=W;window.MG_C=C;
 var F=[["all","All classes"],["cardio","HIIT & cardio"],["strength","Strength"],["mind","Pilates"],["fifty","50+"],["kids","Kids"]];
 var sel=5,flt="all",member=true,bk=[{id:1,day:11,t:"09:00",k:"str"},{id:2,day:6,t:"18:00",k:"hiit"}],uid=3,resc=null;
 var $=function(i){return document.getElementById(i)};
@@ -417,113 +426,193 @@ document.addEventListener("click",function(e){var v=document.getElementById("boo
 paint();
 })();
 document.addEventListener("click",function(e){var a=e.target.closest("[data-cf]");if(!a)return;e.preventDefault();var f=document.querySelector('#sfilter .fc[data-f="'+a.dataset.cf+'"]');if(f)f.click();var t=document.getElementById("timetable");if(t)t.scrollIntoView({behavior:"smooth",block:"start"})});
-// Free class timetable + form
+// Booking form: free class, free gym session, or a question (3 steps). Sends to the submit-form back end.
 (function(){
-var PAGE_LOAD_T=Date.now();
-var DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-var MONTHS=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-var CAT_COL={cardio:"#e03939",strength:"#1565c0",mind:"#6a1b9a",fifty:"#2e7d32",kids:"#f57f17"};
-var container=document.getElementById("fcTimetable");
-var form=document.getElementById("freeClassForm");
-var submitBtn=document.getElementById("fcSubmit");
-var selLabel=document.getElementById("fcSelLabel");
-var selBox=document.getElementById("fcSelected");
-var msgEl=document.getElementById("fcMsg");
-if(!container||!form)return;
-var picked=null;
-var now=new Date();
-var todayDow=now.getDay();
-// Build 7 days starting today
-var days=[];
-for(var i=0;i<7;i++){
- var d=new Date(now);d.setDate(now.getDate()+i);days.push(d);
+var root=document.getElementById("bk");
+if(!root)return;
+var T0=Date.now();
+var SUPA="https://ldmksxyilykyfnqnuytv.supabase.co",KEY="sb_publishable_gboSvVSFxQT0xDSEzbeYxw_E1OO3TRp";
+var ENDPOINT=SUPA+"/functions/v1/submit-form";
+var NOTT="We could not load the timetable. Please call 07459 020381, or send us a question.";
+var FALLBACK="Sorry, that did not go through. Please call 07459 020381 or email info@mygymlondon.co.uk.";
+var LONG=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+var DAYS=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+var TOPICS=["Memberships and prices","Classes and timetable","Personal training","Kids Gym","Something else"];
+var PARTS=["Morning (5am–12pm)","Afternoon (12pm–5pm)","Evening (5pm–midnight)"];
+var SEND={cls:"Request free class",gym:"Request free gym session",ask:"Send question"};
+var TITLE={cls:"Choose your class",gym:"Choose a day and time of day",ask:"Your question"};
+
+function londonToday(){return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/London",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date())}
+function londonMinutes(){var p=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/London",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date()).split(":");return +p[0]*60+ +p[1]}
+function addDays(iso,n){var d=new Date(iso+"T12:00:00Z");d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)}
+function wd(iso){return new Date(iso+"T12:00:00Z").getUTCDay()}
+function nice(iso){return DAYS[wd(iso)]+" "+(+iso.slice(8))+" "+MON[+iso.slice(5,7)-1]}
+var TODAY=londonToday();
+var rows=null,rowsErr=false,rowsBusy=false,waiting=[];
+function flush(){var w=waiting;waiting=[];w.forEach(function(f){f()})}
+function loadRows(cb){
+  if(rows){cb();return}
+  waiting.push(cb);
+  if(rowsBusy)return;
+  rowsBusy=true;
+  fetch(SUPA+"/rest/v1/classes?select=day_name,start_time,name,info&active=eq.true&kind=eq.class&order=sort",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
+  .then(function(r){if(!r.ok)throw 0;return r.json()})
+  .then(function(d){rows=d;rowsBusy=false;flush()})
+  .catch(function(){rowsErr=true;rowsBusy=false;flush()});
 }
-function renderTimetable(){
- container.innerHTML="";
- days.forEach(function(d){
-  var dow=d.getDay();
-  var slots=(window.MG_W[(dow+6)%7+5]||[]);
-  if(!slots.length)return;
-  var col=document.createElement("div");
-  col.className="fc-day";
-  var isToday=i===0&&d.getDate()===now.getDate();
-  col.innerHTML='<div class="fc-day-hd'+(d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()?' today':'')+'">'+DAYS[dow]+" "+d.getDate()+" "+MONTHS[d.getMonth()]+"</div>";
-  slots.forEach(function(s){
-   var time=s[0],key=s[1],cap=s[2];
-   var info=window.MG_C[key];if(!info)return;
-   var name=info[0],cat=info[1],dur=info[2];
-   var slotEl=document.createElement("div");
-   slotEl.className="fc-slot";
-   // Check if past (today only)
-   if(d.getDate()===now.getDate()&&d.getMonth()===now.getMonth()){
-    var h=parseInt(time.split(":")[0]),m=parseInt(time.split(":")[1]);
-    if(h<now.getHours()||(h===now.getHours()&&m<=now.getMinutes()))slotEl.className+=" fc-past";
-   }
-   var dateStr=DAYS[dow]+" "+d.getDate()+" "+MONTHS[d.getMonth()];
-   slotEl.innerHTML='<div class="fct">'+time+' — '+name+'</div><div class="fci">'+dur+'</div><div class="fcp" style="color:'+( CAT_COL[cat]||"var(--acc)")+'">'+cap+' spaces</div>';
-   slotEl.addEventListener("click",function(){
-    if(slotEl.classList.contains("fc-past"))return;
-    document.querySelectorAll(".fc-slot.picked").forEach(function(el){el.classList.remove("picked")});
-    slotEl.classList.add("picked");
-    picked={time:time,name:name,date:dateStr,dur:dur};
-    selLabel.textContent=name+" · "+dateStr+" at "+time;
-    selBox.hidden=false;
-    checkReady();
-   });
-   col.appendChild(slotEl);
+
+function add(e,c){if(c==null||c===false)return;if(Array.isArray(c))c.forEach(function(x){add(e,x)});else e.appendChild(c.nodeType?c:document.createTextNode(c))}
+function h(t,a){var e=document.createElement(t);if(a)for(var k in a){var v=a[k];if(k==="class")e.className=v;else if(k.slice(0,2)==="on")e.addEventListener(k.slice(2),v);else if(v===true)e.setAttribute(k,"");else if(v!==false&&v!=null)e.setAttribute(k,v)}for(var i=2;i<arguments.length;i++)add(e,arguments[i]);return e}
+
+var st={kind:null,step:1,day:0,pick:null,v:{topic:TOPICS[0]},busy:false,err:""};
+var okEmail=function(s){return /^\S+@\S+\.\S+$/.test(s||"")};
+function askReady(){return !!(st.v.msg&&st.v.msg.trim())}
+function detailsReady(){var v=st.v;if(!v.name||!v.name.trim()||!okEmail(v.email))return false;if(st.kind==="ask")return true;return !!(v.phone&&v.phone.trim()&&v.health)}
+
+var card=h("form",{class:"bk-card",novalidate:true,onsubmit:function(e){e.preventDefault();if(st.step===3&&!st.busy&&detailsReady())send()}});
+var hp=h("input",{type:"text",name:"website",tabindex:"-1",autocomplete:"off","aria-hidden":"true",class:"bk-hp"});
+var body=h("div",{class:"bk-body"});
+card.appendChild(hp);card.appendChild(body);root.appendChild(card);
+
+function go(step,focus){st.step=step;st.err="";render(focus)}
+function head(){
+  return h("div",{class:"bk-head"},
+    h("div",{class:"bk-nav"},
+      st.step>1?h("button",{type:"button",class:"bk-back",onclick:function(){go(st.step-1,true)}},"← Back"):h("span"),
+      h("span",{class:"bk-step"},"Step "+st.step+" of 3")),
+    h("div",{class:"bk-bar"},h("i",{style:"width:"+Math.round(st.step/3*100)+"%"})));
+}
+function tile(kind,title,sub){
+  return h("button",{type:"button",class:"bk-tile",onclick:function(){st.kind=kind;st.day=0;st.pick=null;go(2,true)}},
+    h("span",{},h("b",{},title),h("small",{},sub)),h("i",{"aria-hidden":"true"},"→"));
+}
+function field(key,label,type,ph,ac){
+  var id="bk_"+key;
+  return h("div",{class:"bk-fld"},h("label",{for:id},label),
+    h("input",{id:id,type:type,placeholder:ph,autocomplete:ac,value:st.v[key]||"",oninput:function(e){st.v[key]=e.target.value;if(st.sync)st.sync()}}));
+}
+function chooser(){
+  var strip=h("div",{class:"bk-strip",role:"group","aria-label":"Choose a day"}),list=h("div",{class:"bk-list"}),wrap=h("div",{},strip,list);
+  var start=st.kind==="gym"?1:0,days=[],i;
+  for(i=0;i<7;i++)days.push(addDays(TODAY,start+i));
+  var chips=days.map(function(iso,i){
+    return h("button",{type:"button",class:"bk-chip","aria-pressed":String(i===st.day),onclick:function(){
+      st.day=i;st.pick=null;chips.forEach(function(c,j){c.setAttribute("aria-pressed",String(j===i))});fill();if(st.sync)st.sync()}},
+      h("span",{class:"bk-dw"},(st.kind==="cls"&&i===0)?"Today":DAYS[wd(iso)]),h("span",{class:"bk-dn"},String(+iso.slice(8))));
   });
-  container.appendChild(col);
- });
+  chips.forEach(function(c){strip.appendChild(c)});
+  function choose(btn,pick){
+    st.pick=pick;
+    Array.prototype.forEach.call(list.children,function(x){x.setAttribute("aria-pressed","false")});
+    btn.setAttribute("aria-pressed","true");if(st.sync)st.sync();
+  }
+  function fill(){
+    list.innerHTML="";
+    var iso=days[st.day];
+    if(st.kind==="cls"){
+      if(!rows){
+        list.appendChild(h("p",{class:"bk-none"},rowsErr?NOTT:"Loading the timetable…"));
+        if(!rowsErr)loadRows(fill);
+        return;
+      }
+      var slots=rows.filter(function(r){return r.day_name===LONG[wd(iso)]}).sort(function(a,b){return a.start_time<b.start_time?-1:1});
+      if(!slots.length)list.appendChild(h("p",{class:"bk-none"},"No classes on this day."));
+      slots.forEach(function(s){
+        var t=String(s.start_time).slice(0,5),mins=+t.slice(0,2)*60+ +t.slice(3,5),dur=s.info||"";
+        var gone=st.day===0&&mins<=londonMinutes();
+        var b=h("button",{type:"button",class:"bk-row",disabled:gone,"aria-pressed":"false"},
+          h("span",{class:"bk-t"},t),h("span",{class:"bk-n"},s.name),h("span",{class:"bk-d"},dur));
+        b.addEventListener("click",function(){choose(b,{label:s.name+" · "+nice(iso)+" at "+t,name:s.name,date:nice(iso),time:t,dur:dur})});
+        list.appendChild(b);
+      });
+    }else{
+      PARTS.forEach(function(p){
+        var b=h("button",{type:"button",class:"bk-row bk-part","aria-pressed":"false"},h("span",{class:"bk-n"},p));
+        b.addEventListener("click",function(){choose(b,{label:"Gym session · "+nice(iso)+", "+p.split(" (")[0].toLowerCase(),iso:iso,part:p})});
+        list.appendChild(b);
+      });
+    }
+  }
+  fill();
+  return wrap;
 }
-function checkReady(){
- var n=form.querySelector("#fc_name").value.trim();
- var em=form.querySelector("#fc_email").value.trim();
- var ph=form.querySelector("#fc_phone").value.trim();
- var hc=form.querySelector("#fc_health").checked;
- submitBtn.disabled=!(picked&&n&&em&&ph&&hc);
+function askFields(){
+  var sel=h("select",{id:"bk_topic",onchange:function(e){st.v.topic=e.target.value}},TOPICS.map(function(t){return h("option",{value:t,selected:st.v.topic===t},t)}));
+  return h("div",{},
+    h("div",{class:"bk-fld"},h("label",{for:"bk_topic"},"Topic"),sel),
+    h("div",{class:"bk-fld"},h("label",{for:"bk_msg"},"Your message"),
+      h("textarea",{id:"bk_msg",rows:"4",placeholder:"How can we help?",oninput:function(e){st.v.msg=e.target.value;if(st.sync)st.sync()}},st.v.msg||"")));
 }
-form.querySelectorAll("input").forEach(function(inp){inp.addEventListener("input",checkReady);});
-form.querySelector("#fc_health").addEventListener("change",checkReady);
-form.addEventListener("submit",function(e){
- e.preventDefault();
- if(submitBtn.disabled)return;
- var honeypot=form.querySelector('[name="website"]').value;
- if(honeypot)return;
- submitBtn.disabled=true;
- submitBtn.textContent="Sending…";
- msgEl.hidden=true;
- var payload={
-  form_id:"free-class",
-  elapsed:Date.now()-PAGE_LOAD_T,
-  full_name:form.querySelector("#fc_name").value.trim(),
-  email:form.querySelector("#fc_email").value.trim(),
-  phone:form.querySelector("#fc_phone").value.trim(),
-  class_name:picked.name,
-  class_date:picked.date,
-  class_time:picked.time,
-  class_duration:picked.dur,
-  health_ready:true
- };
- fetch("https://wmaqbnxzadmfbtymkhlm.supabase.co/functions/v1/submit-form",{
-  method:"POST",
-  headers:{"Content-Type":"application/json"},
-  body:JSON.stringify(payload)
- }).then(function(r){return r.json();}).then(function(data){
-  if(data.error)throw new Error(data.error);
-  msgEl.className="fc-msg ok";
-  msgEl.textContent="✓ Your free class request has been sent! Check your email for confirmation.";
-  msgEl.hidden=false;
-  form.reset();picked=null;selBox.hidden=true;submitBtn.textContent="Request free class";
-  document.querySelectorAll(".fc-slot.picked").forEach(function(el){el.classList.remove("picked")});
- }).catch(function(){
-  msgEl.className="fc-msg err";
-  msgEl.textContent="Something went wrong — please call us on 07459 020381 or email info@mygymlondon.co.uk";
-  msgEl.hidden=false;
-  submitBtn.disabled=false;
-  submitBtn.textContent="Request free class";
- });
-});
-renderTimetable();
+function details(){
+  var ask=st.kind==="ask";
+  var box=h("div",{},
+    h("div",{class:"bk-fields"},field("name","Full name","text","Your name","name"),field("email","Email","email","you@example.com","email"),ask?null:field("phone","Phone","tel","07700 000000","tel")));
+  if(!ask)box.appendChild(h("label",{class:"bk-chk"},
+    h("input",{type:"checkbox",id:"bk_health",checked:!!st.v.health,onchange:function(e){st.v.health=e.target.checked;if(st.sync)st.sync()}}),
+    h("span",{},"I am fit to exercise, or I will tell the coach before the session about anything that might affect me. A short health questionnaire (PAR-Q) will follow by email.")));
+  box.appendChild(h("p",{class:"bk-priv"},"We use your details only to reply to you. See our ",h("a",{href:"https://www.mygymlondon.co.uk/privacy",target:"_blank",rel:"noopener"},"privacy notice"),"."));
+  return box;
+}
+function render(focus){
+  body.innerHTML="";st.sync=null;
+  var title,main,foot;
+  if(st.step===1){
+    title="What would you like to do?";
+    main=h("div",{class:"bk-tiles"},
+      tile("cls","Try a free class","Pick a class from this week’s timetable"),
+      tile("gym","Book a free gym session","Choose a day and a time of day"),
+      tile("ask","Ask a question","Prices, memberships, anything else"));
+  }else if(st.step===2){
+    title=TITLE[st.kind];
+    main=st.kind==="ask"?askFields():chooser();
+    var next=h("button",{type:"button",class:"btn",onclick:function(){go(3,true)}},"Continue");
+    st.sync=function(){next.disabled=st.kind==="ask"?!askReady():!st.pick};st.sync();
+    foot=h("div",{class:"bk-foot"},h("span"),next);
+  }else{
+    title="Your details";
+    main=details();
+    var sum=h("span",{class:"bk-sum"}),go2=h("button",{type:"submit",class:"btn"},SEND[st.kind]);
+    var err=h("p",{class:"bk-err",role:"alert",hidden:!st.err},st.err);
+    st.sync=function(){go2.disabled=st.busy||!detailsReady();go2.textContent=st.busy?"Sending…":SEND[st.kind];sum.textContent=st.kind==="ask"?"Topic: "+st.v.topic:st.pick.label};st.sync();
+    foot=h("div",{},err,h("div",{class:"bk-foot"},sum,go2));
+  }
+  var hd=h("h3",{tabindex:"-1"},title);
+  body.appendChild(head());body.appendChild(hd);body.appendChild(main);if(foot)body.appendChild(foot);
+  if(focus)hd.focus({preventScroll:true});
+}
+function done(msg){
+  body.innerHTML="";
+  var again=h("button",{type:"button",class:"btn",onclick:function(){st={kind:null,step:1,day:0,pick:null,v:{topic:TOPICS[0]},busy:false,err:""};render(true)}},"Make another request");
+  var hd=h("h3",{tabindex:"-1",class:"bk-ok"},"Request sent");
+  body.appendChild(h("div",{class:"bk-done"},hd,h("p",{},msg||"Thank you. We will be in touch within one working day."),again));
+  hd.focus({preventScroll:true});
+}
+function send(){
+  var v=st.v,form,data,consent={};
+  var page=location.origin+location.pathname;
+  if(st.kind==="cls"){
+    form="free-class";consent={health_ready:true};
+    data={full_name:v.name.trim(),email:v.email.trim(),phone:v.phone.trim(),class_name:st.pick.name,class_date:st.pick.date,class_time:st.pick.time,class_duration:st.pick.dur,page_url:page};
+  }else if(st.kind==="gym"){
+    form="trial-gym";consent={health_ready:true};
+    data={full_name:v.name.trim(),email:v.email.trim(),phone:v.phone.trim(),preferred_date:st.pick.iso,preferred_time:st.pick.part,page_url:page};
+  }else{
+    form="contact";
+    data={full_name:v.name.trim(),email:v.email.trim(),topic:v.topic,message:v.msg.trim(),page_url:page};
+  }
+  st.busy=true;st.err="";if(st.sync)st.sync();
+  var fail=function(j){
+    st.busy=false;
+    st.err=j&&j.errors&&j.errors[0]&&j.errors[0].message?j.errors[0].message:(j&&j.error)||FALLBACK;
+    render(false);
+  };
+  fetch(ENDPOINT,{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({form_id:form,data:data,consent:consent,hp:hp.value,elapsed:Math.round((Date.now()-T0)/1000)})})
+  .then(function(r){return r.json().then(function(j){return {ok:r.ok&&j.ok!==false,j:j}},function(){return {ok:false,j:null}})})
+  .then(function(x){if(x.ok){st.busy=false;done(x.j.message)}else fail(x.j)})
+  .catch(function(){fail(null)});
+}
+render(false);
 document.addEventListener("click",function(e){var g=e.target.closest('[data-go="free-class"]');if(!g)return;e.preventDefault();e.stopPropagation();document.getElementById("free-class").scrollIntoView({behavior:"smooth",block:"start"})},true);
 })();
 </script></body></html>
