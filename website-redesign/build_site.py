@@ -570,7 +570,7 @@ def page(key, body):
         '<!doctype html><html lang="en-GB"><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width,initial-scale=1">'
         "<title>%s</title><meta name=\"description\" content=\"%s\">"
-        '<link rel="canonical" href="%s/%s"><link rel="icon" href="favicon.ico?v=1" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1"><link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1">'
+        '<link rel="canonical" href="%s/%s"><link rel="icon" href="favicon.ico?v=1" sizes="any"><link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png?v=1"><link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=1"><link rel="manifest" href="site.webmanifest">'
         '<meta property="og:title" content="%s"><meta property="og:description" content="%s">'
         '<meta property="og:image" content="%s/assets/img/hero-full.jpg">'
         '<link rel="stylesheet" href="assets/style.css"><link rel="stylesheet" href="assets/forms.css"></head><body>%s<main>%s</main>%s'
