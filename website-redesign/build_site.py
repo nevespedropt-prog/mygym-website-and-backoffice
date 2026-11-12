@@ -141,8 +141,6 @@ views["login"] = (
 sv = views["services"]
 sv = sv.replace('href="#login"', 'href="%s"' % JOIN_URL)
 views["services"] = sv
-rf = views["refer"].replace('href="#login"', 'href="%s/#login"' % APP)
-views["refer"] = rf
 
 
 # ---------- real forms (stored by the back end, emails sent) ----------
