@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>MY GYM London</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{--red:#e03939;--ink:#111;--bg:#f4f2f0;--card:#fff;--line:#e6e2de;--mut:#5d5b60}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,Segoe UI,Arial,sans-serif}
+header.top{background:var(--ink);color:#fff;padding:14px 18px;font:800 22px 'Barlow Condensed',Arial Narrow,sans-serif;letter-spacing:.06em}
+header.top::after{content:"";display:block;height:4px;background:var(--red);margin:14px -18px -14px}
+main{max-width:640px;margin:0 auto;padding:26px 18px 60px}
+h1,h2,h3{font-family:'Barlow Condensed',Arial Narrow,sans-serif;text-transform:uppercase;line-height:1.05;margin:0 0 12px}
+h1{font-size:44px}h2{font-size:32px}h3{font-size:24px}
+p{margin:0 0 14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;margin:0 0 18px}
+img{max-width:100%;border-radius:12px;display:block;margin:0 0 16px}
+.btn{display:inline-block;background:var(--red);color:#fff;text-decoration:none;font:700 17px 'Barlow Condensed',Arial Narrow,sans-serif;text-transform:uppercase;letter-spacing:.04em;padding:13px 24px;border-radius:10px;border:0;cursor:pointer}
+.btn:disabled{opacity:.6}
+ul{padding-left:20px;margin:0 0 14px}
+hr{border:0;border-top:1px solid var(--line);margin:22px 0}
+label{display:block;font-weight:600;font-size:14px;margin:14px 0 5px}
+input,select,textarea{width:100%;font:inherit;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+textarea{min-height:110px}
+.chk{display:flex;gap:10px;align-items:flex-start;font-weight:500}.chk input{width:auto;margin-top:5px}
+.msg{padding:12px 14px;border-radius:10px;margin-top:14px;font-size:15px}
+.msg.bad{background:#fbe6e3;color:#a02a1d}.msg.ok{background:#e3f3ea;color:#1f6a3f}
+.hp{position:absolute;left:-9999px;opacity:0;height:0;width:0}
+footer{text-align:center;color:var(--mut);font-size:13px;padding:0 18px 30px}
+</style>
+</head>
+<body>
+<header class="top">MY GYM LONDON</header>
+<main id="main"><p>Loading...</p></main>
+<footer>MY GYM London · Main Avenue, Bush Hill Park, Enfield EN1 1DS · <a href="mailto:info@mygymlondon.co.uk" style="color:inherit">info@mygymlondon.co.uk</a></footer>
+<script>
+(function () {
+  var API = "https://ldmksxyilykyfnqnuytv.supabase.co/functions/v1/forms-public";
+  var main = document.getElementById("main"), q = new URLSearchParams(location.search);
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function safeUrl(u) { return /^(https:\/\/|mailto:|tel:)/i.test(u || "") ? u : "#"; }
+  function paras(text, parent) { String(text || "").split(/\n{2,}/).forEach(function (t) { parent.appendChild(el("p", "", t)); }); }
+  function renderForm(f) {
+    var card = el("section", "card"), started = Date.now(), inputs = {};
+    card.appendChild(el("h2", "", f.title)); if (f.intro) paras(f.intro, card);
+    var form = el("form"); form.noValidate = true; card.appendChild(form);
+    function field(id, label, type, required, options) {
+      var wrap = el("div"), input;
+      if (type === "checkbox") { var l = el("label", "chk"); input = el("input"); input.type = "checkbox"; l.appendChild(input); l.appendChild(el("span", "", label + (required ? " *" : ""))); wrap.appendChild(l); }
+      else {
+        wrap.appendChild(el("label", "", label + (required ? " *" : "")));
+        if (type === "textarea") input = el("textarea");
+        else if (type === "select") { input = el("select"); input.appendChild(new Option("Choose...", "")); (options || []).forEach(function (o) { input.appendChild(new Option(o, o)); }); }
+        else { input = el("input"); input.type = type === "email" ? "email" : type === "tel" ? "tel" : type === "date" ? "date" : type === "number" ? "number" : "text"; }
+        wrap.appendChild(input);
+      }
+      inputs[id] = { el: input, type: type, required: required, label: label }; form.appendChild(wrap);
+    }
+    field("name", "Your name", "text", true); field("email", "Your email", "email", true); if (f.ask_phone) field("phone", "Phone (optional)", "tel", false);
+    (f.fields || []).forEach(function (x) { field("a_" + x.id, x.label, x.type, !!x.required, x.options); });
+    var hp = el("input", "hp"); hp.tabIndex = -1; hp.autocomplete = "off"; hp.setAttribute("aria-hidden", "true"); form.appendChild(hp);
+    var msg = el("div", "msg"); msg.hidden = true; var go = el("button", "btn", f.button || "Send"); go.type = "submit"; go.style.marginTop = "18px"; form.appendChild(go); form.appendChild(msg);
+    form.addEventListener("submit", function (e) {
+      e.preventDefault(); msg.hidden = true;
+      var data = { answers: {} }, bad = null;
+      Object.keys(inputs).forEach(function (k) {
+        var i = inputs[k], v = i.type === "checkbox" ? i.el.checked : i.el.value.trim();
+        if (i.required && (v === "" || v === false) && !bad) bad = "Please answer: " + i.label;
+        if (k === "name" || k === "email" || k === "phone") data[k] = v; else data.answers[k.slice(2)] = v;
+      });
+      if (bad) { msg.hidden = false; msg.className = "msg bad"; msg.textContent = bad; return; }
+      go.disabled = true; go.textContent = "Sending...";
+      fetch(API, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ slug: f.slug, data: data, hp: hp.value, elapsed: (Date.now() - started) / 1000, source: location.href.slice(0, 280) }) })
+        .then(function (r) { return r.json().catch(function () { return {}; }); })
+        .then(function (j) {
+          if (j.ok) { form.textContent = ""; var ok = el("div", "msg ok", j.success || "Thank you. We have your message."); form.appendChild(ok); }
+          else { go.disabled = false; go.textContent = f.button || "Send"; msg.hidden = false; msg.className = "msg bad"; msg.textContent = j.error || "Something went wrong. Please try again."; }
+        }).catch(function () { go.disabled = false; go.textContent = f.button || "Send"; msg.hidden = false; msg.className = "msg bad"; msg.textContent = "Could not send. Please check your connection and try again."; });
+    });
+    return card;
+  }
+  function renderPage(d) {
+    document.title = d.page.title + " | MY GYM London"; main.textContent = "";
+    (d.page.blocks || []).forEach(function (b) {
+      if (b.type === "heading") main.appendChild(el(b.level === "2" ? "h2" : "h1", "", b.text));
+      else if (b.type === "text") { var w = el("div"); paras(b.text, w); main.appendChild(w); }
+      else if (b.type === "image" && /^https:\/\//i.test(b.url || "")) { var im = el("img"); im.src = b.url; im.alt = b.alt || ""; im.loading = "lazy"; main.appendChild(im); }
+      else if (b.type === "button") { var a = el("a", "btn", b.label || "Learn more"); a.href = safeUrl(b.url); var bw = el("p"); bw.appendChild(a); main.appendChild(bw); }
+      else if (b.type === "list") { var ul = el("ul"); String(b.items || "").split(/\n/).filter(Boolean).forEach(function (t) { ul.appendChild(el("li", "", t)); }); main.appendChild(ul); }
+      else if (b.type === "divider") main.appendChild(el("hr"));
+      else if (b.type === "form" && d.forms && d.forms[b.slug]) main.appendChild(renderForm(d.forms[b.slug]));
+    });
+  }
+  var f = q.get("f"), p = q.get("p");
+  if (!f && !p) { main.textContent = "Nothing to show here."; return; }
+  fetch(API + "?" + (f ? "f=" + encodeURIComponent(f) : "p=" + encodeURIComponent(p)), { cache: "no-store" }).then(function (r) { return r.json(); }).then(function (j) {
+    if (!j.ok) { main.textContent = j.error || "This page is not available."; return; }
+    if (j.kind === "form") { document.title = j.form.title + " | MY GYM London"; main.textContent = ""; main.appendChild(renderForm(j.form)); } else renderPage(j);
+  }).catch(function () { main.textContent = "Could not load this page. Please try again."; });
+})();
+</script>
+</body>
+</html>

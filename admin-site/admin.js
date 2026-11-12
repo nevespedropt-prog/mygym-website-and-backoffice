@@ -1223,6 +1223,91 @@
     "newsletter-signup": ["News and offers", "Footer of every page"], "pause-cancel-request": ["Pause or cancel request", "Member requests"], "feedback": ["Feedback", "After a class"], "refer-a-friend": ["Refer a friend", "Referral page"]
   };
   var SITE_PAGES = [["Home", "index.html"], ["Classes", "classes.html"], ["Plans and prices", "services.html"], ["Personal training", "personal-training.html"], ["Kids Gym", "kids-gym.html"], ["Book the gym", "book.html"], ["FAQ", "faq.html"], ["Refer a friend", "refer-friends.html"], ["Terms", "terms.html"], ["Privacy", "privacy.html"], ["Cookies", "cookies.html"]];
+  /* ---------- build your own forms and landing pages ---------- */
+  var BTYPES = [["text", "Short answer"], ["textarea", "Long answer"], ["select", "Choose one"], ["checkbox", "Tick box"], ["number", "Number"], ["date", "Date"], ["tel", "Phone"], ["email", "Email"]];
+  function goBase() { return CFG.GO_BASE || "https://nevespedropt-prog.github.io/mygym-website-and-backoffice/go.html"; }
+  function goLink(kind, slug) { return goBase() + "?" + (kind === "form" ? "f" : "p") + "=" + encodeURIComponent(slug); }
+  function slugOf(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+  function linkRow(kind, slug) {
+    var u = goLink(kind, slug);
+    return h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-top:6px" }, [h("a", { class: "btn sm", href: u, target: "_blank", rel: "noopener", text: "Open" }),
+      h("button", { class: "btn sm", onclick: function () { try { navigator.clipboard.writeText(u); toast("Link copied."); } catch (e) { toast(u); } }, text: "Copy link" })]);
+  }
+  function rowTools(list, i, redraw) {
+    return h("span", { style: "display:inline-flex;gap:4px" }, [h("button", { class: "btn sm", type: "button", text: "\u2191", disabled: i === 0, onclick: function () { var t = list[i]; list[i] = list[i - 1]; list[i - 1] = t; redraw(); } }),
+      h("button", { class: "btn sm", type: "button", text: "\u2193", disabled: i === list.length - 1, onclick: function () { var t = list[i]; list[i] = list[i + 1]; list[i + 1] = t; redraw(); } }),
+      h("button", { class: "btn sm dng", type: "button", text: "Remove", onclick: function () { list.splice(i, 1); redraw(); } })]);
+  }
+  function formBuilder(f, done) {
+    var isNew = !f, d = f || { slug: "", title: "", intro: "", fields: [], ask_phone: true, button: "Send", success: "Thank you. We have your message and will be in touch soon.", notify_staff: true, autoreply: true, active: true };
+    var fields = (d.fields || []).map(function (x) { return Object.assign({}, x, { options: (x.options || []).slice() }); });
+    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: Summer challenge sign-up" }), slug = h("input", { class: "in", maxlength: "49", value: d.slug, disabled: !isNew, placeholder: "summer-challenge" });
+    title.addEventListener("input", function () { if (isNew && !slug.dataset.edited) slug.value = slugOf(title.value); }); slug.addEventListener("input", function () { slug.dataset.edited = "1"; });
+    var intro = h("textarea", { class: "in", rows: "3", maxlength: "1000", placeholder: "A short line shown above the form" }); intro.value = d.intro;
+    var button = h("input", { class: "in", maxlength: "40", value: d.button }), success = h("textarea", { class: "in", rows: "2", maxlength: "500" }); success.value = d.success;
+    var cb = function (label, on) { var i = h("input", { type: "checkbox", checked: !!on }); return [i, h("label", { style: "display:flex;gap:8px;margin-top:8px;font-size:13.5px;align-items:flex-start" }, [i, h("span", { text: label })])]; };
+    var phone = cb("Also ask for a phone number", d.ask_phone), notify = cb("Email the gym when someone sends it", d.notify_staff), reply = cb("Email the person a confirmation (uses your standard email look)", d.autoreply), active = cb("The form is switched on", d.active);
+    var list = h("div"), out = h("div", { class: "msg", hidden: true });
+    function redraw() {
+      clear(list);
+      fields.forEach(function (x, i) {
+        var label = h("input", { class: "in", value: x.label || "", placeholder: "Your question", maxlength: "120" }), type = h("select", { class: "sel" }, BTYPES.map(function (t) { return h("option", { value: t[0], text: t[1], selected: t[0] === x.type }); }));
+        var req = h("input", { type: "checkbox", checked: !!x.required }), opts = h("input", { class: "in", value: (x.options || []).join(", "), placeholder: "Options, separated by commas", hidden: x.type !== "select" });
+        label.addEventListener("input", function () { x.label = label.value; }); req.addEventListener("change", function () { x.required = req.checked; }); opts.addEventListener("input", function () { x.options = opts.value.split(",").map(function (o) { return o.trim(); }).filter(Boolean); });
+        type.addEventListener("change", function () { x.type = type.value; opts.hidden = x.type !== "select"; });
+        list.appendChild(h("div", { class: "card", style: "padding:12px;margin-top:8px" }, [label, h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px" }, [type, h("label", { style: "display:flex;gap:6px;font-size:13px" }, [req, h("span", { text: "Required" })]), rowTools(fields, i, redraw)]), opts]));
+      });
+      if (!fields.length) list.appendChild(h("div", { class: "muted", text: "No extra questions yet. Name and email are always asked." }));
+    }
+    redraw();
+    var save = h("button", { class: "btn pri", text: "Save form" });
+    save.addEventListener("click", async function () {
+      save.disabled = true;
+      try {
+        var cleanFields = fields.filter(function (x) { return (x.label || "").trim(); }).map(function (x, i) { return { id: x.id || ("q" + (i + 1) + "_" + Math.random().toString(36).slice(2, 6)), label: x.label.trim(), type: x.type || "text", required: !!x.required, options: x.type === "select" ? (x.options || []) : [] }; });
+        await rpc("admin_form_save", { p_slug: slug.value, p_title: title.value, p_intro: intro.value, p_fields: cleanFields, p_ask_phone: phone[0].checked, p_button: button.value, p_success: success.value, p_notify: notify[0].checked, p_autoreply: reply[0].checked, p_active: active[0].checked });
+        closeDrawer(); toast("Form saved."); done();
+      } catch (e) { save.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+    var fld = function (l, el) { return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: l }), el]); };
+    openDrawer(isNew ? "New form" : "Edit form", [h("div", { class: "sect" }, [fld("Title", title), fld("Link name (used in the web address)", slug), fld("Short introduction", intro)]),
+      h("div", { class: "sect" }, [h("h4", { text: "Questions" }), list, h("button", { class: "btn sm", type: "button", style: "margin-top:10px", text: "Add a question", onclick: function () { fields.push({ label: "", type: "text", required: false, options: [] }); redraw(); } })]),
+      h("div", { class: "sect" }, [fld("Button text", button), fld("Message after sending", success)].concat(phone[1], notify[1], reply[1], active[1], [out]))], [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), save]);
+  }
+  function pageBuilder(pg, forms, done) {
+    var isNew = !pg, d = pg || { slug: "", title: "", blocks: [{ type: "heading", level: "1", text: "" }], active: true };
+    var blocks = (d.blocks || []).map(function (b) { return Object.assign({}, b); });
+    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: January offer" }), slug = h("input", { class: "in", maxlength: "49", value: d.slug, disabled: !isNew, placeholder: "january-offer" });
+    title.addEventListener("input", function () { if (isNew && !slug.dataset.edited) slug.value = slugOf(title.value); }); slug.addEventListener("input", function () { slug.dataset.edited = "1"; });
+    var active = h("input", { type: "checkbox", checked: !!d.active }), list = h("div"), out = h("div", { class: "msg", hidden: true });
+    var BT = [["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["button", "Button"], ["list", "Bullet list"], ["form", "A form"], ["divider", "Divider line"]];
+    function redraw() {
+      clear(list);
+      blocks.forEach(function (b, i) {
+        var kind = h("select", { class: "sel" }, BT.map(function (t) { return h("option", { value: t[0], text: t[1], selected: t[0] === b.type }); })); kind.addEventListener("change", function () { b.type = kind.value; redraw(); });
+        var inp = function (key, ph, tag, rows) { var e = h(tag || "input", { class: "in", placeholder: ph, style: "margin-top:8px" }); if (rows) e.rows = rows; e.value = b[key] || ""; e.addEventListener("input", function () { b[key] = e.value; }); return e; };
+        var body = [];
+        if (b.type === "heading") { var lv = h("select", { class: "sel", style: "margin-top:8px" }, [h("option", { value: "1", text: "Big", selected: b.level !== "2" }), h("option", { value: "2", text: "Medium", selected: b.level === "2" })]); lv.addEventListener("change", function () { b.level = lv.value; }); body = [inp("text", "Heading text"), lv]; }
+        else if (b.type === "text") body = [inp("text", "Write your text. Leave a blank line between paragraphs.", "textarea", 4)];
+        else if (b.type === "image") body = [inp("url", "Image address (https://...)"), inp("alt", "Short description of the picture")];
+        else if (b.type === "button") body = [inp("label", "Button text"), inp("url", "Button link (https://...)")];
+        else if (b.type === "list") body = [inp("items", "One bullet per line", "textarea", 4)];
+        else if (b.type === "form") { var fs = h("select", { class: "sel", style: "margin-top:8px" }, [h("option", { value: "", text: "Choose a form" })].concat(forms.map(function (f) { return h("option", { value: f.slug, text: f.title, selected: f.slug === b.slug }); }))); fs.addEventListener("change", function () { b.slug = fs.value; }); body = [fs]; }
+        list.appendChild(h("div", { class: "card", style: "padding:12px;margin-top:8px" }, [h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [kind, rowTools(blocks, i, redraw)])].concat(body)));
+      });
+    }
+    redraw();
+    var save = h("button", { class: "btn pri", text: "Save page" });
+    save.addEventListener("click", async function () {
+      save.disabled = true;
+      try { await rpc("admin_page_save", { p_slug: slug.value, p_title: title.value, p_blocks: blocks, p_active: active.checked }); closeDrawer(); toast("Page saved."); done(); }
+      catch (e) { save.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+    var fld = function (l, el) { return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: l }), el]); };
+    openDrawer(isNew ? "New landing page" : "Edit landing page", [h("div", { class: "sect" }, [fld("Page title", title), fld("Link name (used in the web address)", slug)]), h("div", { class: "sect" }, [h("h4", { text: "Page content, top to bottom" }), list,
+      h("button", { class: "btn sm", type: "button", style: "margin-top:10px", text: "Add a block", onclick: function () { blocks.push({ type: "text", text: "" }); redraw(); } })]),
+      h("div", { class: "sect" }, [h("label", { style: "display:flex;gap:8px;font-size:13.5px" }, [active, h("span", { text: "The page is switched on" })]), out])], [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), save]);
+  }
   async function vForms() {
     var rows = await rpc("admin_forms_summary"), root = h("div"), by = {}; rows.forEach(function (r) { by[r.form_id] = r; });
     root.appendChild(pageHead("Forms and pages", "Every website form sends its answers to Enquiries. Here is where each form lives and how much it is used."));
@@ -1234,7 +1319,14 @@
     });
     root.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: "Forms" })]), h("div", { class: "bd" }, [h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:600px" }, [h("thead", null, [h("tr", null, [h("th", { text: "Form" }), h("th", { class: "r", text: "Total" }), h("th", { class: "r", text: "30 days" }), h("th", { text: "Status" }), h("th")])]), body])])])]));
     var pg = h("div", { class: "list" }); SITE_PAGES.forEach(function (p) { pg.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: p[0] })]), h("a", { class: "btn sm", href: "https://www.mygymlondon.co.uk/" + p[1], target: "_blank", rel: "noopener", text: "View" })])); });
-    root.appendChild(h("div", { class: "grid g2", style: "margin-top:16px;align-items:start" }, [card("Website pages", "", [pg]), card("Landing pages", "", [h("div", { class: "soon" }, [h("p", { text: "No landing pages yet. When you build one (for example a January offer), it will be listed here with its sign-up count." })])])]));
+    var bd = { forms: [], pages: [] }; try { bd = await rpc("admin_builder_list"); } catch (e) { bd = { forms: [], pages: [] }; }
+    var canBuild = can(["admin", "manager"]);
+    var myForms = h("div", { class: "list" }); bd.forms.forEach(function (f) { myForms.appendChild(h("div", { class: "li", style: "align-items:flex-start" }, [h("div", { class: "tx" }, [h("b", { text: f.title }), h("small", { text: (f.active ? "On" : "Off") + " \u00B7 " + f.submissions + " answers" }), linkRow("form", f.slug)]), canBuild ? h("div", { style: "display:flex;gap:6px" }, [h("button", { class: "btn sm", onclick: function () { formBuilder(f, route); }, text: "Edit" }), h("button", { class: "btn sm dng", onclick: async function () { try { await rpc("admin_form_delete", { p_slug: f.slug }); toast("Deleted."); route(); } catch (e) { toast(e.message, true); } }, text: "Delete" })]) : null])); });
+    if (!bd.forms.length) myForms.appendChild(empty("No forms of your own yet."));
+    var myPages = h("div", { class: "list" }); bd.pages.forEach(function (pgd) { myPages.appendChild(h("div", { class: "li", style: "align-items:flex-start" }, [h("div", { class: "tx" }, [h("b", { text: pgd.title }), h("small", { text: pgd.active ? "On" : "Off" }), linkRow("page", pgd.slug)]), canBuild ? h("div", { style: "display:flex;gap:6px" }, [h("button", { class: "btn sm", onclick: function () { pageBuilder(pgd, bd.forms, route); }, text: "Edit" }), h("button", { class: "btn sm dng", onclick: async function () { try { await rpc("admin_page_delete", { p_slug: pgd.slug }); toast("Deleted."); route(); } catch (e) { toast(e.message, true); } }, text: "Delete" })]) : null])); });
+    if (!bd.pages.length) myPages.appendChild(empty("No landing pages yet."));
+    root.appendChild(h("div", { class: "grid g2", style: "margin-top:16px;align-items:start" }, [card("Your forms", "answers arrive in Messages", [myForms].concat(canBuild ? [h("button", { class: "btn pri", style: "margin-top:12px", onclick: function () { formBuilder(null, route); }, text: "New form" })] : [])), card("Your landing pages", "", [myPages].concat(canBuild ? [h("button", { class: "btn pri", style: "margin-top:12px", onclick: function () { pageBuilder(null, bd.forms, route); }, text: "New landing page" })] : []))]));
+    root.appendChild(h("div", { style: "margin-top:16px" }, [card("Website pages", "", [pg])]));
     return root;
   }
 
