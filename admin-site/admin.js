@@ -279,14 +279,15 @@
     var reason = h("input", { class: "in", id: "cReason", maxlength: "200", placeholder: "Optional, shown in the email (for example: our coach is unwell)" });
     var out = h("div", { class: "msg", hidden: true });
     var send = h("button", { class: "btn pri", disabled: true, text: "Email them" }), check = h("button", { class: "btn", text: "Check who is booked" });
-    var checked = null;
+    var checked = null, ttMode = "wix";
+    rpc("admin_timetable_control_get").then(function (m) { ttMode = m && m.mode; }).catch(function () {});
     function call(action) { return fn("admin-class-cancelled", { action: action, class_id: c.id, date: ds, reason: reason.value }); }
     check.addEventListener("click", async function () {
       check.disabled = true; out.hidden = false; out.className = "msg"; out.textContent = "Checking...";
       var r = await call("preview"); check.disabled = false;
       if (!r.ok) { out.className = "msg bad"; out.textContent = r.j.error || "Something went wrong."; return; }
       if (!r.j.count) { out.textContent = "Nobody is booked, so there is nobody to email."; return; }
-      checked = r.j; send.disabled = false; out.textContent = r.j.count + " booked (" + r.j.first_names.join(", ") + "). Press Email them to tell them the class is cancelled. Then cancel the session in Wix.";
+      checked = r.j; send.disabled = false; out.textContent = r.j.count + " booked (" + r.j.first_names.join(", ") + "). Press Email them to tell them the class is cancelled. " + (ttMode === "backoffice" ? "Bookings are not removed: switch the class off on the Timetable page if needed." : "Then cancel the session in Wix.");
     });
     send.addEventListener("click", async function () {
       if (!checked) return; send.disabled = true; check.disabled = true; out.className = "msg"; out.textContent = "Sending...";
@@ -601,11 +602,63 @@
     return root;
   }
 
+  /* ---------- campaign composer ---------- */
+  function campaignCard() {
+    if (!can(["admin"])) return h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Campaigns. " }), document.createTextNode("Only an admin can write and send a campaign.")])]);
+    var uid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
+    function inp(id, label, ph, max, tag) { var el = h(tag || "input", { class: "in", id: id, maxlength: String(max || 200), placeholder: ph || "" }); if (tag === "textarea") el.rows = 6; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); }
+    var f = h("div", null, [inp("cSubject", "Email subject (up to 78 characters)", "For example: New Saturday class", 78), inp("cPre", "Preview text (optional)", "Shown next to the subject in the inbox", 120), inp("cTitle", "Heading (2 to 60 characters)", "", 60), inp("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea"), inp("cBtn", "Button text", "For example: Book now", 40), inp("cUrl", "Button link (must start with https://)", "https://", 300)]);
+    var out = h("div", { class: "msg", hidden: true }), audience = h("small", { class: "muted", text: "" });
+    var bAud = h("button", { class: "btn", text: "Count who will get it" }), bTest = h("button", { class: "btn", text: "Send me a test" }), bSend = h("button", { class: "btn pri", disabled: true, text: "Send to everyone" });
+    var armed = false, busy = false;
+    function v(id) { return ($(id).value || "").trim(); }
+    function payload(action) { return { action: action, campaign_id: uid, subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }; }
+    function problem() {
+      if (!v("cSubject") || v("cSubject").length > 78) return "Write a subject of up to 78 characters.";
+      if (v("cTitle").length < 2 || v("cTitle").length > 60) return "The heading needs 2 to 60 characters.";
+      if (v("cBody").length < 10) return "Write a longer message.";
+      if (!v("cBtn")) return "Add the button text.";
+      if (!/^https:\/\//i.test(v("cUrl"))) return "The button link must start with https://";
+      return "";
+    }
+    function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
+    function lock(b) { busy = b; [bAud, bTest].forEach(function (x) { x.disabled = b; }); bSend.disabled = b || !armed; }
+    f.addEventListener("input", function () { armed = false; bSend.disabled = true; bSend.textContent = "Send to everyone"; });
+    bAud.addEventListener("click", async function () {
+      var p = problem(); if (p) return say(p, "bad"); lock(true); say("Counting...");
+      var r = await fn("admin-campaign", payload("audience")); lock(false);
+      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+      say(r.j.count + " confirmed subscriber" + (r.j.count === 1 ? "" : "s") + " would get this. Send yourself a test first, then press Send to everyone.");
+    });
+    bTest.addEventListener("click", async function () {
+      var p = problem(); if (p) return say(p, "bad"); lock(true); say("Sending a test...");
+      var r = await fn("admin-campaign", payload("test")); lock(false);
+      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+      armed = true; bSend.disabled = false; say("Test sent to your own email. Check it. If it looks right, press Send to everyone.", "ok");
+    });
+    bSend.addEventListener("click", async function () {
+      if (!armed || busy) return;
+      if (bSend.textContent !== "Yes, send it now") { bSend.textContent = "Yes, send it now"; say("This emails every confirmed subscriber and cannot be undone. Press the button again to send.", "bad"); return; }
+      lock(true); var sent = 0, failed = 0, skipped = 0, guard = 0;
+      while (guard++ < 500) {
+        say("Sending... " + sent + " sent so far. Keep this page open.");
+        var r = await fn("admin-campaign", payload("send"));
+        if (!r.ok) { lock(false); return say("Stopped after " + sent + " sent: " + (r.j.error || "something went wrong") + ". Press Send again to carry on where it stopped.", "bad"); }
+        if (r.j.already_sent) { lock(false); armed = false; bSend.disabled = true; return say("This campaign was already sent.", "ok"); }
+        sent += r.j.sent || 0; failed += r.j.failed || 0; skipped += r.j.skipped || 0;
+        if (!r.j.remaining) break;
+      }
+      lock(false); armed = false; bSend.disabled = true; bSend.textContent = "Send to everyone";
+      say("Done. Sent " + sent + (failed ? ", " + failed + " failed" : "") + (skipped ? ", " + skipped + " skipped" : "") + ".", failed ? "bad" : "ok");
+    });
+    return card("Write and send a campaign", "admin only", [f, out, h("div", { class: "acts", style: "margin-top:12px;display:flex;gap:8px;flex-wrap:wrap" }, [bAud, bTest, bSend]), audience]);
+  }
+
   /* ---------- marketing ---------- */
   async function vMarketing() {
     var d = await rpc("admin_marketing"), root = h("div");
-    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.",
-      [h("a", { class: "btn pri", href: "https://app.mygymlondon.co.uk/admin-campaign.html", target: "_blank", rel: "noopener", text: "Write and send a campaign" })]));
+    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers."));
+    root.appendChild(campaignCard());
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Confirmed subscribers", d.confirmed, "can receive campaigns"), kpi("Waiting to confirm", d.pending, "they have not clicked the email yet"), kpi("Unsubscribed", d.withdrawn)]));
     var src = h("div", { class: "list" }); d.by_source.forEach(function (s) { src.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: s.source })]), h("span", { class: "num", text: s.n })])); });
     if (!d.by_source.length) src.appendChild(empty("No subscribers yet."));
