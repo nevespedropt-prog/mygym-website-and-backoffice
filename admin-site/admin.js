@@ -369,6 +369,7 @@
       h("div", { class: "seg" }, [h("button", { class: layout === "grid" ? "on" : "", onclick: function () { ttLayout = "grid"; route(); }, text: "Grid" }), h("button", { class: layout === "list" ? "on" : "", onclick: function () { ttLayout = "list"; route(); }, text: "List" })]),
       h("select", { class: "in sel", "aria-label": "Show one day", onchange: function (e) { ttDay = e.target.value; route(); } }, [h("option", { value: "all", text: "All days", selected: ttDay === "all" })].concat(WD.map(function (d) { return h("option", { value: d, text: d, selected: ttDay === d }); }))),
       h("button", { class: "btn sm", onclick: function () { ttAll = !ttAll; route(); }, text: ttAll ? "Hide switched off" : "Show switched off" })];
+    if (canEdit && !gym) acts.push(h("button", { class: "btn", onclick: function () { ttCoachDays(ctx); }, text: "Coaches by day" }));
     if (canEdit) acts.push(h("button", { class: "btn pri", onclick: function () { ttEdit(null, ctx); }, text: gym ? "Add gym hour" : "Add class" }));
     var lead = legacy ? "Your weekly classes and open gym hours." : canEdit ? "Your weekly classes and open gym hours. Click one to change it, or add a new one." : "Your weekly classes and open gym hours. Ask the owner or a manager to change them.";
     root.appendChild(pageHead("Timetable", lead, acts));
@@ -443,12 +444,31 @@
     openDrawer(c.name, body);
   }
 
+  function coachNames(ctx) { var seen = {}, out = []; (ctx.rows || []).forEach(function (x) { var n = (x.coach || "").trim(); if (n && !seen[n.toLowerCase()]) { seen[n.toLowerCase()] = 1; out.push(n); } }); return out.sort(); }
+  async function ttCoachDays(ctx) {
+    var def = {}; try { def = await rpc("admin_coach_defaults"); } catch (e) { return toast(e.message, true); }
+    var days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], inputs = {};
+    var dl = h("datalist", { id: "ttCoachDays" }, coachNames(ctx).map(function (n) { return h("option", { value: n }); }));
+    var rows = days.map(function (d) { inputs[d] = h("input", { class: "in", list: "ttCoachDays", maxlength: "60", placeholder: "No coach", value: def[d] || "", "aria-label": "Coach for " + d }); return h("div", { class: "field", style: "display:grid;grid-template-columns:110px 1fr;align-items:center;gap:10px;margin-top:8px" }, [h("label", { text: d }), inputs[d]]); });
+    var all = h("input", { type: "checkbox", id: "ttAllNow", checked: true }), out = h("div", { class: "msg", hidden: true });
+    var go = h("button", { class: "btn pri", text: "Save coaches" });
+    go.addEventListener("click", async function () {
+      go.disabled = true; var set = {}; days.forEach(function (d) { set[d] = inputs[d].value.trim(); });
+      try {
+        await rpc("admin_coach_defaults", { p_set: set });
+        if (all.checked) { var byCoach = {}; days.forEach(function (d) { (byCoach[set[d]] = byCoach[set[d]] || []).push(d); }); for (var cn in byCoach) await rpc("admin_classes_set_coach", { p_days: byCoach[cn], p_coach: cn, p_only_empty: false }); }
+        closeModal(); toast("Coaches saved."); route();
+      } catch (e) { go.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+    openModal("Coach for each day", [h("p", { text: "Who normally teaches on each day. New classes get this coach automatically. You can still change the coach on any single class." }), dl].concat(rows, [h("label", { style: "display:flex;gap:8px;margin-top:14px;align-items:flex-start;font-size:13.5px" }, [all, h("span", { text: "Also set these coaches on all the classes already on the timetable (this replaces coaches you set one by one)." })]), out]), [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
+  }
   function ttEdit(c, ctx) {
     var isNew = !c, kind = c ? c.kind : (ttView === "gym" ? "gym" : "class"), isGym = kind === "gym", dayDefault = c ? c.day : (ttDay !== "all" ? ttDay : "Monday");
     var day = h("select", { class: "in sel", id: "ttDay" }, WD.map(function (d) { return h("option", { value: d, text: d, selected: d === dayDefault }); }));
     var time = h("input", { class: "in", id: "ttTime", type: "time", step: "300", min: "05:00", max: "23:59", required: true, value: c ? String(c.time).slice(0, 5) : "" });
     var name = isGym ? null : h("input", { class: "in", id: "ttName", maxlength: "60", required: true, placeholder: "For example HIIT", value: c ? c.name : "" });
-    var coach = h("input", { class: "in", id: "ttCoach", maxlength: "60", placeholder: "Optional", value: c ? (c.coach || "") : "" });
+    var coach = h("input", { class: "in", id: "ttCoach", maxlength: "60", list: "ttCoaches", placeholder: "Pick a coach or type a new name", value: c ? (c.coach || "") : "" });
+    var coachList = h("datalist", { id: "ttCoaches" }, coachNames(ctx).map(function (n) { return h("option", { value: n }); }));
     var info = isGym ? null : h("input", { class: "in", id: "ttInfo", maxlength: "60", list: "ttLen", placeholder: "For example 45 min", value: c ? (c.info || "") : "" });
     var lens = h("datalist", { id: "ttLen" }, TT_LENGTHS.map(function (v) { return h("option", { value: v }); }));
     var cap = h("input", { class: "in", id: "ttCap", type: "number", min: "0", max: "100", step: "1", inputmode: "numeric", required: true, value: c ? String(c.capacity) : (isGym ? "6" : "8") });
@@ -475,7 +495,7 @@
     var form = h("form", { id: "ttForm", class: "ttform", novalidate: false, onsubmit: function (e) { e.preventDefault(); doSave(); } }, [
       h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttDay", text: "Day" }), day]), h("div", { class: "field" }, [h("label", { for: "ttTime", text: "Start time" }), time])]),
       isGym ? h("p", { class: "muted", text: "Gym hours are always called Open Gym." }) : h("div", { class: "field" }, [h("label", { for: "ttName", text: "Class name" }), name]),
-      h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttCoach", text: "Coach" }), coach]), isGym ? null : h("div", { class: "field" }, [h("label", { for: "ttInfo", text: "Length" }), info, lens])]),
+      h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttCoach", text: "Coach" }), coach, coachList]), isGym ? null : h("div", { class: "field" }, [h("label", { for: "ttInfo", text: "Length" }), info, lens])]),
       h("div", { class: "row2" }, [h("div", { class: "field" }, [h("label", { for: "ttCap", text: "Places (capacity)" }), cap])]),
       h("label", { class: "chkline" }, [on, h("span", { text: "On: show it in the app and on the website" })]),
       warn]);
