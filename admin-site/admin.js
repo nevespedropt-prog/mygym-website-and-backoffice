@@ -612,7 +612,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -697,17 +697,56 @@
       h("label", { style: "display:flex;gap:8px;margin-top:12px;align-items:flex-start;font-size:13.5px" }, [basis, h("span", { text: "I confirm these people agreed to receive news and offers from MY GYM London, and I can show where and when. You are responsible for this under UK data protection law." })]), out],
       [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
   }
+  var HEALTH_QS = [["heart", "A doctor has told me I have a heart condition"], ["chest", "I get chest pain when I exercise or at rest"], ["dizzy", "I feel dizzy, or have fainted or lost consciousness"], ["joint", "I have a bone, joint or back problem that exercise could make worse"], ["meds", "I take medication for blood pressure or a heart condition"], ["pregnant", "I am pregnant, or gave birth in the last 6 months"], ["other", "I have another health condition or injury that could affect exercise"]];
+  async function addMemberDialog() {
+    var F = {}, plans = [];
+    var inp = function (id, label, type, ph, max) { var el = h("input", { class: "in", type: type || "text", placeholder: ph || "", maxlength: String(max || 80) }); F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
+    var chk = function (id, text, on) { var el = h("input", { type: "checkbox", checked: !!on }); F[id] = el; return h("label", { style: "display:flex;gap:8px;margin-top:8px;align-items:flex-start;font-size:13.5px" }, [el, h("span", { text: text })]); };
+    var planSel = h("select", { class: "sel" }, [h("option", { value: "", text: "No plan yet" })]), paySel = h("select", { class: "sel" }, [h("option", { value: "in_person", text: "Paid in person (cash or card machine) - record it in Wix" }), h("option", { value: "card_link", text: "They pay by card now - open the Wix checkout" }), h("option", { value: "later", text: "Payment to come later" })]);
+    var start = h("input", { class: "in", type: "date", value: iso(new Date()) });
+    var hq = HEALTH_QS.map(function (q) { return chk("hq_" + q[0], q[1]); });
+    var out = h("div", { class: "msg", hidden: true }), go = h("button", { class: "btn pri", text: "Add member" });
+    var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
+    var body = [
+      h("div", { class: "sect" }, [h("h4", { text: "1. Their details" }), h("div", { class: "grid g2" }, [inp("first", "First name", "text", "", 60), inp("last", "Last name", "text", "", 60)]), inp("email", "Email (leave empty if they have none)", "email", "name@example.com", 120), inp("phone", "Phone", "tel", "07...", 30), inp("birthdate", "Date of birth (for a birthday hello)", "date"),
+        h("div", { class: "grid g2" }, [inp("em_name", "Emergency contact name (optional)", "text", "", 80), inp("em_phone", "Emergency contact phone", "tel", "", 30)])]),
+      h("div", { class: "sect" }, [h("h4", { text: "2. Plan and payment" }), h("div", { class: "field" }, [h("label", { text: "Plan" }), planSel]), h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: "Starts on" }), start]), h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: "Payment" }), paySel]),
+        h("small", { class: "muted", style: "display:block;margin-top:6px", text: "Card numbers are never typed here. Cards go through the secure Wix checkout." })]),
+      h("div", { class: "sect" }, [h("h4", { text: "3. Health form (ask them, then tick what they tell you)" })].concat(hq, [chk("hq_none", "None of these apply to them"), inp("allergies", "Allergies (write them, or tick the box below)", "text", "", 300), chk("no_allergies", "They have no allergies"), inp("other_details", "Anything else they told you (optional)", "text", "", 500),
+        chk("h_consent", "They agree we may store this health information to keep them safe"), chk("h_true", "They confirm the answers are true")])),
+      h("div", { class: "sect" }, [h("h4", { text: "4. Agreements (they agree in person)" }), chk("terms", "They accept the MY GYM London terms and conditions"), chk("privacy", "They have seen the privacy notice"), chk("marketing", "They would like news and offers by email (optional)")]),
+      h("div", { class: "sect" }, [h("h4", { text: "5. App" }), chk("create_app", "Create their app login and email them a welcome with a link to set a password (needs an email)", true)]), out];
+    openDrawer("Add a member", body, [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), go]);
+    fn("admin-add-member", { action: "plans" }, 30).then(function (r) { if (!r.ok) return; plans = r.j.plans || []; plans.forEach(function (p) { planSel.appendChild(h("option", { value: p.id, text: p.name + (p.amount ? " (\u00A3" + p.amount + ")" : "") })); }); });
+    go.addEventListener("click", async function () {
+      var pl = plans.filter(function (p) { return p.id === planSel.value; })[0] || {}, ans = {}; HEALTH_QS.forEach(function (q) { ans[q[0]] = F["hq_" + q[0]].checked; }); ans.none = F.hq_none.checked;
+      go.disabled = true; say("Adding them...");
+      var r = await fn("admin-add-member", { action: "create", first: F.first.value, last: F.last.value, email: F.email.value, phone: F.phone.value, birthdate: F.birthdate.value || null, emergency_name: F.em_name.value, emergency_phone: F.em_phone.value,
+        plan_id: planSel.value, plan_name: pl.name || "", plan_amount: pl.amount || null, plan_unit: pl.unit || "", start_date: start.value, pay: paySel.value, create_app: F.create_app.checked, taken_by: me.name || "staff",
+        health: { answers: ans, no_allergies: F.no_allergies.checked, allergies: F.allergies.value, other_details: F.other_details.value, consent_health: F.h_consent.checked, consent_truthful: F.h_true.checked }, consents: { terms: F.terms.checked, privacy: F.privacy.checked, marketing: F.marketing.checked } }, 90);
+      go.disabled = false;
+      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+      clear(out); out.hidden = false; out.className = "msg ok"; out.appendChild(h("b", { text: "Added. Here is what happened:" }));
+      r.j.steps.forEach(function (x) { out.appendChild(h("div", { style: "margin-top:6px" }, [h("b", { text: (x.ok ? "\u2713 " : "\u26A0 ") + x.name + ": " }), document.createTextNode(x.detail || "")])); });
+      if (r.j.checkout_link) out.appendChild(h("div", { style: "margin-top:10px" }, [h("a", { class: "btn pri", href: r.j.checkout_link, target: "_blank", rel: "noopener", text: "Open the Wix checkout" })]));
+      go.hidden = true; changedMember = true;
+    });
+  }
+  var changedMember = false;
   async function memberProfile(m) {
     var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
-    var foot = [h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })];
+    var foot = m.email ? [h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })] : [];
     if (m.user_id && can(["admin", "manager"])) foot.unshift(h("button", { class: "btn", onclick: function () { showHealth({ id: m.user_id, name: m.name, email: m.email }); }, text: "Health form (logged)" }));
     openDrawer(m.name || m.email, [host], foot);
     try {
-      var p = await rpc("admin_member_profile", { p_email: m.email }); clear(host);
+      var p = await rpc("admin_member_profile", { p_email: m.key || m.email }); clear(host);
       var kvOf = function (pairs) { var kv = h("dl", { class: "kv" }); pairs.forEach(function (x) { kv.appendChild(h("dt", { text: x[0] })); kv.appendChild(h("dd", { text: x[1] == null || x[1] === "" ? "-" : x[1] })); }); return kv; };
       var c = p.contact || {}, ap = p.app;
       host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" }, [m.plan_type ? chip(TYPE_LABEL[m.plan_type], "acc") : chip("No plan", "plain"), chip(STATUS_LABEL[m.status] || m.status, STATUS_CHIP[m.status] || "plain"), m.lapsed ? chip("Not training", "warn") : null, m.cancelling ? chip("Cancelling", "warn") : null]),
-        kvOf([["Email", m.email], ["Phone", m.phone], ["Date of birth", m.birthdate ? fDate(m.birthdate) : "Not given yet"], ["Client since", m.joined ? fDate(m.joined) : "-"], ["Last booked", m.last_booking ? fDate(m.last_booking) : "-"], ["Labels in Wix", (c.labels || []).join(", ")]])]));
+        kvOf([["Email", m.email || "None (phone only)"], ["Phone", m.phone], ["Date of birth", m.birthdate ? fDate(m.birthdate) : "Not given yet"], ["Client since", m.joined ? fDate(m.joined) : "-"], ["Last booked", m.last_booking ? fDate(m.last_booking) : "-"], ["Labels in Wix", (c.labels || []).join(", ")]])]));
+      if (p.manual) { var mm = p.manual, hl = mm.health || {}, cs = mm.consents || {};
+        host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Signed up in person" }), kvOf([["Added by", hl.taken_by || cs.taken_by || "Staff"], ["On", mm.created_at ? fDateTime(mm.created_at) : "-"], ["Health form", "Taken in person" + (hl.consented_at ? " on " + fDate(hl.consented_at) : "")],
+          ["Terms and privacy", cs.terms && cs.privacy ? "Accepted in person" : "-"], ["News and offers", cs.marketing ? "Agreed in person" : "No"], ["Emergency contact", [mm.emergency_name, mm.emergency_phone].filter(Boolean).join(", ")], ["Plan", mm.plan_name ? mm.plan_name + (mm.paid_how === "in_person" ? " (paid in person)" : mm.paid_how === "card_link" ? " (card via Wix checkout)" : " (payment still to come)") : "None yet"]])])); }
       host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Membership and payments" }), p.orders.length ? h("div", { class: "list" }, p.orders.map(function (o) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: o.plan }), h("small", { text: (o.started ? "From " + fDate(o.started) : "") + (o.ends ? ", ends " + fDate(o.ends) : "") + (o.pay ? " · payment " + String(o.pay).toLowerCase() : "") })]), h("span", { class: "num", text: "£" + Number(o.amount || 0).toFixed(2) }), chip(STATUS_LABEL[o.status] || o.status, STATUS_CHIP[o.status] || "plain")]); })) : h("div", { class: "muted", text: "No membership purchased." })]));
       host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "App and emails" }), kvOf([["App account", ap ? "Yes, joined " + fDate(ap.created) : "No"], ["Bookings in the app", ap ? ap.bookings : "-"], ["Health form", ap ? (ap.health_form ? "Done" : "Missing") : "-"],
         ["News and offers", p.consent ? (p.consent.withdrawn ? "Unsubscribed " + fDate(p.consent.withdrawn) : p.consent.confirmed ? "Subscribed " + fDate(p.consent.confirmed) + (p.consent.source ? " (" + p.consent.source + ")" : "") : "Waiting to confirm") : "Not subscribed"], ["Wix newsletter status", (c.subscription || "-").replace(/_/g, " ").toLowerCase()]])]));
@@ -718,7 +757,7 @@
       var drawNotes = function (ns) { clear(nl); ns.forEach(function (n) { nl.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: n.note, style: "font-weight:500;white-space:pre-wrap" }), h("small", { text: n.by + " · " + fDateTime(n.at) })]),
         can(["admin", "manager"]) ? h("button", { class: "btn sm", onclick: async function () { try { await rpc("admin_member_note_delete", { p_id: n.id }); ns = ns.filter(function (x) { return x.id !== n.id; }); drawNotes(ns); } catch (e) { toast(e.message, true); } }, text: "Delete" }) : null])); }); if (!ns.length) nl.appendChild(h("div", { class: "muted", text: "No notes yet." })); };
       drawNotes(p.notes);
-      host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Notes" }), note, h("button", { class: "btn sm", style: "margin-top:8px", onclick: async function () { try { await rpc("admin_member_note_add", { p_email: m.email, p_note: note.value }); var np = await rpc("admin_member_profile", { p_email: m.email }); note.value = ""; drawNotes(np.notes); } catch (e) { toast(e.message, true); } }, text: "Save note" }), nl]));
+      host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Notes" }), note, h("button", { class: "btn sm", style: "margin-top:8px", onclick: async function () { try { await rpc("admin_member_note_add", { p_email: m.key || m.email, p_note: note.value }); var np = await rpc("admin_member_profile", { p_email: m.key || m.email }); note.value = ""; drawNotes(np.notes); } catch (e) { toast(e.message, true); } }, text: "Save note" }), nl]));
     } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
   }
   async function showHealth(m) {
@@ -786,6 +825,7 @@
   }
 
   /* ---------- email templates: your own library, used by every new email and campaign ---------- */
+  var pendingTpl = null;
   function templateEditor(t, done) {
     var isNew = !t.id, F = {};
     var f = function (id, label, max, tag, ph) { var el = h(tag || "input", { class: "in", maxlength: String(max), placeholder: ph || "" }); if (tag === "textarea") el.rows = 8; el.value = t[id] || ""; F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
@@ -805,7 +845,7 @@
     var cards = h("div", { class: "grid g2" });
     list.forEach(function (t) {
       cards.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: t.name })]), h("div", { class: "bd" }, [h("div", { class: "muted", style: "font-size:12px", text: "Subject" }), h("div", { text: t.subject || "-" }), h("div", { class: "muted", style: "font-size:12px;margin-top:8px", text: "Message" }), h("div", { style: "white-space:pre-wrap;max-height:110px;overflow:hidden", text: t.body }),
-        h("div", { style: "display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" }, [h("button", { class: "btn sm", onclick: function () { templateEditor(t, route); }, text: "Edit" }),
+        h("div", { style: "display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" }, [h("button", { class: "btn sm pri", onclick: function () { pendingTpl = t; location.hash = "#/marketing"; }, text: "Send this" }), h("button", { class: "btn sm", onclick: function () { templateEditor(t, route); }, text: "Edit" }),
           h("button", { class: "btn sm", onclick: function () { templateEditor(Object.assign({}, t, { id: null, name: t.name + " (copy)" }), route); }, text: "Duplicate" }),
           h("button", { class: "btn sm dng", onclick: async function () { try { await rpc("admin_template_delete", { p_id: t.id }); toast("Deleted."); route(); } catch (e) { toast(e.message, true); } }, text: "Delete" })])])]));
     });
@@ -822,13 +862,16 @@
     { n: "Bring a friend", subject: "Bring a friend to MY GYM", title: "Train with a friend", body: "Know someone who would love MY GYM? Refer a friend and when they buy a plan, we take 100% off the first billing cycle of your membership.\n\nEmail us your name and your friend's name to get started.", btn: "Email us", url: "https://www.mygymlondon.co.uk/refer-friends.html" }
   ];
   var SEGMENTS = [
-    { id: "all", label: "Everyone who confirmed" },
-    { id: "members", label: "Members (have an app account)" },
-    { id: "leads", label: "Website sign-ups without an app account" },
+    { id: "all", label: "Everyone on my email list" },
+    { id: "active_clients", label: "Active clients (paying now)" },
+    { id: "gym_classes", label: "Active: Gym + Classes members" },
+    { id: "classes_only", label: "Active: Classes-only members" },
+    { id: "lapsed", label: "Active but not training for 3 weeks" },
+    { id: "paused_clients", label: "Paused clients" },
+    { id: "former_clients", label: "Former clients (cancelled or ended)" },
+    { id: "members", label: "People with an app account" },
     { id: "active30", label: "App members who booked in the last 30 days" },
-    { id: "gym_classes", label: "Gym + Classes members (paying now)" },
-    { id: "classes_only", label: "Classes-only members (paying now)" },
-    { id: "lapsed", label: "Not training for 3 weeks (paying members)" }
+    { id: "leads", label: "Website sign-ups without an app account" }
   ];
   function segLabel(id) { var s = SEGMENTS.filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
   // "2026-11-14T09:00" typed as London wall-clock time -> the exact moment (ISO, UTC)
@@ -1022,6 +1065,7 @@
     var host = h("div", { style: "margin-bottom:16px" });
     function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); }, tpls)); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
     openComposerFn = openComposer;
+    if (pendingTpl && isAdmin) { var pt = pendingTpl; pendingTpl = null; setTimeout(function () { openComposer(null); var set = function (id, v) { var e = $(id); if (e) { e.value = v || ""; e.dispatchEvent(new Event("input", { bubbles: true })); } }; set("cSubject", pt.subject); set("cPre", pt.preheader); set("cTitle", pt.title); set("cBody", pt.body); set("cBtn", pt.button); set("cUrl", pt.url); }, 0); }
     root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn", onclick: function () { wixSubsDialog(); }, text: "Bring in Wix subscribers" }), h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
     root.appendChild(host);
     if (isAdmin) {
