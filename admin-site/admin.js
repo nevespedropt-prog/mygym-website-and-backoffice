@@ -810,12 +810,121 @@
       h("div", { class: "contact" }, links), dl, note, btns])]);
   }
 
+  /* ---------- automatic emails: change the wording, switch on or off ---------- */
+  var AUTO = null;
+  async function loadAuto() {
+    if (AUTO) return AUTO;
+    var r = await fetch("auto-emails.json?v=20261113", { cache: "no-cache" });
+    if (!r.ok) throw new Error("The list of automatic emails could not be loaded.");
+    AUTO = await r.json(); return AUTO;
+  }
+  function emailName(id) { var t = id.replace(/-/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); }
+  var PH_RE = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
+  // wording editor for one automatic email (a side panel). Only subject, preview line, heading, button text and paragraphs can change; the rest stays as built.
+  function emailEditor(e, ov, globals, onChange) {
+    ov = ov || {}; var b = ov.body || {}, F = {};
+    var allowed = {}; e.needs.concat(globals).forEach(function (k) { allowed[k] = 1; });
+    function field(id, label, val, max, tag, hint) {
+      var el = h(tag || "input", { class: "in", id: id, maxlength: String(max) }); if (tag === "textarea") el.rows = 4; el.value = val || ""; F[id] = el;
+      return h("div", { class: "field" }, [h("label", { for: id, text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]);
+    }
+    var paraVals = e.paras.map(function (d, i) { return b.paragraphs && typeof b.paragraphs[i] === "string" && b.paragraphs[i].trim() ? b.paragraphs[i] : d; });
+    var blocks = [
+      h("div", { class: "banner" }, [h("div", null, [h("b", { text: "When it is sent: " }), document.createTextNode(e.when + ". ")]), ]),
+      field("eSubject", "Subject line", ov.subject || e.subject, 200, null, ""),
+      field("ePre", "Preview line (the grey text after the subject)", b.pre || e.pre, 300, null, ""),
+      field("eTitle", "Heading inside the email", b.title || e.title, 200, null, "")
+    ];
+    if (e.cta) blocks.push(field("eCta", "Button text", b.cta_label || e.cta, 80, null, "The button link cannot be changed here."));
+    paraVals.forEach(function (v, i) { blocks.push(field("eP" + i, e.paras.length > 1 ? "Paragraph " + (i + 1) : "Paragraph", v, 1500, "textarea", i === 0 && /^Hi /.test(e.paras[0]) ? "This is the greeting line." : "")); });
+    if (!e.paras.length) blocks.push(h("small", { class: "muted", text: "This email has no paragraphs you can change; everything else about it is built in." }));
+    var ph = Object.keys(allowed).filter(function (k) { return e.needs.indexOf(k) > -1; });
+    blocks.push(h("div", { class: "field" }, [h("label", { text: "You can put these in any text, exactly like this" }), h("small", { class: "muted", style: "word-break:break-word", text: ph.length ? ph.map(function (k) { return "{{" + k + "}}"; }).join("  ") : "No personal details are filled in for this email." }), h("small", { class: "muted", text: "They are replaced by the real details when the email is sent. Fixed details such as {{gym_email}}, {{gym_address}} and {{app_url}} also work. Anything else in double curly brackets is refused." })]));
+    if (e.fixed.length) blocks.push(h("div", { class: "field" }, [h("label", { text: "Also in this email (fixed, cannot be changed here)" }), h("ul", { class: "muted", style: "margin:0;padding-left:18px;font-size:13px;display:grid;gap:4px" }, e.fixed.map(function (f) { return h("li", { text: f.k + ": " + f.t }); }))]));
+    var out = h("div", { class: "msg", hidden: true });
+    blocks.push(out);
+    function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
+    function val(id) { return (F[id].value || "").trim(); }
+    function problem() {
+      var ids = ["eSubject", "ePre", "eTitle"].concat(e.cta ? ["eCta"] : []).concat(e.paras.map(function (_, i) { return "eP" + i; })), unknown = {};
+      ids.forEach(function (id) { (val(id).match(PH_RE) || []).forEach(function (m) { var k = m.replace(/[{}\s]/g, ""); if (!allowed[k]) unknown[k] = 1; }); });
+      var u = Object.keys(unknown); if (u.length) return "These do not exist for this email: " + u.map(function (k) { return "{{" + k + "}}"; }).join(", ") + ". Use only the ones listed above.";
+      if (!val("eSubject")) return "The subject cannot be empty.";
+      if (!val("eTitle")) return "The heading cannot be empty.";
+      if (e.cta && !val("eCta")) return "The button text cannot be empty.";
+      for (var i = 0; i < e.paras.length; i++) if (!val("eP" + i)) return "Every paragraph needs some text.";
+      return "";
+    }
+    function diff(id, def) { var v = val(id); return v && v !== def ? v : ""; }
+    async function save() {
+      var bad = problem(); if (bad) { say(bad, "bad"); return false; }
+      var paras = e.paras.map(function (_, i) { return val("eP" + i); }), pchanged = paras.some(function (x, i) { return x !== e.paras[i]; });
+      var args = { p_template: e.id, p_subject: diff("eSubject", e.subject), p_pre: diff("ePre", e.pre), p_title: diff("eTitle", e.title), p_cta: e.cta ? diff("eCta", e.cta) : "", p_paras: pchanged ? paras : null };
+      await rpc("admin_email_override_save", args);
+      var body = {}; if (args.p_pre) body.pre = args.p_pre; if (args.p_title) body.title = args.p_title; if (args.p_cta) body.cta_label = args.p_cta; if (args.p_paras) body.paragraphs = args.p_paras;
+      onChange({ template_id: e.id, subject: args.p_subject || null, body: Object.keys(body).length ? body : null, enabled: ov.enabled !== false });
+      ov = { subject: args.p_subject || null, body: Object.keys(body).length ? body : null, enabled: ov.enabled !== false };
+      return true;
+    }
+    var bSave = h("button", { class: "btn pri", type: "button", text: "Save wording" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bReset = h("button", { class: "btn dng", type: "button", text: "Back to the original" });
+    function lock(x) { bSave.disabled = x; bTest.disabled = x; bReset.disabled = x; }
+    bSave.addEventListener("click", async function () { lock(true); try { if (await save()) say("Saved. New emails use this wording straight away.", "ok"); } catch (er) { say(er.message, "bad"); } lock(false); });
+    bTest.addEventListener("click", async function () {
+      lock(true); say("Saving and sending a test to your own email...");
+      try { if (!(await save())) { lock(false); return; } } catch (er) { lock(false); return say(er.message, "bad"); }
+      var r = await fn("admin-email-test", { template: e.id, vars: e.sample }, 40); lock(false);
+      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+      say(r.j.note ? r.j.note : "Test sent to " + (r.j.sent_to || "your email") + ". It uses example names and dates, and its subject starts with [TEST].", r.j.note ? "bad" : "ok");
+    });
+    bReset.addEventListener("click", async function () {
+      if (bReset.dataset.sure !== "1") { bReset.dataset.sure = "1"; bReset.textContent = "Yes, restore the original"; return say("This throws away your wording for this email. Press the red button again to confirm.", "bad"); }
+      lock(true);
+      try { await rpc("admin_email_override_reset", { p_template: e.id }); onChange({ template_id: e.id, subject: null, body: null, enabled: ov.enabled !== false }); toast("Original wording restored."); closeDrawer(); }
+      catch (er) { lock(false); say(er.message, "bad"); }
+    });
+    openDrawer(emailName(e.id), blocks, [bReset, bTest, bSave]);
+  }
+  async function autoEmailsCard() {
+    var data = await loadAuto(), ovs = await rpc("admin_email_overrides"), map = {};
+    ovs.forEach(function (o) { map[o.template_id] = o; });
+    var box = h("div"), open = {};
+    function draw() {
+      box.textContent = "";
+      var edited = 0, off = 0; data.emails.forEach(function (e) { var o = map[e.id]; if (o && (o.subject || o.body)) edited++; if (o && o.enabled === false) off++; });
+      box.appendChild(h("p", { class: "muted", style: "margin:0 0 12px", text: data.emails.length + " automatic emails. " + edited + " with your own wording, " + off + " switched off. A change applies to the next email sent; emails already sent are not changed." }));
+      var groups = []; data.emails.forEach(function (e) { if (groups.indexOf(e.group) < 0) groups.push(e.group); });
+      groups.forEach(function (g) {
+        var items = data.emails.filter(function (e) { return e.group === g; });
+        var d = h("details", { class: "grp" }); if (open[g]) d.open = true;
+        d.addEventListener("toggle", function () { open[g] = d.open; });
+        d.appendChild(h("summary", { text: g + " (" + items.length + ")" }));
+        d.appendChild(h("div", { class: "list" }, items.map(function (e) {
+          var o = map[e.id] || null, isOff = !!o && o.enabled === false, isEdited = !!o && !!(o.subject || o.body);
+          var sw = h("button", { class: "btn sm", type: "button", text: isOff ? "Switch on" : "Switch off" });
+          sw.addEventListener("click", async function () {
+            if (!isOff && sw.dataset.sure !== "1") { sw.dataset.sure = "1"; sw.className = "btn sm dng"; sw.textContent = "Yes, stop sending"; setTimeout(function () { if (sw.isConnected) { sw.dataset.sure = ""; sw.className = "btn sm"; sw.textContent = "Switch off"; } }, 4000); return; }
+            sw.disabled = true;
+            try { await rpc("admin_email_set_enabled", { p_template: e.id, p_enabled: isOff }); var cur = map[e.id] || { template_id: e.id, subject: null, body: null }; cur.enabled = isOff; map[e.id] = cur; toast(isOff ? "Switched on." : "Switched off. Nobody will get this email until you switch it on."); draw(); }
+            catch (er) { sw.disabled = false; toast(er.message, true); }
+          });
+          return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: emailName(e.id) }), h("small", { text: e.when })]),
+            isOff ? chip("Switched off", "warn") : null, isEdited ? chip("Your wording", "info") : null, e.marketing ? chip("Needs consent", "plain") : null,
+            h("button", { class: "btn sm", type: "button", text: "Edit wording", onclick: function () { emailEditor(e, map[e.id], data.globals, function (row) { map[e.id] = row; draw(); }); } }), sw]);
+        })));
+        box.appendChild(d);
+      });
+    }
+    draw();
+    return card("Automatic emails", "edit the wording or switch one off", [box, h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Sign-in emails (password reset and similar) and campaigns are not in this list. Campaigns are written on the Marketing page." })]);
+  }
+
   /* ---------- emails ---------- */
   async function vEmails() {
     var d = await rpc("admin_emails", { p_limit: 150 }), root = h("div");
-    root.appendChild(pageHead("Emails", "Every automatic email the system has sent, and whether it was delivered."));
+    root.appendChild(pageHead("Emails", "Change the wording of the automatic emails, switch one off, and see what was sent and whether it was delivered."));
     var sent = 0, failed = 0; d.by_template_30d.forEach(function (t) { sent += t.sent; failed += t.failed; });
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Sent in 30 days", sent), kpi("Failed in 30 days", failed, failed ? "see the list below" : "all delivered", failed > 0), kpi("Types of email used", d.by_template_30d.length)]));
+    if (can(["admin"])) { try { root.appendChild(h("div", { style: "margin-top:16px" }, [await autoEmailsCard()])); } catch (er) { root.appendChild(errBox(er)); } }
     var byT = h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:0" }, [h("thead", null, [h("tr", null, [h("th", { text: "Email" }), h("th", { class: "r", text: "Sent" }), h("th", { class: "r", text: "Failed" })])]),
       h("tbody", null, d.by_template_30d.map(function (t) { return h("tr", { style: "cursor:default" }, [h("td", { text: t.template }), h("td", { class: "num r", text: t.sent }), h("td", { class: "num r", text: t.failed })]); }))])]);
     var log = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["When", "Email", "To", "Result"].map(function (x) { return h("th", { text: x }); }))]),

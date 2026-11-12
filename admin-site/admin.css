@@ -305,3 +305,5 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 @media(max-width:520px){.ttform .row2{grid-template-columns:1fr}.banner{flex-direction:column}}
 
 .btn.off{opacity:.55}
+
+.grp{border-top:1px solid var(--line);padding:2px 0}.grp>summary{cursor:pointer;font-weight:700;padding:10px 0;list-style:revert}.grp .list{margin:0 0 8px}
