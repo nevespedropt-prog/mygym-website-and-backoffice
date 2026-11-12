@@ -39,11 +39,20 @@
     if (r.error) { var e = new Error(/Not allowed/.test(r.error.message) ? "You do not have access to this." : r.error.message); e.code = r.error.code; throw e; }
     return r.data;
   }
-  async function fn(name, body) {
-    var s = (await sb.auth.getSession()).data.session;
-    var r = await fetch(CFG.SUPABASE_URL + "/functions/v1/" + name, { method: "POST", headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: "Bearer " + s.access_token }, body: JSON.stringify(body) });
-    var j = await r.json().catch(function () { return {}; });
-    return { ok: r.ok && j.ok, j: j };
+  async function fn(name, body, seconds) {
+    // never leaves the page waiting for ever: a failed network call, a missing sign-in or a slow reply all come back as a readable error
+    var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, (seconds || 60) * 1000);
+    try {
+      var got = await Promise.race([sb.auth.getSession(), new Promise(function (res) { setTimeout(function () { res(null); }, 10000); })]);
+      var s = got && got.data && got.data.session;
+      if (!s) return { ok: false, j: { error: "Your sign-in could not be checked. Reload the page and sign in again." } };
+      var r = await fetch(CFG.SUPABASE_URL + "/functions/v1/" + name, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: "Bearer " + s.access_token }, body: JSON.stringify(body) });
+      var j = await r.json().catch(function () { return {}; });
+      if (!r.ok && !j.error) j.error = r.status === 401 ? "Your sign-in has expired. Reload the page and sign in again." : "The server answered with error " + r.status + ".";
+      return { ok: r.ok && j.ok, j: j };
+    } catch (e) {
+      return { ok: false, j: { error: e && e.name === "AbortError" ? "No answer from the server after " + (seconds || 60) + " seconds. Nothing was lost; check your connection and try again." : "Could not reach the server (" + (e && e.message || "network error") + ")." } };
+    } finally { clearTimeout(timer); }
   }
   function chip(text, cls) { return h("span", { class: "chip " + (cls || ""), text: text }); }
   function kpi(label, value, sub, alert) { return h("div", { class: "card kpi" + (alert ? " alert" : "") }, [h("div", { class: "lab", text: label }), h("div", { class: "val num", text: value }), sub ? h("div", { class: "dlt", text: sub }) : null]); }
@@ -603,62 +612,119 @@
   }
 
   /* ---------- campaign composer ---------- */
-  function campaignCard() {
+  var CAMP_TEMPLATES = [
+    { n: "New class", subject: "A new class at MY GYM", title: "A new class is on the timetable", body: "We have added [class name] on [day] at [time].\n\nPlaces are limited, so book yours in the app before it fills up.", btn: "Book your place", url: "https://app.mygymlondon.co.uk" },
+    { n: "Offer", subject: "A special offer for you", title: "Something for our members", body: "[Describe the offer in one or two sentences.]\n\nIt runs until [date]. Reply to this email or ask at the front desk if you have any questions.", btn: "See the offer", url: "https://www.mygymlondon.co.uk" },
+    { n: "Gym news", subject: "News from MY GYM London", title: "What is new at the gym", body: "[Write your news here.]\n\nThank you for training with us.", btn: "Read more", url: "https://www.mygymlondon.co.uk" },
+    { n: "Bring a friend", subject: "Bring a friend to MY GYM", title: "Train with a friend", body: "Know someone who would love MY GYM? Refer a friend and when they buy a plan, we take 100% off the first billing cycle of your membership.\n\nEmail us your name and your friend's name to get started.", btn: "Email us", url: "https://www.mygymlondon.co.uk/refer-friends.html" }
+  ];
+  function campaignCard(subscribers) {
     if (!can(["admin"])) return h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Campaigns. " }), document.createTextNode("Only an admin can write and send a campaign.")])]);
-    var uid = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); });
-    function inp(id, label, ph, max, tag) { var el = h(tag || "input", { class: "in", id: id, maxlength: String(max || 200), placeholder: ph || "" }); if (tag === "textarea") el.rows = 6; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); }
-    var f = h("div", null, [inp("cSubject", "Email subject (up to 78 characters)", "For example: New Saturday class", 78), inp("cPre", "Preview text (optional)", "Shown next to the subject in the inbox", 120), inp("cTitle", "Heading (2 to 60 characters)", "", 60), inp("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea"), inp("cBtn", "Button text", "For example: Book now", 40), inp("cUrl", "Button link (must start with https://)", "https://", 300)]);
-    var out = h("div", { class: "msg", hidden: true }), audience = h("small", { class: "muted", text: "" });
-    var bAud = h("button", { class: "btn", text: "Count who will get it" }), bTest = h("button", { class: "btn", text: "Send me a test" }), bSend = h("button", { class: "btn pri", disabled: true, text: "Send to everyone" });
-    var armed = false, busy = false;
-    function v(id) { return ($(id).value || "").trim(); }
+    function newId() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }); }
+    var uid = newId();
+    var DRAFT = "mygym_campaign_draft";
+    function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+    var F = {};
+    function fld(id, label, ph, max, tag, hint) {
+      var el = h(tag || "input", { class: "in", id: id, maxlength: String(max || 200), placeholder: ph || "" }); if (tag === "textarea") el.rows = 7; F[id] = el;
+      var cnt = h("small", { class: "muted", text: "" }); el._cnt = cnt;
+      return h("div", { class: "field", style: "margin-top:12px" }, [h("div", { style: "display:flex;justify-content:space-between;gap:8px" }, [h("label", { for: id, text: label }), cnt]), el, hint ? h("small", { class: "muted", text: hint }) : null]);
+    }
+    var templates = h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, CAMP_TEMPLATES.map(function (t) {
+      return h("button", { class: "btn sm", type: "button", text: t.n, onclick: function () { F.cSubject.value = t.subject; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.btn; F.cUrl.value = t.url; changed(); } });
+    }));
+    var form = h("div", null, [
+      h("div", { class: "field" }, [h("label", { text: "Start from a template (you can change everything)" }), templates]),
+      fld("cSubject", "Subject line", "What people see first in their inbox", 78, null, "Short and specific works best. Up to 78 characters."),
+      fld("cPre", "Preview text (optional)", "The grey line after the subject in the inbox", 120),
+      fld("cTitle", "Heading inside the email", "", 60),
+      fld("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea"),
+      fld("cBtn", "Button text", "For example: Book your place", 40),
+      fld("cUrl", "Button link", "https://", 300, null, "Must start with https://")
+    ]);
+    /* live preview of the inbox line and the opened email */
+    var pvSubject = h("b"), pvPre = h("span", { class: "muted" }), pvTitle = h("h2", { style: "margin:0 0 10px;font-size:20px" }), pvBody = h("div"), pvBtn = h("span", { style: "display:inline-block;margin-top:14px;padding:11px 18px;border-radius:8px;background:#e03939;color:#fff;font-weight:700" });
+    var preview = h("div", null, [
+      h("div", { class: "muted", style: "font-size:12px;margin-bottom:6px", text: "In the inbox" }),
+      h("div", { style: "border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel);margin-bottom:14px" }, [h("div", { style: "font-size:12px;color:var(--mut)", text: "MY GYM London" }), h("div", null, [pvSubject, document.createTextNode("  "), pvPre])]),
+      h("div", { class: "muted", style: "font-size:12px;margin-bottom:6px", text: "Opened email" }),
+      h("div", { style: "border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;color:#222" }, [
+        h("div", { style: "background:#111;color:#fff;padding:14px 18px;font-weight:800;letter-spacing:.04em", text: "MY GYM LONDON" }),
+        h("div", { style: "padding:20px 18px" }, [pvTitle, pvBody, pvBtn]),
+        h("div", { style: "padding:12px 18px;border-top:1px solid #eee;font-size:11.5px;color:#777", text: "You are getting this because you agreed to hear from MY GYM London. Every email has an unsubscribe link at the bottom." })
+      ])
+    ]);
+    var checks = h("ul", { style: "list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px" });
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" });
+    var bTest = h("button", { class: "btn", text: "Send me a test" }), bSend = h("button", { class: "btn pri", disabled: true, text: "" });
+    var bClear = h("button", { class: "btn sm", type: "button", text: "Clear", onclick: function () { Object.keys(F).forEach(function (k) { F[k].value = ""; }); changed(); } });
+    var testedFor = "", armed = false, busy = false, confirming = false;
+    function v(id) { return (F[id].value || "").trim(); }
+    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
     function payload(action) { return { action: action, campaign_id: uid, subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }; }
-    function problem() {
-      if (!v("cSubject") || v("cSubject").length > 78) return "Write a subject of up to 78 characters.";
-      if (v("cTitle").length < 2 || v("cTitle").length > 60) return "The heading needs 2 to 60 characters.";
-      if (v("cBody").length < 10) return "Write a longer message.";
-      if (!v("cBtn")) return "Add the button text.";
-      if (!/^https:\/\//i.test(v("cUrl"))) return "The button link must start with https://";
-      return "";
+    var ph = /\[[^\]]{2,}\]/;
+    function sendLabel() { return "Send to " + subscribers + " subscriber" + (subscribers === 1 ? "" : "s"); }
+    function review() {
+      var s = v("cSubject"), t = v("cTitle"), b = v("cBody"), u = v("cUrl"), all = s + t + b + v("cBtn") + v("cPre");
+      return [
+        [s.length > 0 && s.length <= 78, "Subject line written (up to 78 characters)"],
+        [t.length >= 2 && t.length <= 60, "Heading written (2 to 60 characters)"],
+        [b.length >= 10, "Message written"],
+        [v("cBtn").length > 0 && /^https:\/\/[^\s]+$/i.test(u), "Button text and a link starting with https://"],
+        [!ph.test(all), "No [placeholder] text left to fill in"],
+        [testedFor !== "" && testedFor === sig(), "Test email sent and checked, for this exact wording"]
+      ];
+    }
+    function problem() { var c = review(); for (var i = 0; i < c.length - 1; i++) if (!c[i][0]) return "still to do: " + c[i][1].charAt(0).toLowerCase() + c[i][1].slice(1) + "."; return ""; }
+    function changed() {
+      confirming = false;
+      F.cSubject._cnt.textContent = v("cSubject").length + "/78"; F.cTitle._cnt.textContent = v("cTitle").length + "/60"; F.cPre._cnt.textContent = v("cPre").length + "/120"; F.cBody._cnt.textContent = v("cBody").length + "/3000";
+      pvSubject.textContent = v("cSubject") || "Your subject line"; pvPre.textContent = v("cPre") ? "– " + v("cPre") : "";
+      pvTitle.textContent = v("cTitle") || "Your heading"; pvBody.textContent = "";
+      (v("cBody") || "Your message appears here.").split(/\n{2,}/).forEach(function (p) { pvBody.appendChild(h("p", { style: "margin:0 0 12px;line-height:1.5;white-space:pre-wrap", text: p })); });
+      pvBtn.textContent = v("cBtn") || "Button"; pvBtn.style.display = v("cBtn") ? "inline-block" : "none";
+      checks.textContent = ""; var c = review(), allOk = true;
+      c.forEach(function (x) { if (!x[0]) allOk = false; checks.appendChild(h("li", { style: "display:flex;gap:8px;align-items:flex-start" }, [h("span", { style: "font-weight:800;color:" + (x[0] ? "var(--ok)" : "var(--mut)"), text: x[0] ? "✓" : "○" }), h("span", { text: x[1] })])); });
+      armed = allOk; bSend.disabled = busy || !armed; bSend.textContent = sendLabel();
+      store(DRAFT, JSON.stringify({ s: v("cSubject"), p: v("cPre"), t: v("cTitle"), b: v("cBody"), bt: v("cBtn"), u: v("cUrl") }));
     }
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
-    function lock(b) { busy = b; [bAud, bTest].forEach(function (x) { x.disabled = b; }); bSend.disabled = b || !armed; }
-    f.addEventListener("input", function () { armed = false; bSend.disabled = true; bSend.textContent = "Send to everyone"; });
-    bAud.addEventListener("click", async function () {
-      var p = problem(); if (p) return say(p, "bad"); lock(true); say("Counting...");
-      var r = await fn("admin-campaign", payload("audience")); lock(false);
-      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
-      say(r.j.count + " confirmed subscriber" + (r.j.count === 1 ? "" : "s") + " would get this. Send yourself a test first, then press Send to everyone.");
-    });
+    function lock(b) { busy = b; bTest.disabled = b; bSend.disabled = b || !armed; }
+    form.addEventListener("input", changed);
+    try { var d0 = JSON.parse(store(DRAFT) || "null"); if (d0) { F.cSubject.value = d0.s || ""; F.cPre.value = d0.p || ""; F.cTitle.value = d0.t || ""; F.cBody.value = d0.b || ""; F.cBtn.value = d0.bt || ""; F.cUrl.value = d0.u || ""; } } catch (e) { /* no saved draft */ }
     bTest.addEventListener("click", async function () {
-      var p = problem(); if (p) return say(p, "bad"); lock(true); say("Sending a test...");
-      var r = await fn("admin-campaign", payload("test")); lock(false);
+      var p = problem(); if (p) return say("Not yet: " + p, "bad");
+      lock(true); say("Sending a test to your own email...");
+      var r = await fn("admin-campaign", payload("test"), 40); lock(false);
       if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
-      armed = true; bSend.disabled = false; say("Test sent to your own email. Check it. If it looks right, press Send to everyone.", "ok");
+      testedFor = sig(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press Send.", "ok");
     });
     bSend.addEventListener("click", async function () {
       if (!armed || busy) return;
-      if (bSend.textContent !== "Yes, send it now") { bSend.textContent = "Yes, send it now"; say("This emails every confirmed subscriber and cannot be undone. Press the button again to send.", "bad"); return; }
+      if (!confirming) { confirming = true; bSend.textContent = "Yes, send to " + subscribers + " now"; say("This emails " + subscribers + " confirmed subscriber" + (subscribers === 1 ? "" : "s") + " and cannot be undone. Press the red button again to send. Change anything to cancel.", "bad"); return; }
       lock(true); var sent = 0, failed = 0, skipped = 0, guard = 0;
       while (guard++ < 500) {
         say("Sending... " + sent + " sent so far. Keep this page open.");
-        var r = await fn("admin-campaign", payload("send"));
-        if (!r.ok) { lock(false); return say("Stopped after " + sent + " sent: " + (r.j.error || "something went wrong") + ". Press Send again to carry on where it stopped.", "bad"); }
-        if (r.j.already_sent) { lock(false); armed = false; bSend.disabled = true; return say("This campaign was already sent.", "ok"); }
+        var r = await fn("admin-campaign", payload("send"), 120);
+        if (!r.ok) { lock(false); confirming = false; changed(); return say("Stopped after " + sent + " sent: " + (r.j.error || "something went wrong") + " Press Send again to carry on where it stopped. Nobody gets it twice.", "bad"); }
         sent += r.j.sent || 0; failed += r.j.failed || 0; skipped += r.j.skipped || 0;
         if (!r.j.remaining) break;
       }
-      lock(false); armed = false; bSend.disabled = true; bSend.textContent = "Send to everyone";
-      say("Done. Sent " + sent + (failed ? ", " + failed + " failed" : "") + (skipped ? ", " + skipped + " skipped" : "") + ".", failed ? "bad" : "ok");
+      lock(false); testedFor = ""; uid = newId(); changed();
+      say("Done. Sent to " + sent + (failed ? ", " + failed + " failed (press Send again to retry just those)" : "") + (skipped ? ", " + skipped + " skipped (no longer subscribed)" : "") + ".", failed ? "bad" : "ok");
     });
-    return card("Write and send a campaign", "admin only", [f, out, h("div", { class: "acts", style: "margin-top:12px;display:flex;gap:8px;flex-wrap:wrap" }, [bAud, bTest, bSend]), audience]);
+    changed();
+    var left = h("div", null, [form, h("div", { style: "margin-top:16px" }, [h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin-bottom:6px", text: "Before you send" }), checks]), out,
+      h("div", { style: "margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center" }, [bTest, bSend, bClear]),
+      h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Goes only to people who confirmed they want news and offers, each person once, with an unsubscribe link. Your wording is saved in this browser as a draft." })]);
+    return h("div", { class: "grid g2", style: "align-items:start" }, [card("Write a campaign", "admin only", [left]), card("Preview", "how it will look", [preview])]);
   }
 
   /* ---------- marketing ---------- */
   async function vMarketing() {
     var d = await rpc("admin_marketing"), root = h("div");
     root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers."));
-    root.appendChild(campaignCard());
+    root.appendChild(h("div", { style: "margin-bottom:16px" }, [campaignCard(d.confirmed)]));
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Confirmed subscribers", d.confirmed, "can receive campaigns"), kpi("Waiting to confirm", d.pending, "they have not clicked the email yet"), kpi("Unsubscribed", d.withdrawn)]));
     var src = h("div", { class: "list" }); d.by_source.forEach(function (s) { src.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: s.source })]), h("span", { class: "num", text: s.n })])); });
     if (!d.by_source.length) src.appendChild(empty("No subscribers yet."));
