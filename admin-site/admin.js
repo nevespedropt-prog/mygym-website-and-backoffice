@@ -278,34 +278,71 @@
     return root;
   }
   function sessionCard(c, ds) {
-    var head = h("div", { class: "li" }, [h("div", { class: "time num", text: String(c.start).slice(0, 5) }), h("div", { class: "tx" }, [h("b", { text: c.name }), h("small", { text: (c.coach ? "Coach " + c.coach : "No coach set") + (c.other_wix ? " · " + c.other_wix + " booked on the website only" : "") })]),
+    var head = h("div", { class: "li" }, [h("div", { class: "time num", text: String(c.start).slice(0, 5) }), h("div", { class: "tx" }, [h("b", { text: c.name, style: c.cancelled ? "text-decoration:line-through" : "" }), h("small", { text: (c.cancelled ? "CANCELLED" + (c.cancel_reason ? ": " + c.cancel_reason : "") + " · " : "") + (c.coach ? "Coach " + c.coach : "No coach set") + (c.other_wix ? " · " + c.other_wix + " booked on the website only" : "") })]),
       h("div", { style: "width:120px" }, [fill(c.booked, c.capacity)]), h("span", { class: "num", text: c.booked + "/" + c.capacity }),
-      can(["admin"]) ? h("button", { class: "btn sm dng", onclick: function () { cancelClass(c, ds); }, text: "Class cancelled" }) : null]);
+      can(["admin"]) ? h("button", { class: "btn sm " + (c.cancelled ? "" : "dng"), onclick: function () { cancelClass(c, ds); }, text: c.cancelled ? "Cancelled: manage" : "Cancel class" }) : null]);
     var people = c.people.length ? h("div", { class: "people" }, c.people.map(function (p) { return h("span", { class: "chip " + (p.source === "wix" ? "info" : "plain"), text: p.name }); })) : h("small", { class: "muted", text: "Nobody booked through the app yet." });
     return h("section", { class: "card" }, [h("div", { class: "bd" }, [head, people])]);
   }
   function cancelClass(c, ds) {
-    var reason = h("input", { class: "in", id: "cReason", maxlength: "200", placeholder: "Optional, shown in the email (for example: our coach is unwell)" });
+    var reason = h("input", { class: "in", id: "cReason", maxlength: "200", placeholder: "Optional, shown in the email (for example: our coach is unwell)", value: c.cancel_reason || "" });
     var out = h("div", { class: "msg", hidden: true });
-    var send = h("button", { class: "btn pri", disabled: true, text: "Email them" }), check = h("button", { class: "btn", text: "Check who is booked" });
-    var checked = null, ttMode = "wix";
+    var list = h("div", { class: "people", style: "margin-top:10px;display:flex;flex-wrap:wrap;gap:6px" });
+    var cancelled = !!c.cancelled, changedAny = false, checked = null, ttMode = "wix", pending = "", busy = false;
+    var bEmailCancel = h("button", { class: "btn pri", text: "Cancel class and email" }), bCancel = h("button", { class: "btn", text: "Cancel class, no email" });
+    var bEmail = h("button", { class: "btn pri", text: "Email them" }), bRestore = h("button", { class: "btn", text: "Restore class" });
+    var bClose = h("button", { class: "btn", text: "Close", onclick: function () { closeModal(); if (changedAny) route(); } });
     rpc("admin_timetable_control_get").then(function (m) { ttMode = m && m.mode; }).catch(function () {});
-    function call(action) { return fn("admin-class-cancelled", { action: action, class_id: c.id, date: ds, reason: reason.value }); }
-    check.addEventListener("click", async function () {
-      check.disabled = true; out.hidden = false; out.className = "msg"; out.textContent = "Checking...";
-      var r = await call("preview"); check.disabled = false;
-      if (!r.ok) { out.className = "msg bad"; out.textContent = r.j.error || "Something went wrong."; return; }
-      if (!r.j.count) { out.textContent = "Nobody is booked, so there is nobody to email."; return; }
-      checked = r.j; send.disabled = false; out.textContent = r.j.count + " booked (" + r.j.first_names.join(", ") + "). Press Email them to tell them the class is cancelled. " + (ttMode === "backoffice" ? "Bookings are not removed: switch the class off on the Timetable page if needed." : "Then cancel the session in Wix.");
+    function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
+    function emailable() { return checked ? checked.count - checked.no_email : 0; }
+    function labels() {
+      var n = emailable();
+      bEmailCancel.textContent = pending === "emailcancel" ? "Yes, cancel and email " + n : "Cancel class and email" + (checked ? " " + n : "");
+      bCancel.textContent = pending === "cancel" ? "Yes, cancel the class" : "Cancel class, no email";
+      bEmail.textContent = "Email " + n + (n === 1 ? " person" : " people");
+      bRestore.textContent = pending === "restore" ? "Yes, restore the class" : "Restore class";
+      [bEmailCancel, bCancel, bEmail, bRestore].forEach(function (b) { b.disabled = busy; });
+      bEmailCancel.hidden = cancelled || !checked || emailable() === 0; bCancel.hidden = cancelled;
+      bEmail.hidden = !cancelled || !checked || emailable() === 0; bRestore.hidden = !cancelled;
+    }
+    function callFn(action) { return fn("admin-class-cancelled", { action: action, class_id: c.id, date: ds, reason: reason.value }, 90); }
+    async function look() {
+      busy = true; labels(); say("Checking who is booked, including the website..."); clear(list);
+      var r = await callFn("preview"); busy = false;
+      if (!r.ok) { checked = { count: 0, no_email: 0, wix_ok: false }; labels(); return say(r.j.error || "Something went wrong.", "bad"); }
+      checked = r.j;
+      r.j.people.forEach(function (p) { list.appendChild(h("span", { class: "chip " + (p.source === "website" ? "info" : "plain"), title: p.source === "website" ? "Booked on the website" : "Booked in the app", text: p.name + (p.source === "website" ? " (website)" : "") + (p.can_email ? "" : " (no email)") })); });
+      var after = ttMode === "backoffice" ? "" : " The website still shows the session, so cancel it in Wix as well.";
+      say((r.j.count ? r.j.count + " booked: " + r.j.app_count + " in the app, " + r.j.website_count + " on the website only." : "Nobody is booked on this class on this date.") + (r.j.wix_ok ? "" : " The website could not be checked just now, so this list may be missing people.") + (r.j.no_email ? " " + r.j.no_email + " have no email on file." : "") + " " + (cancelled ? "This class is cancelled: the app shows it as cancelled and nobody can book it." : "Cancelling hides it from members' upcoming lists and stops new bookings. Their bookings stay in the history. Emailing them is optional.") + (cancelled ? "" : after), r.j.wix_ok ? "" : "bad");
+      labels();
+    }
+    async function doCancel(withEmail) {
+      busy = true; pending = ""; labels(); say("Cancelling...");
+      try { await rpc("admin_class_date_cancel", { p_class: c.id, p_date: ds, p_reason: reason.value }); } catch (e) { busy = false; labels(); return say(e.message, "bad"); }
+      cancelled = true; changedAny = true;
+      if (!withEmail) { busy = false; labels(); say("Cancelled. The app now shows this class as cancelled. Nobody was emailed.", "ok"); return; }
+      say("Cancelled. Emailing the people booked...");
+      var r = await callFn("send"); busy = false; labels();
+      if (!r.ok) return say("Cancelled, but the emails did not go: " + (r.j.error || "something went wrong") + " Press Email them to try again.", "bad");
+      say("Cancelled. Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : "."), r.j.failed ? "bad" : "ok");
+    }
+    function twoStep(key, go) { return function () { if (busy) return; if (pending !== key) { pending = key; labels(); say(key === "restore" ? "This puts the class back on the timetable for members. Press the button again to confirm." : "This stops bookings and hides the class from members. Press the button again to confirm.", "bad"); return; } go(); }; }
+    bEmailCancel.addEventListener("click", twoStep("emailcancel", function () { doCancel(true); }));
+    bCancel.addEventListener("click", twoStep("cancel", function () { doCancel(false); }));
+    bRestore.addEventListener("click", twoStep("restore", async function () {
+      busy = true; pending = ""; labels();
+      try { await rpc("admin_class_date_restore", { p_class: c.id, p_date: ds }); cancelled = false; changedAny = true; busy = false; labels(); say("Restored. Members can book this class again.", "ok"); } catch (e) { busy = false; labels(); say(e.message, "bad"); }
+    }));
+    bEmail.addEventListener("click", async function () {
+      if (busy || !checked || !checked.wix_ok) return; busy = true; labels(); say("Sending...");
+      var r = await callFn("send"); busy = false; labels();
+      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+      say("Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : "."), r.j.failed ? "bad" : "ok");
     });
-    send.addEventListener("click", async function () {
-      if (!checked) return; send.disabled = true; check.disabled = true; out.className = "msg"; out.textContent = "Sending...";
-      var r = await call("send"); check.disabled = false;
-      if (!r.ok) { out.className = "msg bad"; out.textContent = r.j.error || "Something went wrong."; return; }
-      out.className = "msg " + (r.j.failed ? "bad" : "ok"); out.textContent = "Sent " + r.j.sent + " of " + r.j.count + (r.j.failed ? ". " + r.j.failed + " failed: press Check, then Email them again." : ".");
-    });
-    openModal("Class cancelled", [h("p", { text: c.name + ", " + fDate(ds) + " at " + String(c.start).slice(0, 5) + ". This emails everyone booked through the app." }), h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Reason" }), reason]), out],
-      [h("button", { class: "btn", onclick: closeModal, text: "Close" }), check, send]);
+    reason.addEventListener("input", function () { pending = ""; labels(); });
+    openModal(cancelled ? "Cancelled class" : "Cancel class", [h("p", { text: c.name + ", " + fDate(ds) + " at " + String(c.start).slice(0, 5) + ". Everyone booked is listed below, in the app and on the website." }), list, h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Reason (optional, shown in the email)" }), reason]), out],
+      [bClose, bRestore, bCancel, bEmailCancel, bEmail]);
+    labels(); look();
   }
 
   /* ---------- timetable: weekly grid or list; owner and manager can add, edit, switch off and remove ---------- */
