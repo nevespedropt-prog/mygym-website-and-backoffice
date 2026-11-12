@@ -612,7 +612,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -734,6 +734,19 @@
   }
   var changedMember = false;
   /* ---------- editing a member: details, pause / resume / cancel, change plan (owner and manager; memberships owner only) ---------- */
+  async function duplicatesDialog() {
+    var host = h("div", null, [h("div", { class: "muted", text: "Looking..." })]);
+    openDrawer("Possible duplicates", [host], [h("button", { class: "btn", onclick: closeDrawer, text: "Close" })]);
+    try {
+      var d = await rpc("admin_possible_duplicates"); clear(host);
+      host.appendChild(h("p", { class: "muted", text: d.length ? d.length + " groups where the same phone number or the same full name appears under different email addresses. Often it is one person who signed up twice. This list only shows them: to combine two into one, merge them in Wix (Contacts, select both, Merge). The list updates after the next 30-minute sync." : "No possible duplicates found." }));
+      d.forEach(function (g) {
+        host.appendChild(h("div", { class: "sect" }, [h("h4", { text: g.kind === "phone" ? "Same phone number" : "Same name" }), h("div", { class: "list" }, g.people.map(function (x) {
+          return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: x.name || x.email }), h("small", { text: x.email + (x.phone ? " · " + x.phone : "") })]), x.status ? chip(STATUS_LABEL[x.status] || x.status, STATUS_CHIP[x.status] || "plain") : chip("No plan", "plain")]);
+        }))]));
+      });
+    } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
+  }
   function doneEdit(msg) { toast(msg); closeModal(); closeDrawer(); route(); }
   async function accessCheck() {
     var out = h("div", { class: "msg", text: "Asking Wix..." });
