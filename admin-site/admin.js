@@ -611,36 +611,64 @@
     return root;
   }
 
-  /* ---------- campaign composer ---------- */
+  /* ---------- campaigns: history, audience, scheduling, delivery results ---------- */
   var CAMP_TEMPLATES = [
     { n: "New class", subject: "A new class at MY GYM", title: "A new class is on the timetable", body: "We have added [class name] on [day] at [time].\n\nPlaces are limited, so book yours in the app before it fills up.", btn: "Book your place", url: "https://app.mygymlondon.co.uk" },
     { n: "Offer", subject: "A special offer for you", title: "Something for our members", body: "[Describe the offer in one or two sentences.]\n\nIt runs until [date]. Reply to this email or ask at the front desk if you have any questions.", btn: "See the offer", url: "https://www.mygymlondon.co.uk" },
     { n: "Gym news", subject: "News from MY GYM London", title: "What is new at the gym", body: "[Write your news here.]\n\nThank you for training with us.", btn: "Read more", url: "https://www.mygymlondon.co.uk" },
     { n: "Bring a friend", subject: "Bring a friend to MY GYM", title: "Train with a friend", body: "Know someone who would love MY GYM? Refer a friend and when they buy a plan, we take 100% off the first billing cycle of your membership.\n\nEmail us your name and your friend's name to get started.", btn: "Email us", url: "https://www.mygymlondon.co.uk/refer-friends.html" }
   ];
-  function campaignCard(subscribers) {
-    if (!can(["admin"])) return h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Campaigns. " }), document.createTextNode("Only an admin can write and send a campaign.")])]);
-    function newId() { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 3 | 8)).toString(16); }); }
-    var uid = newId();
-    var DRAFT = "mygym_campaign_draft";
-    function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+  var SEGMENTS = [
+    { id: "all", label: "Everyone who confirmed" },
+    { id: "members", label: "Members (have an app account)" },
+    { id: "leads", label: "Website sign-ups without an app account" },
+    { id: "active30", label: "Active members (booked in the last 30 days)" }
+  ];
+  function segLabel(id) { var s = SEGMENTS.filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
+  // "2026-11-14T09:00" typed as London wall-clock time -> the exact moment (ISO, UTC)
+  function londonToIso(s) {
+    var asUtc = Date.parse(s + ":00Z"); if (isNaN(asUtc)) return null;
+    function off(ms) {
+      var p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).formatToParts(new Date(ms)).reduce(function (a, x) { a[x.type] = x.value; return a; }, {});
+      return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute) - ms;
+    }
+    var t = asUtc - off(asUtc); t = asUtc - off(t); return new Date(t).toISOString();
+  }
+  function statusChip(c) {
+    if (c.status === "scheduled") return chip("Scheduled " + fDateTime(c.scheduled_for), "info");
+    if (c.status === "sending") return chip("Sending", "warn");
+    if (c.status === "sent") return chip(c.failed ? "Sent, " + c.failed + " failed" : "Sent", c.failed ? "warn" : "ok");
+    return chip("Draft", "plain");
+  }
+
+  function campaignCard(cur, counts, done, close) {
+    function newForm() { return { id: null, subject: "", preheader: "", title: "", body: "", button: "", url: "", segment: "all", status: "draft" }; }
+    var c = cur || newForm();
+    var editable = c.status === "draft";
     var F = {};
-    function fld(id, label, ph, max, tag, hint) {
-      var el = h(tag || "input", { class: "in", id: id, maxlength: String(max || 200), placeholder: ph || "" }); if (tag === "textarea") el.rows = 7; F[id] = el;
+    function fld(id, label, ph, max, tag, hint, val) {
+      var el = h(tag || "input", { class: "in", id: id, maxlength: String(max || 200), placeholder: ph || "" }); if (tag === "textarea") el.rows = 7; el.value = val || ""; if (!editable) el.disabled = true; F[id] = el;
       var cnt = h("small", { class: "muted", text: "" }); el._cnt = cnt;
       return h("div", { class: "field", style: "margin-top:12px" }, [h("div", { style: "display:flex;justify-content:space-between;gap:8px" }, [h("label", { for: id, text: label }), cnt]), el, hint ? h("small", { class: "muted", text: hint }) : null]);
     }
-    var templates = h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, CAMP_TEMPLATES.map(function (t) {
+    var templates = editable ? h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, CAMP_TEMPLATES.map(function (t) {
       return h("button", { class: "btn sm", type: "button", text: t.n, onclick: function () { F.cSubject.value = t.subject; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.btn; F.cUrl.value = t.url; changed(); } });
-    }));
+    })) : null;
+    var seg = h("select", { class: "sel", id: "cSeg" }, SEGMENTS.map(function (s) { return h("option", { value: s.id, text: s.label + " (" + (counts[s.id] == null ? "?" : counts[s.id]) + ")" }); }));
+    seg.value = c.segment; if (!editable) seg.disabled = true;
+    var when = h("input", { class: "in", id: "cWhen", type: "datetime-local", disabled: !editable });
+    var whenHint = h("small", { class: "muted", text: "London time." });
+    var mode = h("select", { class: "sel", id: "cMode", disabled: !editable }, [h("option", { value: "now", text: "Send as soon as I press send" }), h("option", { value: "later", text: "Schedule for a later time" })]);
     var form = h("div", null, [
-      h("div", { class: "field" }, [h("label", { text: "Start from a template (you can change everything)" }), templates]),
-      fld("cSubject", "Subject line", "What people see first in their inbox", 78, null, "Short and specific works best. Up to 78 characters."),
-      fld("cPre", "Preview text (optional)", "The grey line after the subject in the inbox", 120),
-      fld("cTitle", "Heading inside the email", "", 60),
-      fld("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea"),
-      fld("cBtn", "Button text", "For example: Book your place", 40),
-      fld("cUrl", "Button link", "https://", 300, null, "Must start with https://")
+      editable ? h("div", { class: "field" }, [h("label", { text: "Start from a template (you can change everything)" }), templates]) : null,
+      h("div", { class: "field", style: "margin-top:12px" }, [h("label", { for: "cSeg", text: "Who gets it" }), seg, h("small", { class: "muted", text: "Only people who confirmed they want news and offers are ever included." })]),
+      fld("cSubject", "Subject line", "What people see first in their inbox", 78, null, "Short and specific works best. Up to 78 characters.", c.subject),
+      fld("cPre", "Preview text (optional)", "The grey line after the subject in the inbox", 120, null, "", c.preheader),
+      fld("cTitle", "Heading inside the email", "", 60, null, "", c.title),
+      fld("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea", "", c.body),
+      fld("cBtn", "Button text", "For example: Book your place", 40, null, "", c.button),
+      fld("cUrl", "Button link", "https://", 300, null, "Must start with https://", c.url),
+      editable ? h("div", { class: "grid g2", style: "margin-top:12px" }, [h("div", { class: "field" }, [h("label", { for: "cMode", text: "When" }), mode]), h("div", { class: "field", id: "cWhenBox", hidden: true }, [h("label", { for: "cWhen", text: "Send at" }), when, whenHint])]) : null
     ]);
     /* live preview of the inbox line and the opened email */
     var pvSubject = h("b"), pvPre = h("span", { class: "muted" }), pvTitle = h("h2", { style: "margin:0 0 10px;font-size:20px" }), pvBody = h("div"), pvBtn = h("span", { style: "display:inline-block;margin-top:14px;padding:11px 18px;border-radius:8px;background:#e03939;color:#fff;font-weight:700" });
@@ -656,75 +684,127 @@
     ]);
     var checks = h("ul", { style: "list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px" });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" });
-    var bTest = h("button", { class: "btn", text: "Send me a test" }), bSend = h("button", { class: "btn pri", disabled: true, text: "" });
-    var bClear = h("button", { class: "btn sm", type: "button", text: "Clear", onclick: function () { Object.keys(F).forEach(function (k) { F[k].value = ""; }); changed(); } });
-    var testedFor = "", armed = false, busy = false, confirming = false;
+    var bSave = h("button", { class: "btn", type: "button", text: "Save draft" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bGo = h("button", { class: "btn pri", type: "button", disabled: true, text: "" });
+    var bClose = h("button", { class: "btn sm", type: "button", text: "Close", onclick: function () { close(); } });
+    var testedFor = "", armed = false, busy = false, confirming = false, savedId = c.id;
     function v(id) { return (F[id].value || "").trim(); }
-    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
-    function payload(action) { return { action: action, campaign_id: uid, subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }; }
+    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001") + "|" + seg.value; }
+    function later() { return mode.value === "later"; }
+    function whenIso() { return later() && when.value ? londonToIso(when.value) : null; }
+    function n() { var k = counts[seg.value]; return k == null ? 0 : k; }
+    function plural(k) { return k + " subscriber" + (k === 1 ? "" : "s"); }
     var ph = /\[[^\]]{2,}\]/;
-    function sendLabel() { return "Send to " + subscribers + " subscriber" + (subscribers === 1 ? "" : "s"); }
+    function goLabel() { if (later()) { var w = whenIso(); return w ? "Schedule for " + fDateTime(w) : "Pick a send time"; } return "Send to " + plural(n()); }
     function review() {
-      var s = v("cSubject"), t = v("cTitle"), b = v("cBody"), u = v("cUrl"), all = s + t + b + v("cBtn") + v("cPre");
-      return [
+      var s = v("cSubject"), t = v("cTitle"), b = v("cBody"), u = v("cUrl"), all = s + t + b + v("cBtn") + v("cPre"), w = whenIso();
+      var list = [
         [s.length > 0 && s.length <= 78, "Subject line written (up to 78 characters)"],
         [t.length >= 2 && t.length <= 60, "Heading written (2 to 60 characters)"],
         [b.length >= 10, "Message written"],
         [v("cBtn").length > 0 && /^https:\/\/[^\s]+$/i.test(u), "Button text and a link starting with https://"],
         [!ph.test(all), "No [placeholder] text left to fill in"],
-        [testedFor !== "" && testedFor === sig(), "Test email sent and checked, for this exact wording"]
+        [n() > 0, "Someone is in the audience (" + plural(n()) + ")"]
       ];
+      if (later()) list.push([!!w && Date.parse(w) > Date.now() + 150000, "Send time is at least a few minutes from now"]);
+      list.push([testedFor !== "" && testedFor === sig(), "Test email sent and checked, for this exact wording"]);
+      return list;
     }
-    function problem() { var c = review(); for (var i = 0; i < c.length - 1; i++) if (!c[i][0]) return "still to do: " + c[i][1].charAt(0).toLowerCase() + c[i][1].slice(1) + "."; return ""; }
+    function problem() { var l = review(); for (var i = 0; i < l.length - 1; i++) if (!l[i][0]) return "still to do: " + l[i][1].charAt(0).toLowerCase() + l[i][1].slice(1) + "."; return ""; }
     function changed() {
-      confirming = false;
+      confirming = false; $("cWhenBox") && ($("cWhenBox").hidden = !later());
       F.cSubject._cnt.textContent = v("cSubject").length + "/78"; F.cTitle._cnt.textContent = v("cTitle").length + "/60"; F.cPre._cnt.textContent = v("cPre").length + "/120"; F.cBody._cnt.textContent = v("cBody").length + "/3000";
       pvSubject.textContent = v("cSubject") || "Your subject line"; pvPre.textContent = v("cPre") ? "– " + v("cPre") : "";
       pvTitle.textContent = v("cTitle") || "Your heading"; pvBody.textContent = "";
       (v("cBody") || "Your message appears here.").split(/\n{2,}/).forEach(function (p) { pvBody.appendChild(h("p", { style: "margin:0 0 12px;line-height:1.5;white-space:pre-wrap", text: p })); });
       pvBtn.textContent = v("cBtn") || "Button"; pvBtn.style.display = v("cBtn") ? "inline-block" : "none";
-      checks.textContent = ""; var c = review(), allOk = true;
-      c.forEach(function (x) { if (!x[0]) allOk = false; checks.appendChild(h("li", { style: "display:flex;gap:8px;align-items:flex-start" }, [h("span", { style: "font-weight:800;color:" + (x[0] ? "var(--ok)" : "var(--mut)"), text: x[0] ? "✓" : "○" }), h("span", { text: x[1] })])); });
-      armed = allOk; bSend.disabled = busy || !armed; bSend.textContent = sendLabel();
-      store(DRAFT, JSON.stringify({ s: v("cSubject"), p: v("cPre"), t: v("cTitle"), b: v("cBody"), bt: v("cBtn"), u: v("cUrl") }));
+      checks.textContent = ""; var l = review(), allOk = true;
+      l.forEach(function (x) { if (!x[0]) allOk = false; checks.appendChild(h("li", { style: "display:flex;gap:8px;align-items:flex-start" }, [h("span", { style: "font-weight:800;color:" + (x[0] ? "var(--ok)" : "var(--mut)"), text: x[0] ? "✓" : "○" }), h("span", { text: x[1] })])); });
+      armed = allOk; bGo.disabled = busy || !armed; bGo.textContent = goLabel();
     }
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
-    function lock(b) { busy = b; bTest.disabled = b; bSend.disabled = b || !armed; }
-    form.addEventListener("input", changed);
-    try { var d0 = JSON.parse(store(DRAFT) || "null"); if (d0) { F.cSubject.value = d0.s || ""; F.cPre.value = d0.p || ""; F.cTitle.value = d0.t || ""; F.cBody.value = d0.b || ""; F.cBtn.value = d0.bt || ""; F.cUrl.value = d0.u || ""; } } catch (e) { /* no saved draft */ }
-    bTest.addEventListener("click", async function () {
-      var p = problem(); if (p) return say("Not yet: " + p, "bad");
-      lock(true); say("Sending a test to your own email...");
-      var r = await fn("admin-campaign", payload("test"), 40); lock(false);
-      if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
-      testedFor = sig(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press Send.", "ok");
-    });
-    bSend.addEventListener("click", async function () {
-      if (!armed || busy) return;
-      if (!confirming) { confirming = true; bSend.textContent = "Yes, send to " + subscribers + " now"; say("This emails " + subscribers + " confirmed subscriber" + (subscribers === 1 ? "" : "s") + " and cannot be undone. Press the red button again to send. Change anything to cancel.", "bad"); return; }
-      lock(true); var sent = 0, failed = 0, skipped = 0, guard = 0;
+    function lock(b) { busy = b; bSave.disabled = b; bTest.disabled = b; bGo.disabled = b || !armed; }
+    async function save(iso) {
+      var r = await rpc("admin_campaign_save", { p_id: savedId, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl"), p_segment: seg.value, p_scheduled_for: iso || null });
+      savedId = r.id; return r;
+    }
+    async function sendLoop(label) {
+      var sent = 0, guard = 0, failed = 0, skipped = 0;
       while (guard++ < 500) {
-        say("Sending... " + sent + " sent so far. Keep this page open.");
-        var r = await fn("admin-campaign", payload("send"), 120);
-        if (!r.ok) { lock(false); confirming = false; changed(); return say("Stopped after " + sent + " sent: " + (r.j.error || "something went wrong") + " Press Send again to carry on where it stopped. Nobody gets it twice.", "bad"); }
+        say((label || "Sending") + "... " + sent + " sent so far. Keep this page open.");
+        var r = await fn("admin-campaign", { action: "send", campaign_id: savedId }, 130);
+        if (!r.ok) { lock(false); changed(); say("Stopped after " + sent + " sent: " + (r.j.error || "something went wrong") + " Press Send again to carry on. Nobody gets it twice.", "bad"); return false; }
         sent += r.j.sent || 0; failed += r.j.failed || 0; skipped += r.j.skipped || 0;
         if (!r.j.remaining) break;
       }
-      lock(false); testedFor = ""; uid = newId(); changed();
-      say("Done. Sent to " + sent + (failed ? ", " + failed + " failed (press Send again to retry just those)" : "") + (skipped ? ", " + skipped + " skipped (no longer subscribed)" : "") + ".", failed ? "bad" : "ok");
-    });
+      toast("Sent to " + sent + (failed ? ", " + failed + " failed" : "") + "."); done(); return true;
+    }
+    if (editable) {
+      form.addEventListener("input", changed); form.addEventListener("change", changed);
+      bSave.addEventListener("click", async function () { lock(true); try { await save(null); say("Draft saved.", "ok"); } catch (e) { say(e.message, "bad"); } lock(false); });
+      bTest.addEventListener("click", async function () {
+        var p = problem(); if (p && p.indexOf("test email") < 0) return say("Not yet: " + p, "bad");
+        lock(true); say("Saving and sending a test to your own email...");
+        try { await save(null); } catch (e) { lock(false); return say(e.message, "bad"); }
+        var r = await fn("admin-campaign", { action: "test", campaign_id: savedId }, 40); lock(false);
+        if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
+        testedFor = sig(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press the red button.", "ok");
+      });
+      bGo.addEventListener("click", async function () {
+        if (!armed || busy) return;
+        if (!confirming) { confirming = true; bGo.textContent = later() ? "Yes, schedule it" : "Yes, send to " + plural(n()) + " now"; say(later() ? "This will be emailed to " + plural(n()) + " at " + fDateTime(whenIso()) + ". You can unschedule it until then. Press the red button again to confirm." : "This emails " + plural(n()) + " and cannot be undone. Press the red button again to send. Change anything to cancel.", "bad"); return; }
+        lock(true);
+        try {
+          if (later()) { await save(whenIso()); toast("Scheduled for " + fDateTime(whenIso()) + "."); done(); return; }
+          await save(null);
+        } catch (e) { lock(false); changed(); return say(e.message, "bad"); }
+        await sendLoop("Sending");
+      });
+    }
     changed();
-    var left = h("div", null, [form, h("div", { style: "margin-top:16px" }, [h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin-bottom:6px", text: "Before you send" }), checks]), out,
-      h("div", { style: "margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center" }, [bTest, bSend, bClear]),
-      h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Goes only to people who confirmed they want news and offers, each person once, with an unsubscribe link. Your wording is saved in this browser as a draft." })]);
-    return h("div", { class: "grid g2", style: "align-items:start" }, [card("Write a campaign", "admin only", [left]), card("Preview", "how it will look", [preview])]);
+    var actions = [];
+    var note = null, statsBox = null;
+    if (editable) actions = [bSave, bTest, bGo].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
+    else if (c.status === "scheduled") {
+      note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Scheduled for " + fDateTime(c.scheduled_for) + ". " }), document.createTextNode("It goes to " + segLabel(c.segment).toLowerCase() + ". Unschedule it to change anything.")])]);
+      actions = [h("button", { class: "btn", type: "button", text: "Unschedule and edit", onclick: async function () { try { await rpc("admin_campaign_unschedule", { p_id: c.id }); toast("Back to a draft."); done(); } catch (e) { say(e.message, "bad"); } } })];
+    } else {
+      var st = c.stats || {}, pc = function (a) { return c.sent ? " (" + Math.round(100 * a / c.sent) + "%)" : ""; };
+      note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: c.status === "sending" ? "This campaign is sending. " : "Sent " + (c.finished_at ? fDateTime(c.finished_at) : "") + ". " }), document.createTextNode(c.status === "sending" ? "If you closed the page it carries on by itself within a minute or two." : "Sent to " + (c.audience != null ? c.audience : c.sent) + " people.")])]);
+      statsBox = h("div", { class: "grid g3", style: "margin-top:12px" }, [kpi("Sent", c.sent, c.failed ? c.failed + " failed to send" : ""), kpi("Delivered", st.delivered || 0, pc(st.delivered || 0).trim()), kpi("Clicked a link", st.clicked || 0, pc(st.clicked || 0).trim()),
+        kpi("Unsubscribed", st.unsubscribed || 0), kpi("Marked as spam", st.complained || 0, "", (st.complained || 0) > 0), kpi("Bounced", st.bounced || 0, "", (st.bounced || 0) > 0)]);
+      actions = [h("button", { class: "btn", type: "button", text: "Duplicate as new draft", onclick: function () { close(); openComposerFn(Object.assign(newForm(), { subject: c.subject, preheader: c.preheader, title: c.title, body: c.body, button: c.button, url: c.url, segment: c.segment })); } })];
+      if (c.status === "sending" || (c.status === "sent" && c.failed > 0)) { savedId = c.id; actions.unshift(h("button", { class: "btn pri", type: "button", text: c.status === "sending" ? "Continue sending" : "Retry the " + c.failed + " that failed", onclick: async function () { lock(true); await sendLoop("Sending"); lock(false); } })); }
+    }
+    var left = h("div", null, [note, statsBox, form, editable ? h("div", { style: "margin-top:16px" }, [h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin-bottom:6px", text: "Before you send" }), checks]) : null, out,
+      h("div", { style: "margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center" }, actions.concat([bClose])),
+      statsBox ? h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Delivery numbers fill in as the email service reports them, usually within minutes. Opens are not counted: mail apps hide them, so the number would mislead." }) : null]);
+    if (!editable) { bSave.hidden = true; bTest.hidden = true; bGo.hidden = true; }
+    return h("div", { class: "grid g2", style: "align-items:start" }, [card(editable ? (cur ? "Edit campaign" : "New campaign") : "Campaign", "admin only", [left]), card("Preview", "how it will look", [preview])]);
   }
+  var openComposerFn = function () {};
 
   /* ---------- marketing ---------- */
   async function vMarketing() {
-    var d = await rpc("admin_marketing"), root = h("div");
-    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers."));
-    root.appendChild(h("div", { style: "margin-bottom:16px" }, [campaignCard(d.confirmed)]));
+    var d = await rpc("admin_marketing"), root = h("div"), isAdmin = can(["admin"]), camps = [], counts = { all: d.confirmed };
+    if (isAdmin) { try { var both = await Promise.all([rpc("admin_campaign_list"), rpc("admin_campaign_counts")]); camps = both[0]; counts = both[1]; } catch (e) { root.appendChild(errBox(e)); } }
+    var host = h("div", { style: "margin-bottom:16px" });
+    function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); })); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    openComposerFn = openComposer;
+    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
+    root.appendChild(host);
+    if (isAdmin) {
+      var rows = camps.map(function (c) {
+        var st = c.stats || {};
+        return h("tr", { style: "cursor:pointer", onclick: function () { openComposer(c); } }, [
+          h("td", null, [h("b", { text: c.subject || "(no subject yet)" }), h("div", { class: "muted", style: "font-size:12px", text: c.title })]),
+          h("td", { text: segLabel(c.segment) }), h("td", null, [statusChip(c)]),
+          h("td", { class: "num", text: c.status === "sent" || c.status === "sending" ? c.sent + " sent · " + (st.delivered || 0) + " delivered · " + (st.clicked || 0) + " clicked" : "" }),
+          h("td", { class: "num", text: fDate((c.finished_at || c.started_at || c.created_at).slice(0, 10)) })]);
+      });
+      root.appendChild(h("div", { style: "margin-bottom:16px" }, [card("Campaigns", camps.length ? "click one to open it" : "", [camps.length ?
+        h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["Campaign", "Goes to", "Status", "Results", "Date"].map(function (x) { return h("th", { text: x }); }))]), h("tbody", null, rows)])]) :
+        empty("No campaigns yet. Press New campaign to write your first one.")])]));
+    } else root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Campaigns. " }), document.createTextNode("Only an admin can write and send a campaign.")])]));
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Confirmed subscribers", d.confirmed, "can receive campaigns"), kpi("Waiting to confirm", d.pending, "they have not clicked the email yet"), kpi("Unsubscribed", d.withdrawn)]));
     var src = h("div", { class: "list" }); d.by_source.forEach(function (s) { src.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: s.source })]), h("span", { class: "num", text: s.n })])); });
     if (!d.by_source.length) src.appendChild(empty("No subscribers yet."));
