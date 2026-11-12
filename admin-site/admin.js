@@ -685,7 +685,8 @@
     var checks = h("ul", { style: "list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px" });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" });
     var bSave = h("button", { class: "btn", type: "button", text: "Save draft" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bGo = h("button", { class: "btn pri off", type: "button", text: "" });
-    var bClose = h("button", { class: "btn sm", type: "button", text: "Close", onclick: function () { close(); } });
+    var saved = false;
+    var bClose = h("button", { class: "btn sm", type: "button", text: "Close", onclick: function () { if (saved) done(); else close(); } });
     var testedFor = "", armed = false, busy = false, confirming = false, savedId = c.id;
     function v(id) { return (F[id].value || "").trim(); }
     function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
@@ -694,6 +695,10 @@
     function n() { var k = counts[seg.value]; return k == null ? 0 : k; }
     function plural(k) { return k + " subscriber" + (k === 1 ? "" : "s"); }
     var ph = /\[[^\]]{2,}\]/;
+    // a passed test is remembered in this browser for this campaign, for exactly this wording
+    function hash(t) { var x = 5381; for (var i = 0; i < t.length; i++) x = ((x << 5) + x + t.charCodeAt(i)) | 0; return String(x); }
+    function rememberTest() { try { if (savedId) localStorage.setItem("mygym_tested_" + savedId, hash(sig())); } catch (e) { /* not remembered, the page still works */ } }
+    function recallTest() { try { if (savedId && localStorage.getItem("mygym_tested_" + savedId) === hash(sig())) testedFor = sig(); } catch (e) { /* nothing remembered */ } }
     function goLabel() { if (later()) { var w = whenIso(); return w ? "Schedule for " + fDateTime(w) : "Pick a send time"; } return "Send to " + plural(n()); }
     function review() {
       var s = v("cSubject"), t = v("cTitle"), b = v("cBody"), u = v("cUrl"), all = s + t + b + v("cBtn") + v("cPre"), w = whenIso();
@@ -726,7 +731,7 @@
     function lock(b) { busy = b; bSave.disabled = b; bTest.disabled = b; bGo.disabled = b; }
     async function save(iso) {
       var r = await rpc("admin_campaign_save", { p_id: savedId, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl"), p_segment: seg.value, p_scheduled_for: iso || null });
-      savedId = r.id; return r;
+      savedId = r.id; saved = true; return r;
     }
     async function sendLoop(label) {
       var sent = 0, guard = 0, failed = 0, skipped = 0;
@@ -748,7 +753,7 @@
         try { await save(null); } catch (e) { lock(false); return say(e.message, "bad"); }
         var r = await fn("admin-campaign", { action: "test", campaign_id: savedId }, 40); lock(false);
         if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
-        testedFor = sig(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press the red button.", "ok");
+        testedFor = sig(); rememberTest(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press the red button.", "ok");
       });
       bGo.addEventListener("click", async function () {
         if (busy) return;
@@ -762,7 +767,7 @@
         await sendLoop("Sending");
       });
     }
-    changed();
+    recallTest(); changed();
     var actions = [];
     var note = null, statsBox = null;
     if (editable) actions = [bSave, bTest, bGo].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
