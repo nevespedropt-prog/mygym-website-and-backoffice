@@ -684,11 +684,11 @@
     ]);
     var checks = h("ul", { style: "list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px" });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" });
-    var bSave = h("button", { class: "btn", type: "button", text: "Save draft" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bGo = h("button", { class: "btn pri", type: "button", disabled: true, text: "" });
+    var bSave = h("button", { class: "btn", type: "button", text: "Save draft" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bGo = h("button", { class: "btn pri off", type: "button", text: "" });
     var bClose = h("button", { class: "btn sm", type: "button", text: "Close", onclick: function () { close(); } });
     var testedFor = "", armed = false, busy = false, confirming = false, savedId = c.id;
     function v(id) { return (F[id].value || "").trim(); }
-    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001") + "|" + seg.value; }
+    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
     function later() { return mode.value === "later"; }
     function whenIso() { return later() && when.value ? londonToIso(when.value) : null; }
     function n() { var k = counts[seg.value]; return k == null ? 0 : k; }
@@ -709,6 +709,7 @@
       list.push([testedFor !== "" && testedFor === sig(), "Test email sent and checked, for this exact wording"]);
       return list;
     }
+    function blocker() { var l = review(); for (var i = 0; i < l.length; i++) if (!l[i][0]) return "still to do: " + l[i][1].charAt(0).toLowerCase() + l[i][1].slice(1) + "."; return ""; }
     function problem() { var l = review(); for (var i = 0; i < l.length - 1; i++) if (!l[i][0]) return "still to do: " + l[i][1].charAt(0).toLowerCase() + l[i][1].slice(1) + "."; return ""; }
     function changed() {
       confirming = false; $("cWhenBox") && ($("cWhenBox").hidden = !later());
@@ -719,10 +720,10 @@
       pvBtn.textContent = v("cBtn") || "Button"; pvBtn.style.display = v("cBtn") ? "inline-block" : "none";
       checks.textContent = ""; var l = review(), allOk = true;
       l.forEach(function (x) { if (!x[0]) allOk = false; checks.appendChild(h("li", { style: "display:flex;gap:8px;align-items:flex-start" }, [h("span", { style: "font-weight:800;color:" + (x[0] ? "var(--ok)" : "var(--mut)"), text: x[0] ? "✓" : "○" }), h("span", { text: x[1] })])); });
-      armed = allOk; bGo.disabled = busy || !armed; bGo.textContent = goLabel();
+      armed = allOk; bGo.disabled = busy; bGo.className = "btn pri" + (armed ? "" : " off"); bGo.textContent = goLabel();
     }
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
-    function lock(b) { busy = b; bSave.disabled = b; bTest.disabled = b; bGo.disabled = b || !armed; }
+    function lock(b) { busy = b; bSave.disabled = b; bTest.disabled = b; bGo.disabled = b; }
     async function save(iso) {
       var r = await rpc("admin_campaign_save", { p_id: savedId, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl"), p_segment: seg.value, p_scheduled_for: iso || null });
       savedId = r.id; return r;
@@ -750,7 +751,8 @@
         testedFor = sig(); changed(); say("Test sent to " + (r.j.sent_to || "your email") + ". Open it, read it on your phone, click the button, then come back and press the red button.", "ok");
       });
       bGo.addEventListener("click", async function () {
-        if (!armed || busy) return;
+        if (busy) return;
+        if (!armed) return say("Not yet: " + blocker(), "bad");
         if (!confirming) { confirming = true; bGo.textContent = later() ? "Yes, schedule it" : "Yes, send to " + plural(n()) + " now"; say(later() ? "This will be emailed to " + plural(n()) + " at " + fDateTime(whenIso()) + ". You can unschedule it until then. Press the red button again to confirm." : "This emails " + plural(n()) + " and cannot be undone. Press the red button again to send. Change anything to cancel.", "bad"); return; }
         lock(true);
         try {

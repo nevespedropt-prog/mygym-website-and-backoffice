@@ -303,3 +303,5 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 .ttwarn{color:#7a5413;background:var(--warns);border-radius:8px;padding:9px 12px;font-size:13px;margin:0}
 .t tbody tr:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
 @media(max-width:520px){.ttform .row2{grid-template-columns:1fr}.banner{flex-direction:column}}
+
+.btn.off{opacity:.55}
