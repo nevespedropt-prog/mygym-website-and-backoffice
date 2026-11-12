@@ -202,6 +202,8 @@
   };
   async function vDashboard() {
     var results = await Promise.all([rpc("admin_dashboard"), rpc("admin_insights")]), d = results[0], ins = results[1], root = h("div");
+    var ps = null; if (can(["admin", "manager"])) { try { ps = await rpc("admin_payments_summary"); } catch (e) { ps = null; } }
+    var live = !!(ps && ps.synced), smp = smp && !live;
     var hr = new Date().toLocaleString("en-GB", { hour: "numeric", hour12: false, timeZone: TZ }) * 1, first = (me.name || "").split(" ")[0];
     var days = d.bookings_by_day || [], last14 = days.slice(0, 14);
     // the day to show: today, or the next day with sessions
@@ -218,12 +220,14 @@
     k.push(kpiX("Bookings " + dayLabel, "clip", booked, "/ " + cap, diff == null ? "" : (diff >= 0 ? "+" : "") + diff + " vs last " + WD[(prevD.getDay() + 6) % 7], diff > 0 ? "up" : diff < 0 ? "dn" : "flat", spark(spk, "#e03939")));
     k.push(kpiX("Spaces left " + dayLabel, "dumb", Math.max(0, cap - booked), "", cap ? Math.round(booked / cap * 100) + "% of " + dayLabel + "'s capacity booked" : "No sessions", "flat"));
     if (d.members_total != null) k.push(kpiX("Members with an app account", "users", d.members_total, "", "+" + d.members_30d + " in 30 days", d.members_30d > 0 ? "up" : "flat", spark(signups, "#238a52")));
-    if (sampleOn()) k.push(kpiX("Monthly revenue", "pound", "£" + SAMPLE.revenue[SAMPLE.revenue.length - 1].toLocaleString("en-GB"), "", "+4.0% vs last month", "up", spark(SAMPLE.revenue, "#e03939"), "", true));
+    if (live) k.push(kpiX("Monthly income", "pound", "\u00A3" + Math.round(ps.mrr).toLocaleString("en-GB"), "", ps.active + " active members", ps.new_30d >= ps.left_30d ? "up" : "dn"));
+    else if (smp) k.push(kpiX("Monthly revenue", "pound", "£" + SAMPLE.revenue[SAMPLE.revenue.length - 1].toLocaleString("en-GB"), "", "+4.0% vs last month", "up", spark(SAMPLE.revenue, "#e03939"), "", true));
     else k.push(kpiX("Monthly revenue", "pound", "-", "", "Connect Wix payments", "flat"));
     if (d.members_7d != null) { var pv = ins.members_prev_7d || 0; k.push(kpiX("New sign-ups this week", "plus", d.members_7d, "", (d.members_7d - pv >= 0 ? "+" : "") + (d.members_7d - pv) + " vs last week", d.members_7d > pv ? "up" : d.members_7d < pv ? "dn" : "flat")); }
     k.push(kpiX("Average class fill", "pulse", ins.avg_fill_14d == null ? "-" : ins.avg_fill_14d, ins.avg_fill_14d == null ? "" : "%", "last 14 days", "flat"));
     if (d.enquiries_new != null) k.push(kpiX("New enquiries", "inbox", d.enquiries_new, "", d.enquiries_new ? "Reply to keep response time low" : "All caught up", d.enquiries_new ? "dn" : "up", "", d.enquiries_new ? "alert" : ""));
-    if (can(["admin", "manager"])) k.push(kpiX("Failed payments", "alert", sampleOn() ? SAMPLE.failed : "-", "", sampleOn() ? "Needs a follow-up" : "Connect Wix payments", sampleOn() ? "dn" : "flat", "", sampleOn() ? "alert" : "", sampleOn()));
+    if (live) k.push(kpiX("Failed payments", "alert", ps.failed, "", ps.failed ? "Chase these today" : "None", ps.failed ? "dn" : "up", "", ps.failed ? "alert" : ""));
+    else if (can(["admin", "manager"])) k.push(kpiX("Failed payments", "alert", smp ? SAMPLE.failed : "-", "", smp ? "Needs a follow-up" : "Connect Wix payments", smp ? "dn" : "flat", "", smp ? "alert" : "", smp));
 
     var nowHM = new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
     var tc = dayClasses.filter(function (c) { return c.kind !== "gym"; });
@@ -234,7 +238,8 @@
     }).join("") : '<div class="empty">No classes today.</div>';
 
     var attn = [];
-    if (can(["admin", "manager"]) && sampleOn()) attn.push('<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + SAMPLE.failed + " failed payments " + sampleTag() + "</b><small>Retry or contact the members</small></div></div>");
+    if (live && ps.failed) attn.push('<a class="li" href="#/plans"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + ps.failed + " failed payment" + (ps.failed === 1 ? "" : "s") + "</b><small>Open Plans and payments to chase them</small></div></a>");
+    if (can(["admin", "manager"]) && smp) attn.push('<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + SAMPLE.failed + " failed payments " + sampleTag() + "</b><small>Retry or contact the members</small></div></div>");
     if (d.enquiries_new) attn.push('<a class="li" href="#/enquiries"><span class="ico acc">' + icon("inbox") + '</span><div class="tx"><b>' + d.enquiries_new + " new enquir" + (d.enquiries_new === 1 ? "y" : "ies") + "</b><small>Newest: " + esc(((d.latest_enquiries || [])[0] || {}).name || "") + "</small></div></a>");
     (ins.tomorrow_busy || []).forEach(function (t) { attn.push('<div class="li"><span class="ico warn">' + icon("clock") + '</span><div class="tx"><b>' + esc(t.name) + " tomorrow is almost full</b><small>" + t.booked + " of " + t.capacity + " spaces taken</small></div></div>"); });
     if (ins.health_missing) attn.push('<div class="li"><span class="ico warn">' + icon("users") + '</span><div class="tx"><b>' + ins.health_missing + " member" + (ins.health_missing === 1 ? "" : "s") + " without a health form</b><small>They cannot book until it is done</small></div></div>");
@@ -242,16 +247,16 @@
     if (!attn.length) attn.push('<div class="empty">Nothing needs attention right now.</div>');
     var KIND = { booking: ["cal", "acc"], member: ["users", "ok"], enquiry: ["inbox", "acc"], email: ["mail", "bad"] };
     var act = (ins.activity || []).map(function (a) { var k2 = KIND[a.kind] || ["check", "ok"]; return '<div class="li"><span class="ico ' + k2[1] + '">' + icon(k2[0]) + '</span><div class="tx"><b>' + esc(a.title) + "</b><small>" + esc(a.sub || "") + '</small></div><small class="hide-s" style="color:var(--faint)">' + esc(ago(a.at)) + "</small></div>"; }).join("") || '<div class="empty">Nothing yet. Activity shows here as members book and sign up.</div>';
-    var segs = SAMPLE.plans;
-    var donutHtml = sampleOn() ? '<div class="donut-wrap">' + donut(segs) + '<div class="donut-leg">' + segs.map(function (s) { return '<div><i style="background:' + s.c + '"></i>' + esc(s.n) + '<span class="num">' + s.v + "</span></div>"; }).join("") + "</div></div>" : '<div class="empty">Connect Wix plans to see members by plan.</div>';
+    var segs = live ? [{ n: "Gym + Classes", v: ps.by_type.gym_classes || 0, c: "#e03939" }, { n: "Classes only", v: ps.by_type.classes || 0, c: "#2f6fd0" }] : SAMPLE.plans;
+    var donutHtml = (smp || live) ? '<div class="donut-wrap">' + donut(segs) + '<div class="donut-leg">' + segs.map(function (s) { return '<div><i style="background:' + s.c + '"></i>' + esc(s.n) + '<span class="num">' + s.v + "</span></div>"; }).join("") + "</div></div>" : '<div class="empty">Connect Wix plans to see members by plan.</div>';
     var JOBN = { "sync-wix-bookings": "Wix booking sync", "sync-timetable": "Timetable sync", "class-reminder-emails": "Class reminder emails", "engagement-emails": "Engagement emails", "lead-and-referral-emails": "Lead follow-ups", "weekly-report": "Weekly report", "send-class-reminders": "Phone reminders" };
     var health = (ins.jobs || []).map(function (j) { var ok = j.status === "succeeded"; return '<div><b style="display:flex;align-items:center;gap:8px;font:650 14px sans-serif"><span class="chip ' + (ok ? "ok" : j.status ? "bad" : "plain") + '">' + (ok ? "OK" : esc(j.status || "No run")) + "</span>" + esc(JOBN[j.job] || j.job) + '</b><small style="color:var(--mut)">' + (j.at ? "last run " + esc(ago(j.at)) : "") + "</small></div>"; }).join("");
 
     root.appendChild(pageHead((hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + (first ? ", " + first : ""), new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ }) + " · here's how the gym is doing"));
-    if (sampleOn() && can(["admin", "manager"])) root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Items marked Sample (revenue, failed payments, members by plan) are placeholders until payments are connected. Everything else is real.")])]));
+    if (smp && can(["admin", "manager"])) root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Items marked Sample (revenue, failed payments, members by plan) are placeholders until payments are connected. Everything else is real.")])]));
     root.appendChild(fromHtml('<div class="grid g4">' + k.join("") + "</div>"));
     root.appendChild(fromHtml('<div class="grid g-main" style="margin-top:16px"><div class="card"><div class="hd"><h3>Bookings, last 14 days</h3><span class="sub">' + spk.reduce(function (a, b) { return a + b; }, 0) + ' in total</span></div><div class="bd">' + barChart(last14, d.today) + '</div></div><div class="card"><div class="hd"><h3>' + (dayLabel === "today" ? "Today's" : dayLabel === "tomorrow" ? "Tomorrow's" : dayLabel + "'s") + ' classes</h3><span class="sub">' + tc.length + ' sessions</span></div><div class="bd"><div class="list">' + tcHtml + "</div></div></div></div>"));
-    root.appendChild(fromHtml('<div class="grid g-eq" style="margin-top:16px"><div class="card"><div class="hd"><h3>When people train</h3><span class="sub">average class fill, last 4 weeks</span></div><div class="bd">' + heatHtml(ins.heat) + '</div></div><div class="card"><div class="hd"><h3>Members by plan ' + (sampleOn() ? sampleTag() : "") + '</h3></div><div class="bd">' + donutHtml + "</div></div></div>"));
+    root.appendChild(fromHtml('<div class="grid g-eq" style="margin-top:16px"><div class="card"><div class="hd"><h3>When people train</h3><span class="sub">average class fill, last 4 weeks</span></div><div class="bd">' + heatHtml(ins.heat) + '</div></div><div class="card"><div class="hd"><h3>Members by plan ' + (smp ? sampleTag() : "") + '</h3></div><div class="bd">' + donutHtml + "</div></div></div>"));
     root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Needs attention</h3></div><div class="bd"><div class="list">' + attn.join("") + '</div></div></div><div class="card"><div class="hd"><h3>Recent activity</h3></div><div class="bd"><div class="list">' + act + "</div></div></div></div>"));
     if (health) root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>System health</h3><span class="sub">automatic jobs</span></div><div class="bd stat-row">' + health + "</div></div>"));
     return root;
@@ -550,39 +555,150 @@
 
   /* ---------- members ---------- */
   var memberQ = "";
+  /* ---------- members: your real client list (Wix clients + app accounts) ---------- */
+  var memberQ = memberQ || "", memberTab = "active", memberType = "all";
+  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", other: "Other plan" };
+  var STATUS_LABEL = { active: "Active", failed: "Payment failed", paused: "Paused", cancelled: "Cancelled", ended: "Ended", lead: "Not a member" };
+  var STATUS_CHIP = { active: "ok", failed: "bad", paused: "warn", cancelled: "plain", ended: "plain", lead: "plain" };
+  function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  function downloadCsv(name, head, rows) {
+    var text = [head.map(csvCell).join(",")].concat(rows.map(function (r) { return r.map(csvCell).join(","); })).join("\r\n");
+    var a = h("a", { href: URL.createObjectURL(new Blob(["﻿" + text], { type: "text/csv;charset=utf-8" })), download: name });
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function parseCsv(text) {
+    var rows = [], row = [], cur = "", q = false, i = 0;
+    text = text.replace(/^﻿/, "");
+    for (; i < text.length; i++) {
+      var c = text[i];
+      if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else if (c === '"') q = true;
+      else if (c === ",") { row.push(cur); cur = ""; }
+      else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cur); cur = ""; if (row.some(function (x) { return x.trim() !== ""; })) rows.push(row); row = []; }
+      else cur += c;
+    }
+    row.push(cur); if (row.some(function (x) { return x.trim() !== ""; })) rows.push(row);
+    return rows;
+  }
+  function inTab(m, tab) {
+    if (tab === "all") return true;
+    if (tab === "active") return m.status === "active" || m.status === "failed";
+    if (tab === "lapsed") return m.lapsed;
+    if (tab === "former") return m.status === "cancelled" || m.status === "ended";
+    return m.status === tab;
+  }
   async function vMembers() {
-    var rows = await rpc("admin_members", { p_q: memberQ, p_limit: 300 }), root = h("div");
-    root.appendChild(pageHead("Members", "Everyone with an app account. Click a person for details."));
-    var search = h("input", { class: "in", type: "search", placeholder: "Search name, email or phone", value: memberQ, "aria-label": "Search members" });
-    var t;
-    search.addEventListener("input", function () { clearTimeout(t); t = setTimeout(function () { memberQ = search.value; route(); }, 350); });
-    var body = h("tbody");
-    rows.forEach(function (m) {
-      var tr = h("tr", { onclick: function () { memberDrawer(m); } }, [
+    var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
+    var cnt = function (f) { return all.filter(f).length; };
+    root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
+      isAdmin ? [h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" })] : null));
+    root.appendChild(h("div", { class: "grid g4" }, [
+      kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
+      kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
+      kpi("Classes only", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "classes"; })),
+      kpi("Not trained in 3 weeks", cnt(function (m) { return m.lapsed; }), "good people to message", cnt(function (m) { return m.lapsed; }) > 0)]));
+    var tabs = [["active", "Active"], ["lapsed", "Not training"], ["failed", "Payment failed"], ["paused", "Paused"], ["former", "Former"], ["lead", "Leads and contacts"], ["all", "Everyone"]];
+    var bar = h("div", { class: "toolbar", style: "flex-wrap:wrap;gap:8px" });
+    tabs.forEach(function (t) { var n = cnt(function (m) { return inTab(m, t[0]); }); bar.appendChild(h("button", { class: "btn sm" + (memberTab === t[0] ? " pri" : ""), onclick: function () { memberTab = t[0]; route(); }, text: t[1] + " " + n })); });
+    var typeSel = h("select", { class: "sel", "aria-label": "Membership type", onchange: function () { memberType = typeSel.value; route(); } }, [["all", "All types"], ["gym_classes", "Gym + Classes"], ["classes", "Classes only"], ["pt", "Personal training"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: o[0] === memberType }); }));
+    var search = h("input", { class: "in", type: "search", placeholder: "Search name, email or phone", value: memberQ, "aria-label": "Search members" }); var t;
+    search.addEventListener("input", function () { clearTimeout(t); t = setTimeout(function () { memberQ = search.value; route(); }, 300); });
+    var q = memberQ.trim().toLowerCase();
+    var rows = all.filter(function (m) { return inTab(m, memberTab) && (memberType === "all" || m.plan_type === memberType) && (!q || (m.name + " " + m.email + " " + m.phone).toLowerCase().indexOf(q) > -1); });
+    var shown = rows.slice(0, 300), body = h("tbody");
+    shown.forEach(function (m) {
+      body.appendChild(h("tr", { onclick: function () { memberProfile(m); } }, [
         h("td", null, [h("div", { class: "who" }, [h("span", { class: "av s", text: initials(m.name || m.email) }), h("div", null, [h("b", { text: m.name || "(no name)" }), h("small", { class: "block muted", text: m.email })])])]),
-        h("td", { text: m.phone || "-" }), h("td", { class: "num", text: fDate(m.joined) }), h("td", { class: "num r", text: m.bookings }), h("td", { class: "num", text: m.last_booking ? fDate(m.last_booking) : "-" }),
-        h("td", null, [m.staff_role || m.is_admin ? chip(ROLE_LABEL[m.is_admin ? "admin" : m.staff_role], "info") : m.gym_access ? chip("Gym access", "ok") : chip("No gym plan", "plain")]),
-        h("td", null, [m.marketing === "subscribed" ? chip("Subscribed", "ok") : m.marketing === "withdrawn" ? chip("Unsubscribed", "warn") : chip("No", "plain")]),
-        h("td", null, [m.health_form ? chip("Done", "ok") : chip("Missing", "warn")])]);
-      body.appendChild(tr);
+        h("td", null, [m.plan_type ? chip(TYPE_LABEL[m.plan_type] + (m.staff_rate ? " (staff)" : ""), m.plan_type === "gym_classes" ? "acc" : "info") : chip("No plan", "plain")]),
+        h("td", null, [chip(STATUS_LABEL[m.status] || m.status, STATUS_CHIP[m.status] || "plain"), m.lapsed ? h("span", { style: "margin-left:6px" }, [chip("Not training", "warn")]) : null]),
+        h("td", { class: "num", text: m.amount != null ? "£" + Number(m.amount).toFixed(2) + (m.unit === "YEAR" ? "/yr" : m.unit === "MONTH" ? "/mo" : "") : "-" }),
+        h("td", { class: "num", text: m.since ? fDate(m.since) : "-" }), h("td", { class: "num", text: m.last_booking ? fDate(m.last_booking) : "-" }),
+        h("td", null, [m.role ? chip(ROLE_LABEL[m.role] || m.role, "info") : m.app ? chip("App", "ok") : chip("-", "plain")]),
+        h("td", null, [m.marketing === "subscribed" ? chip("Yes", "ok") : m.marketing === "withdrawn" ? chip("Unsubscribed", "warn") : chip("No", "plain")])]));
     });
-    var tbl = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, [["Member"], ["Phone"], ["Joined"], ["Bookings", "r"], ["Last booking"], ["Access"], ["News and offers"], ["Health form"]].map(function (x) { return h("th", { class: x[1] || "", text: x[0] }); }))]), body])]);
-    root.appendChild(h("section", { class: "card" }, [h("div", { class: "toolbar" }, [search, h("span", { class: "muted", text: rows.length + " shown" })]), rows.length ? tbl : empty(memberQ ? "Nobody matches that search." : "No members yet.")]));
+    var tbl = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["Member", "Membership", "Status", "Price", "Member since", "Last booked", "App", "News and offers"].map(function (x) { return h("th", { text: x }); }))]), body])]);
+    var actions = [search, typeSel, h("span", { class: "muted", text: rows.length + " people" + (rows.length > shown.length ? " (first 300 shown)" : "") }),
+      isAdmin ? h("button", { class: "btn sm", onclick: function () { exportMembers(rows); }, text: "Export this list" }) : null];
+    if (memberTab === "lapsed" && can(["admin"])) actions.push(h("a", { class: "btn sm pri", href: "#/marketing", text: "Email them: are you OK?" }));
+    root.appendChild(h("section", { class: "card", style: "margin-top:16px" }, [h("div", { class: "bd" }, [bar]), h("div", { class: "toolbar" }, actions), rows.length ? tbl : empty("Nobody matches.")]));
+    root.appendChild(h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Wix clients are refreshed every 30 minutes. \"Not training\" means an active member with no booking for 21 days. Membership type and status come from the plan they bought." }));
     return root;
   }
-  async function memberDrawer(m) {
-    var bk = h("div", { class: "list" }, [h("div", { class: "muted", text: "Loading bookings..." })]);
-    var kv = h("dl", { class: "kv" }); [["Email", m.email], ["Phone", m.phone || "-"], ["Joined", fDate(m.joined)], ["Bookings so far", m.bookings], ["Gym access", m.gym_access ? "Yes" : "No"], ["News and offers", m.marketing === "subscribed" ? "Subscribed" : m.marketing === "withdrawn" ? "Unsubscribed" : "No"], ["Health form", m.health_form ? "Completed" : "Not completed"]]
-      .forEach(function (p) { kv.appendChild(h("dt", { text: p[0] })); kv.appendChild(h("dd", { text: p[1] })); });
-    var foot = [];
-    if (can(["admin", "manager"])) foot.push(h("button", { class: "btn", onclick: function () { showHealth(m); }, text: "View health form (logged)" }));
-    foot.push(h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" }));
-    openDrawer(m.name || m.email, [h("div", { class: "sect" }, [kv]), h("div", { class: "sect" }, [h("h4", { text: "Recent bookings" }), bk])], foot);
+  function exportMembers(rows) {
+    downloadCsv("members-" + iso(new Date()) + ".csv", ["Name", "Email", "Phone", "Membership type", "Plan", "Status", "Price", "Billing", "Member since", "Last booked", "App account", "News and offers", "Date of birth"],
+      rows.map(function (m) { return [m.name, m.email, m.phone, m.plan_type ? TYPE_LABEL[m.plan_type] : "", m.plan || "", STATUS_LABEL[m.status] || m.status, m.amount == null ? "" : m.amount, m.unit || "", m.since ? String(m.since).slice(0, 10) : "", m.last_booking || "", m.app ? "Yes" : "No", m.marketing === "subscribed" ? "Subscribed" : m.marketing === "withdrawn" ? "Unsubscribed" : "No", m.birthdate || ""]; }));
+    toast("Exported " + rows.length + " people.");
+  }
+  async function exportSubscribers() {
+    try { var d = await rpc("admin_subscribers_export"); downloadCsv("email-list-" + iso(new Date()) + ".csv", ["Email", "Name", "Where they signed up", "Confirmed on"], d.map(function (x) { return [x.email, x.name || "", x.source || "", x.confirmed ? String(x.confirmed).slice(0, 10) : ""]; })); toast("Exported " + d.length + " subscribers."); }
+    catch (e) { toast(e.message, true); }
+  }
+  function importDialog() {
+    var file = h("input", { type: "file", accept: ".csv,text/csv", class: "in" }), parsed = null;
+    var label = h("input", { class: "in", maxlength: "60", placeholder: "Where did this list come from? For example: Wix newsletter 2024" });
+    var basis = h("input", { type: "checkbox", id: "impBasis" });
+    var out = h("div", { class: "msg", hidden: true }), go = h("button", { class: "btn pri", disabled: true, text: "Import" });
+    function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
+    file.addEventListener("change", function () {
+      var f = file.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var rows = parseCsv(String(rd.result)); if (rows.length < 2) { parsed = null; go.disabled = true; return say("That file has no rows.", "bad"); }
+        var head = rows[0].map(function (x) { return x.trim().toLowerCase(); });
+        var ie = head.findIndex(function (x) { return /e-?mail/.test(x); }); if (ie < 0) { parsed = null; go.disabled = true; return say("I can't find an email column. The first row should have a heading like Email.", "bad"); }
+        var inm = head.findIndex(function (x) { return /^(full )?name$/.test(x) || x === "contact name"; }), ifn = head.findIndex(function (x) { return /first/.test(x); }), iln = head.findIndex(function (x) { return /last/.test(x); });
+        var ist = head.findIndex(function (x) { return /subscri|newsletter status|email status/.test(x); });
+        var seen = {}, good = [], bad = 0, dup = 0, notSub = 0;
+        rows.slice(1).forEach(function (r) {
+          var em = (r[ie] || "").trim().toLowerCase();
+          if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(em)) { bad++; return; }
+          if (ist > -1 && !/^subscribed$/i.test((r[ist] || "").trim())) { notSub++; return; }
+          if (seen[em]) { dup++; return; } seen[em] = 1;
+          good.push({ email: em, name: (inm > -1 ? r[inm] : [ifn > -1 ? r[ifn] : "", iln > -1 ? r[iln] : ""].join(" ")).trim() });
+        });
+        parsed = good; go.disabled = !good.length; go.textContent = "Import " + good.length + " people";
+        say(good.length + " usable emails. " + (bad ? bad + " were not valid emails. " : "") + (dup ? dup + " repeated. " : "") + (notSub ? notSub + " skipped because the file says they are not subscribed. " : "") + "People who already unsubscribed from you are always skipped.");
+      };
+      rd.readAsText(f);
+    });
+    go.addEventListener("click", async function () {
+      if (!parsed || !parsed.length) return;
+      if (!label.value.trim()) return say("Say where this list came from.", "bad");
+      if (!basis.checked) return say("Tick the box to confirm these people agreed to hear from you.", "bad");
+      go.disabled = true; say("Importing...");
+      try {
+        var r = await rpc("admin_import_subscribers", { p_rows: parsed, p_source: label.value.trim(), p_basis: "Imported by staff. " + label.value.trim() + ". Staff confirmed these people agreed to receive news and offers." });
+        say("Done. Added " + r.added + ". Already on your list: " + r.already + ". Skipped because they unsubscribed before: " + r.unsubscribed + ".", "ok"); route();
+      } catch (e) { go.disabled = false; say(e.message, "bad"); }
+    });
+    openModal("Import an email list", [h("p", { text: "Choose a CSV file (for example the subscribers export from Wix). It needs an Email column. Names are optional." }), h("div", { class: "field" }, [h("label", { text: "CSV file" }), file]),
+      h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: "Where did this list come from?" }), label]),
+      h("label", { style: "display:flex;gap:8px;margin-top:12px;align-items:flex-start;font-size:13.5px" }, [basis, h("span", { text: "I confirm these people agreed to receive news and offers from MY GYM London, and I can show where and when. You are responsible for this under UK data protection law." })]), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
+  }
+  async function memberProfile(m) {
+    var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
+    var foot = [h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })];
+    if (m.user_id && can(["admin", "manager"])) foot.unshift(h("button", { class: "btn", onclick: function () { showHealth({ id: m.user_id, name: m.name, email: m.email }); }, text: "Health form (logged)" }));
+    openDrawer(m.name || m.email, [host], foot);
     try {
-      var rows = await rpc("admin_member_bookings", { p_user: m.id }); clear(bk);
-      if (!rows.length) bk.appendChild(h("div", { class: "muted", text: "No bookings yet." }));
-      rows.forEach(function (b) { bk.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: b.name }), h("small", { text: fDate(b.date) + " at " + String(b.time).slice(0, 5) })]), b.source === "wix" ? chip("Website", "info") : chip("App", "plain")])); });
-    } catch (e) { clear(bk).appendChild(h("div", { class: "muted", text: e.message })); }
+      var p = await rpc("admin_member_profile", { p_email: m.email }); clear(host);
+      var kvOf = function (pairs) { var kv = h("dl", { class: "kv" }); pairs.forEach(function (x) { kv.appendChild(h("dt", { text: x[0] })); kv.appendChild(h("dd", { text: x[1] == null || x[1] === "" ? "-" : x[1] })); }); return kv; };
+      var c = p.contact || {}, ap = p.app;
+      host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" }, [m.plan_type ? chip(TYPE_LABEL[m.plan_type], "acc") : chip("No plan", "plain"), chip(STATUS_LABEL[m.status] || m.status, STATUS_CHIP[m.status] || "plain"), m.lapsed ? chip("Not training", "warn") : null, m.cancelling ? chip("Cancelling", "warn") : null]),
+        kvOf([["Email", m.email], ["Phone", m.phone], ["Date of birth", m.birthdate ? fDate(m.birthdate) : "Not given yet"], ["Client since", m.joined ? fDate(m.joined) : "-"], ["Last booked", m.last_booking ? fDate(m.last_booking) : "-"], ["Labels in Wix", (c.labels || []).join(", ")]])]));
+      host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Membership and payments" }), p.orders.length ? h("div", { class: "list" }, p.orders.map(function (o) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: o.plan }), h("small", { text: (o.started ? "From " + fDate(o.started) : "") + (o.ends ? ", ends " + fDate(o.ends) : "") + (o.pay ? " · payment " + String(o.pay).toLowerCase() : "") })]), h("span", { class: "num", text: "£" + Number(o.amount || 0).toFixed(2) }), chip(STATUS_LABEL[o.status] || o.status, STATUS_CHIP[o.status] || "plain")]); })) : h("div", { class: "muted", text: "No membership purchased." })]));
+      host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "App and emails" }), kvOf([["App account", ap ? "Yes, joined " + fDate(ap.created) : "No"], ["Bookings in the app", ap ? ap.bookings : "-"], ["Health form", ap ? (ap.health_form ? "Done" : "Missing") : "-"],
+        ["News and offers", p.consent ? (p.consent.withdrawn ? "Unsubscribed " + fDate(p.consent.withdrawn) : p.consent.confirmed ? "Subscribed " + fDate(p.consent.confirmed) + (p.consent.source ? " (" + p.consent.source + ")" : "") : "Waiting to confirm") : "Not subscribed"], ["Wix newsletter status", (c.subscription || "-").replace(/_/g, " ").toLowerCase()]])]));
+      if (p.bookings.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Recent bookings" }), h("div", { class: "list" }, p.bookings.slice(0, 8).map(function (b) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: b.name }), h("small", { text: fDate(b.date) + " at " + String(b.time).slice(0, 5) })])]); }))]));
+      if (p.forms.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Forms they sent" }), h("div", { class: "list" }, p.forms.map(function (f) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: FORMS[f.form] || f.form }), h("small", { text: fDateTime(f.at) })]), chip(f.status || "new", "plain")]); }))]));
+      if (p.emails.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Emails sent to them" }), h("div", { class: "list" }, p.emails.slice(0, 8).map(function (e) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: e.template }), h("small", { text: fDateTime(e.at) })]), e.status === "sent" ? chip("Sent", "ok") : chip(e.status, "warn")]); }))]));
+      var note = h("textarea", { class: "in", rows: "2", placeholder: "Add a private note (for example: called Tuesday, will return after holiday)", maxlength: "2000" }), nl = h("div", { class: "list", style: "margin-top:10px" });
+      var drawNotes = function (ns) { clear(nl); ns.forEach(function (n) { nl.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: n.note, style: "font-weight:500;white-space:pre-wrap" }), h("small", { text: n.by + " · " + fDateTime(n.at) })]),
+        can(["admin", "manager"]) ? h("button", { class: "btn sm", onclick: async function () { try { await rpc("admin_member_note_delete", { p_id: n.id }); ns = ns.filter(function (x) { return x.id !== n.id; }); drawNotes(ns); } catch (e) { toast(e.message, true); } }, text: "Delete" }) : null])); }); if (!ns.length) nl.appendChild(h("div", { class: "muted", text: "No notes yet." })); };
+      drawNotes(p.notes);
+      host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Notes" }), note, h("button", { class: "btn sm", style: "margin-top:8px", onclick: async function () { try { await rpc("admin_member_note_add", { p_email: m.email, p_note: note.value }); var np = await rpc("admin_member_profile", { p_email: m.email }); note.value = ""; drawNotes(np.notes); } catch (e) { toast(e.message, true); } }, text: "Save note" }), nl]));
+    } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
   }
   async function showHealth(m) {
     var body = [h("div", { class: "muted", text: "Loading..." })];
@@ -653,13 +769,17 @@
     { n: "New class", subject: "A new class at MY GYM", title: "A new class is on the timetable", body: "We have added [class name] on [day] at [time].\n\nPlaces are limited, so book yours in the app before it fills up.", btn: "Book your place", url: "https://app.mygymlondon.co.uk" },
     { n: "Offer", subject: "A special offer for you", title: "Something for our members", body: "[Describe the offer in one or two sentences.]\n\nIt runs until [date]. Reply to this email or ask at the front desk if you have any questions.", btn: "See the offer", url: "https://www.mygymlondon.co.uk" },
     { n: "Gym news", subject: "News from MY GYM London", title: "What is new at the gym", body: "[Write your news here.]\n\nThank you for training with us.", btn: "Read more", url: "https://www.mygymlondon.co.uk" },
+    { n: "Are you OK?", subject: "We have missed you at MY GYM", title: "Is everything OK?", body: "We have not seen you for a little while and wanted to check in.\n\nIf something is getting in the way, a busy week, an injury or just low motivation, reply to this email and we will help you find a way back. A short session is always better than none.", btn: "See this week's timetable", url: "https://app.mygymlondon.co.uk" },
     { n: "Bring a friend", subject: "Bring a friend to MY GYM", title: "Train with a friend", body: "Know someone who would love MY GYM? Refer a friend and when they buy a plan, we take 100% off the first billing cycle of your membership.\n\nEmail us your name and your friend's name to get started.", btn: "Email us", url: "https://www.mygymlondon.co.uk/refer-friends.html" }
   ];
   var SEGMENTS = [
     { id: "all", label: "Everyone who confirmed" },
     { id: "members", label: "Members (have an app account)" },
     { id: "leads", label: "Website sign-ups without an app account" },
-    { id: "active30", label: "Active members (booked in the last 30 days)" }
+    { id: "active30", label: "App members who booked in the last 30 days" },
+    { id: "gym_classes", label: "Gym + Classes members (paying now)" },
+    { id: "classes_only", label: "Classes-only members (paying now)" },
+    { id: "lapsed", label: "Not training for 3 weeks (paying members)" }
   ];
   function segLabel(id) { var s = SEGMENTS.filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
   // "2026-11-14T09:00" typed as London wall-clock time -> the exact moment (ISO, UTC)
@@ -867,23 +987,20 @@
       '<polygon points="' + L + "," + (T + ch) + " " + line + " " + pts[pts.length - 1][0] + "," + (T + ch) + '" fill="url(#ag)"/><polyline points="' + line + '" fill="none" stroke="#e03939" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>' +
       pts.map(function (p, i) { return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4.5" fill="#fff" stroke="#e03939" stroke-width="2.4"><title>' + esc(labels[i] + ": \u00A3" + vals[i]) + '</title></circle><text x="' + p[0] + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(labels[i]) + "</text>"; }).join("") + "</svg>";
   }
-  function vPlans() {
-    var root = h("div");
-    root.appendChild(pageHead("Plans and payments", "Memberships, payments and receipts."));
-    if (!sampleOn()) {
-      root.appendChild(h("div", { class: "soon" }, [h("h3", { text: "Not connected yet" }), h("p", { text: "Plans, payments and invoices are still handled in Wix (checkout at join.mygymlondon.co.uk). Until they move to this system, this page cannot show real figures." }), h("p", null, [h("a", { class: "btn", href: "https://manage.wix.com/", target: "_blank", rel: "noopener", text: "Open Wix dashboard" })])]));
-      return root;
-    }
-    var price = { "Gym + Classes": 35, "Classes only": 26, "Gym only": 26, "Annual": 33, "PT bundles": 60 }, mrr = 0, subs = 0;
-    SAMPLE.plans.forEach(function (p) { mrr += (price[p.n] || 0) * p.v; subs += p.v; });
-    var months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"];
-    root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Plans, payments and invoices are still in Wix. These numbers are placeholders so you can see the finished page. They are replaced with real figures when payments are connected.")])]));
-    root.appendChild(fromHtml('<div class="grid g4">' + kpiX("Monthly recurring revenue", "pound", "\u00A3" + mrr.toLocaleString("en-GB"), "", "+4.0% vs last month", "up", spark(SAMPLE.revenue, "#e03939"), "", true) + kpiX("Active members on a plan", "users", subs, "", "+3 this month", "up", "", "", true) +
-      kpiX("Average per member", "card", "\u00A3" + (mrr / subs).toFixed(2), "", "per month", "flat", "", "", true) + kpiX("Failed payments", "alert", SAMPLE.failed, "", "Needs a follow-up", "dn", "", "alert", true) + "</div>"));
-    var rows = SAMPLE.plans.map(function (p) { return '<tr style="cursor:default"><td><span class="dotc" style="background:' + p.c + '"></span> <b>' + esc(p.n) + '</b></td><td class="num">\u00A3' + (price[p.n] || 0) + '</td><td class="num r">' + p.v + '</td><td class="num r">\u00A3' + ((price[p.n] || 0) * p.v).toLocaleString("en-GB") + "</td></tr>"; }).join("");
-    var fails = [["Sample member A", "\u00A335.00", "2 days ago", "Card declined"], ["Sample member B", "\u00A326.00", "4 days ago", "Insufficient funds"]].map(function (f) { return '<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + f[0] + "</b><small>" + f[3] + " \u00B7 " + f[2] + '</small></div><b class="num">' + f[1] + "</b></div>"; }).join("");
-    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px;align-items:start"><div class="card"><div class="hd"><h3>Revenue, last 7 months ' + sampleTag() + '</h3></div><div class="bd">' + areaChart(SAMPLE.revenue, months) + '</div></div><div class="card"><div class="hd"><h3>Failed payments ' + sampleTag() + '</h3><span class="sub">retried on day 5, paused on day 21</span></div><div class="bd"><div class="list">' + fails + "</div></div></div></div>"));
-    root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>Plans ' + sampleTag() + '</h3></div><div class="bd"><div class="tbl-wrap"><table class="t" style="min-width:0"><thead><tr><th>Plan</th><th>Price</th><th class="r">Members</th><th class="r">Per month</th></tr></thead><tbody>' + rows + "</tbody></table></div></div></div>"));
+  async function vPlans() {
+    var root = h("div"), d = null;
+    root.appendChild(pageHead("Plans and payments", "Memberships and income, copied from Wix every 30 minutes. Wix still takes the payments."));
+    try { d = await rpc("admin_payments_summary"); } catch (e) { return errBox(e); }
+    var gbp = function (n) { return "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 0, maximumFractionDigits: 0 }); };
+    root.appendChild(h("div", { class: "grid g4" }, [kpi("Monthly income", gbp(d.mrr), "from active memberships"), kpi("Active members", d.active, (d.by_type.gym_classes || 0) + " gym, " + (d.by_type.classes || 0) + " classes only"),
+      kpi("Failed payments", d.failed, d.failed ? "chase these today" : "none", d.failed > 0), kpi("Paused", d.paused, d.cancelling + " set to cancel")]));
+    root.appendChild(h("div", { class: "grid g2", style: "margin-top:16px" }, [kpi("Joined in the last 30 days", d.new_30d), kpi("Left in the last 30 days", d.left_30d, "cancelled or ended", d.left_30d > d.new_30d)]));
+    var plans = h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:0" }, [h("thead", null, [h("tr", null, [h("th", { text: "Plan" }), h("th", { class: "r", text: "Members" }), h("th", { class: "r", text: "Per month" })])]),
+      h("tbody", null, d.by_plan.map(function (p) { return h("tr", { style: "cursor:default" }, [h("td", { text: p.n }), h("td", { class: "num r", text: p.v }), h("td", { class: "num r", text: gbp(p.mrr) })]); }))])]);
+    var failed = d.failed_list.length ? h("div", { class: "list" }, d.failed_list.map(function (f) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: f.name }), h("small", { text: f.plan + (f.failed_since ? " · failing since " + fDate(f.failed_since) : "") })]), h("span", { class: "num", text: gbp(f.amount) }),
+      h("a", { class: "btn sm", href: "mailto:" + f.email + "?subject=" + encodeURIComponent("Your MY GYM payment"), text: "Email" })]); })) : empty("No failed payments. Nice.");
+    root.appendChild(h("div", { class: "grid g2", style: "margin-top:16px;align-items:start" }, [card("Active members by plan", "", [d.by_plan.length ? plans : empty("No active memberships yet.")]), card("Failed payments to chase", d.failed_list.length + " people", [failed])]));
+    root.appendChild(h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Last copied from Wix: " + (d.synced ? fDateTime(d.synced) : "not yet") + ". Monthly income adds up each active plan (yearly plans divided by 12) and leaves out personal training packs." }));
     return root;
   }
 
