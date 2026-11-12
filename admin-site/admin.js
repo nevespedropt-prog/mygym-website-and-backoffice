@@ -91,6 +91,7 @@
     { id: "enquiries", label: "Messages", roles: ["admin", "manager", "reception"], icon: "✉", view: vEnquiries },
     { id: "forms", label: "Forms and pages", roles: ["admin", "manager", "reception"], icon: "▣", view: vForms },
     { id: "emails", label: "Emails", roles: ["admin", "manager"], icon: "→", view: vEmails },
+    { id: "templates", label: "Email templates", roles: ["admin", "manager"], icon: "✎", view: vTemplates },
     { id: "settings", label: "Settings and health", roles: ["admin", "manager"], icon: "⚙", view: vSettingsHub, section: "System" }
   ];
   function buildNav() {
@@ -784,6 +785,34 @@
     return root;
   }
 
+  /* ---------- email templates: your own library, used by every new email and campaign ---------- */
+  function templateEditor(t, done) {
+    var isNew = !t.id, F = {};
+    var f = function (id, label, max, tag, ph) { var el = h(tag || "input", { class: "in", maxlength: String(max), placeholder: ph || "" }); if (tag === "textarea") el.rows = 8; el.value = t[id] || ""; F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
+    var out = h("div", { class: "msg", hidden: true }), save = h("button", { class: "btn pri", text: "Save template" });
+    save.addEventListener("click", async function () {
+      save.disabled = true;
+      try { await rpc("admin_template_save", { p_id: t.id || null, p_name: F.name.value, p_subject: F.subject.value, p_preheader: F.preheader.value, p_title: F.title.value, p_body: F.body.value, p_button: F.button.value, p_url: F.url.value }); closeDrawer(); done(); }
+      catch (e) { save.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+    openDrawer(isNew ? "New template" : "Edit template", [h("div", { class: "sect" }, [h("p", { class: "muted", text: "Every email you send uses the same MY GYM look: red header, your heading, your message, a button and the footer with the unsubscribe link. A template just saves the words. Use [square brackets] for the parts to fill in each time." }),
+      f("name", "Template name", 60, null, "For example: Summer timetable"), f("subject", "Subject line", 78), f("preheader", "Preview text (optional)", 120), f("title", "Heading inside the email", 60), f("body", "Message", 3000, "textarea"), f("button", "Button text", 40), f("url", "Button link (https://)", 300), out])],
+      [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), save]);
+  }
+  async function vTemplates() {
+    var list = await rpc("admin_templates_list"), root = h("div");
+    root.appendChild(pageHead("Email templates", "Ready-made wording for emails and campaigns. Pick one when you write a new email, change it any time, or save your own.", [h("button", { class: "btn pri", onclick: function () { templateEditor({}, route); }, text: "New template" })]));
+    var cards = h("div", { class: "grid g2" });
+    list.forEach(function (t) {
+      cards.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: t.name })]), h("div", { class: "bd" }, [h("div", { class: "muted", style: "font-size:12px", text: "Subject" }), h("div", { text: t.subject || "-" }), h("div", { class: "muted", style: "font-size:12px;margin-top:8px", text: "Message" }), h("div", { style: "white-space:pre-wrap;max-height:110px;overflow:hidden", text: t.body }),
+        h("div", { style: "display:flex;gap:8px;margin-top:12px;flex-wrap:wrap" }, [h("button", { class: "btn sm", onclick: function () { templateEditor(t, route); }, text: "Edit" }),
+          h("button", { class: "btn sm", onclick: function () { templateEditor(Object.assign({}, t, { id: null, name: t.name + " (copy)" }), route); }, text: "Duplicate" }),
+          h("button", { class: "btn sm dng", onclick: async function () { try { await rpc("admin_template_delete", { p_id: t.id }); toast("Deleted."); route(); } catch (e) { toast(e.message, true); } }, text: "Delete" })])])]));
+    });
+    root.appendChild(list.length ? cards : empty("No templates yet. Press New template."));
+    root.appendChild(h("small", { class: "muted", style: "display:block;margin-top:14px", text: "The automatic emails (booking confirmations, receipts, reminders and so on) keep their own wording and share this same look. Their wording can be changed on request." }));
+    return root;
+  }
   /* ---------- campaigns: history, audience, scheduling, delivery results ---------- */
   var CAMP_TEMPLATES = [
     { n: "New class", subject: "A new class at MY GYM", title: "A new class is on the timetable", body: "We have added [class name] on [day] at [time].\n\nPlaces are limited, so book yours in the app before it fills up.", btn: "Book your place", url: "https://app.mygymlondon.co.uk" },
@@ -818,7 +847,7 @@
     return chip("Draft", "plain");
   }
 
-  function campaignCard(cur, counts, done, close) {
+  function campaignCard(cur, counts, done, close, tpls) {
     function newForm() { return { id: null, subject: "", preheader: "", title: "", body: "", button: "", url: "", segment: "all", status: "draft" }; }
     var c = cur || newForm();
     var editable = c.status === "draft";
@@ -828,9 +857,9 @@
       var cnt = h("small", { class: "muted", text: "" }); el._cnt = cnt;
       return h("div", { class: "field", style: "margin-top:12px" }, [h("div", { style: "display:flex;justify-content:space-between;gap:8px" }, [h("label", { for: id, text: label }), cnt]), el, hint ? h("small", { class: "muted", text: hint }) : null]);
     }
-    var templates = editable ? h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, CAMP_TEMPLATES.map(function (t) {
-      return h("button", { class: "btn sm", type: "button", text: t.n, onclick: function () { F.cSubject.value = t.subject; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.btn; F.cUrl.value = t.url; changed(); } });
-    })) : null;
+    var templates = editable ? h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, (tpls || []).map(function (t) {
+      return h("button", { class: "btn sm", type: "button", text: t.name, onclick: function () { F.cSubject.value = t.subject; F.cPre.value = t.preheader || ""; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.button; F.cUrl.value = t.url; changed(); } });
+    }).concat([h("a", { class: "btn sm", href: "#/templates", text: "Manage templates" })])) : null;
     var seg = h("select", { class: "sel", id: "cSeg" }, SEGMENTS.map(function (s) { return h("option", { value: s.id, text: s.label + " (" + (counts[s.id] == null ? "?" : counts[s.id]) + ")" }); }));
     seg.value = c.segment; if (!editable) seg.disabled = true;
     var when = h("input", { class: "in", id: "cWhen", type: "datetime-local", disabled: !editable });
@@ -947,7 +976,7 @@
     recallTest(); changed();
     var actions = [];
     var note = null, statsBox = null;
-    if (editable) actions = [bSave, bTest, bGo].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
+    if (editable) actions = [bSave, bTest, bGo, h("button", { class: "btn sm", type: "button", text: "Save as template", onclick: function () { templateEditor({ name: "", subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }, function () { toast("Saved to your templates."); }); } })].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
     else if (c.status === "scheduled") {
       note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Scheduled for " + fDateTime(c.scheduled_for) + ". " }), document.createTextNode("It goes to " + segLabel(c.segment).toLowerCase() + ". Unschedule it to change anything.")])]);
       actions = [h("button", { class: "btn", type: "button", text: "Unschedule and edit", onclick: async function () { try { await rpc("admin_campaign_unschedule", { p_id: c.id }); toast("Back to a draft."); done(); } catch (e) { say(e.message, "bad"); } } })];
@@ -989,8 +1018,9 @@
   async function vMarketing() {
     var d = await rpc("admin_marketing"), root = h("div"), isAdmin = can(["admin"]), camps = [], counts = { all: d.confirmed };
     if (isAdmin) { try { var both = await Promise.all([rpc("admin_campaign_list"), rpc("admin_campaign_counts")]); camps = both[0]; counts = both[1]; } catch (e) { root.appendChild(errBox(e)); } }
+    var tpls = []; if (isAdmin) { try { tpls = await rpc("admin_templates_list"); } catch (e) { tpls = []; } }
     var host = h("div", { style: "margin-bottom:16px" });
-    function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); })); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); }, tpls)); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
     openComposerFn = openComposer;
     root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn", onclick: function () { wixSubsDialog(); }, text: "Bring in Wix subscribers" }), h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
     root.appendChild(host);
