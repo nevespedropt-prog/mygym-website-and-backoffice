@@ -968,13 +968,31 @@
   var openComposerFn = function () {};
 
   /* ---------- marketing ---------- */
+  async function wixSubsDialog() {
+    var out = h("div", { class: "msg" , text: "Checking your Wix list..." }), tick = h("input", { type: "checkbox", id: "wsTick", disabled: true }), go = h("button", { class: "btn pri", disabled: true, text: "Bring them in" }), info = null;
+    var say = function (t, cls) { out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
+    openModal("Bring in your Wix subscribers", [h("p", { text: "These are the people who subscribed to MY GYM London emails in Wix. They are copied from Wix every 30 minutes." }), out,
+      h("label", { style: "display:flex;gap:8px;margin-top:12px;align-items:flex-start;font-size:13.5px" }, [tick, h("span", { text: "I confirm these people subscribed to MY GYM London's emails in Wix and agreed to receive news and offers. Anyone who unsubscribed in Wix is blocked automatically." })])],
+      [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
+    try {
+      info = await rpc("admin_import_wix_subscribers", { p_basis: "", p_dry: true });
+      say(info.to_add + " people will be added to your email list. " + info.to_block + " who unsubscribed in Wix will be recorded as unsubscribed. " + info.already + " are already on your list.");
+      tick.disabled = false; go.disabled = !info.to_add && !info.to_block;
+    } catch (e) { return say(e.message, "bad"); }
+    go.addEventListener("click", async function () {
+      if (!tick.checked) return say("Tick the box to confirm first.", "bad");
+      go.disabled = true; say("Importing...");
+      try { var r = await rpc("admin_import_wix_subscribers", { p_basis: "Subscribed in Wix before the move to the new system. Staff confirmed they agreed to receive news and offers.", p_dry: false }); say("Done. Added " + r.added + " subscribers and blocked " + r.blocked + " who had unsubscribed.", "ok"); toast("Wix subscribers brought in."); }
+      catch (e) { go.disabled = false; say(e.message, "bad"); }
+    });
+  }
   async function vMarketing() {
     var d = await rpc("admin_marketing"), root = h("div"), isAdmin = can(["admin"]), camps = [], counts = { all: d.confirmed };
     if (isAdmin) { try { var both = await Promise.all([rpc("admin_campaign_list"), rpc("admin_campaign_counts")]); camps = both[0]; counts = both[1]; } catch (e) { root.appendChild(errBox(e)); } }
     var host = h("div", { style: "margin-bottom:16px" });
     function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); })); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
     openComposerFn = openComposer;
-    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
+    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn", onclick: function () { wixSubsDialog(); }, text: "Bring in Wix subscribers" }), h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
     root.appendChild(host);
     if (isAdmin) {
       var rows = camps.map(function (c) {
