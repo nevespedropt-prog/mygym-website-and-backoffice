@@ -873,7 +873,21 @@
     { id: "active30", label: "App members who booked in the last 30 days" },
     { id: "leads", label: "Website sign-ups without an app account" }
   ];
-  function segLabel(id) { var s = SEGMENTS.filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
+  // One-off service notices: no marketing consent needed, so the audiences are clients by status, app users, or addresses typed in.
+  var NOTICE_SEGMENTS = [
+    { id: "active_clients", label: "Active clients (paying now)" },
+    { id: "inactive_clients", label: "Not active: paused, cancelled or ended clients" },
+    { id: "paused_clients", label: "Paused clients only" },
+    { id: "former_clients", label: "Former clients only (cancelled or ended)" },
+    { id: "app_users", label: "Everyone with an app account" },
+    { id: "custom", label: "Only the email addresses I type below" }
+  ];
+  var NOTICE_TEMPLATES = [
+    { name: "Closure", subject: "MY GYM London is closed on [date]", preheader: "Please read before you travel to the gym", title: "We are closed on [date]", body: "MY GYM London will be closed on [date] because [reason]. We open again on [date].\n\nIf you are booked into a class on that day, we will contact you. Sorry for the inconvenience.", button: "See the timetable", url: "https://app.mygymlondon.co.uk" },
+    { name: "Timetable change", subject: "A change to the timetable", preheader: "[Class] has moved", title: "Timetable change", body: "From [date], [class] moves from [old time] to [new time].\n\nIf the new time does not work for you, reply to this email and we will help.", button: "See the timetable", url: "https://app.mygymlondon.co.uk" },
+    { name: "Opening hours", subject: "New opening hours at MY GYM London", preheader: "Effective from [date]", title: "Our opening hours are changing", body: "From [date], the gym will be open [new hours].\n\nThe classes on the timetable are not affected.", button: "See the timetable", url: "https://app.mygymlondon.co.uk" }
+  ];
+  function segLabel(id, kind) { var list = kind === "notice" ? NOTICE_SEGMENTS : SEGMENTS, s = list.filter(function (x) { return x.id === id; })[0]; return s ? s.label : id; }
   // "2026-11-14T09:00" typed as London wall-clock time -> the exact moment (ISO, UTC)
   function londonToIso(s) {
     var asUtc = Date.parse(s + ":00Z"); if (isNaN(asUtc)) return null;
@@ -890,9 +904,10 @@
     return chip("Draft", "plain");
   }
 
-  function campaignCard(cur, counts, done, close, tpls) {
-    function newForm() { return { id: null, subject: "", preheader: "", title: "", body: "", button: "", url: "", segment: "all", status: "draft" }; }
+  function campaignCard(cur, counts, done, close, tpls, ncounts) {
+    function newForm() { return { id: null, kind: "marketing", extra_emails: "", subject: "", preheader: "", title: "", body: "", button: "", url: "", segment: "all", status: "draft" }; }
     var c = cur || newForm();
+    var kind = c.kind === "notice" ? "notice" : "marketing";
     var editable = c.status === "draft";
     var F = {};
     function fld(id, label, ph, max, tag, hint, val) {
@@ -900,27 +915,51 @@
       var cnt = h("small", { class: "muted", text: "" }); el._cnt = cnt;
       return h("div", { class: "field", style: "margin-top:12px" }, [h("div", { style: "display:flex;justify-content:space-between;gap:8px" }, [h("label", { for: id, text: label }), cnt]), el, hint ? h("small", { class: "muted", text: hint }) : null]);
     }
-    var templates = editable ? h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }, (tpls || []).map(function (t) {
-      return h("button", { class: "btn sm", type: "button", text: t.name, onclick: function () { F.cSubject.value = t.subject; F.cPre.value = t.preheader || ""; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.button; F.cUrl.value = t.url; changed(); } });
-    }).concat([h("a", { class: "btn sm", href: "#/templates", text: "Manage templates" })])) : null;
-    var seg = h("select", { class: "sel", id: "cSeg" }, SEGMENTS.map(function (s) { return h("option", { value: s.id, text: s.label + " (" + (counts[s.id] == null ? "?" : counts[s.id]) + ")" }); }));
-    seg.value = c.segment; if (!editable) seg.disabled = true;
+    var templates = editable ? h("div", { style: "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px" }) : null;
+    function drawTpls() {
+      if (!templates) return; templates.textContent = "";
+      (kind === "notice" ? NOTICE_TEMPLATES : []).concat(tpls || []).forEach(function (t) {
+        templates.appendChild(h("button", { class: "btn sm", type: "button", text: t.name, onclick: function () { F.cSubject.value = t.subject; F.cPre.value = t.preheader || ""; F.cTitle.value = t.title; F.cBody.value = t.body; F.cBtn.value = t.button; F.cUrl.value = t.url; changed(); } }));
+      });
+      templates.appendChild(h("a", { class: "btn sm", href: "#/templates", text: "Manage templates" }));
+    }
+    var seg = h("select", { class: "sel", id: "cSeg" });
+    function drawSeg(keep) {
+      var list = kind === "notice" ? NOTICE_SEGMENTS : SEGMENTS, cn = kind === "notice" ? (ncounts || {}) : counts;
+      seg.textContent = "";
+      list.forEach(function (x) { seg.appendChild(h("option", { value: x.id, text: x.label + (x.id === "custom" ? "" : " (" + (cn[x.id] == null ? "?" : cn[x.id]) + ")") })); });
+      seg.value = list.some(function (x) { return x.id === keep; }) ? keep : list[0].id;
+    }
+    drawSeg(c.segment); if (!editable) seg.disabled = true;
+    var kindSel = h("select", { class: "sel", id: "cKind", disabled: !editable }, [h("option", { value: "marketing", text: "News or offer (marketing): only people who subscribed" }), h("option", { value: "notice", text: "Service notice: information people need (closure, timetable change)" })]);
+    kindSel.value = kind;
+    var extra = h("textarea", { class: "in", id: "cExtra", maxlength: "6000", placeholder: "name@example.com, another@example.com" }); extra.rows = 3; extra.value = c.extra_emails || ""; if (!editable) extra.disabled = true;
+    var extraBox = h("div", { class: "field", style: "margin-top:12px" }, [h("label", { for: "cExtra", text: "Extra email addresses (optional)" }), extra, h("small", { class: "muted", text: "Separate with commas, spaces or new lines. Up to 300. They get this notice as well as the group above." })]);
+    var svc = h("input", { type: "checkbox", id: "cSvc", disabled: !editable });
+    var svcBox = h("label", { style: "display:flex;gap:8px;margin-top:12px;align-items:flex-start;font-size:13.5px" }, [svc, h("span", { text: "I confirm this is service information people need, not an offer or promotion." })]);
+    var noticeNote = h("div", { class: "banner", style: "margin-top:12px" }, [h("div", null, [h("b", { text: "Service notice. " }), document.createTextNode("It goes out even to people who unsubscribed from marketing, and it has no unsubscribe link. Use it only for information people need: a closure, a timetable change, news about their account. Anything promotional must be a marketing email instead. People who marked an email as spam are always left out.")])]);
     var when = h("input", { class: "in", id: "cWhen", type: "datetime-local", disabled: !editable });
     var whenHint = h("small", { class: "muted", text: "London time." });
     var mode = h("select", { class: "sel", id: "cMode", disabled: !editable }, [h("option", { value: "now", text: "Send as soon as I press send" }), h("option", { value: "later", text: "Schedule for a later time" })]);
+    var segHint = h("small", { class: "muted", text: "" });
     var form = h("div", null, [
-      editable ? h("div", { class: "field" }, [h("label", { text: "Start from a template (you can change everything)" }), templates]) : null,
-      h("div", { class: "field", style: "margin-top:12px" }, [h("label", { for: "cSeg", text: "Who gets it" }), seg, h("small", { class: "muted", text: "Only people who confirmed they want news and offers are ever included." })]),
+      h("div", { class: "field" }, [h("label", { for: "cKind", text: "What kind of email" }), kindSel]),
+      editable ? h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Start from a template (you can change everything)" }), templates]) : null,
+      h("div", { class: "field", style: "margin-top:12px" }, [h("label", { for: "cSeg", text: "Who gets it" }), seg, segHint]),
+      extraBox,
       fld("cSubject", "Subject line", "What people see first in their inbox", 78, null, "Short and specific works best. Up to 78 characters.", c.subject),
       fld("cPre", "Preview text (optional)", "The grey line after the subject in the inbox", 120, null, "", c.preheader),
       fld("cTitle", "Heading inside the email", "", 60, null, "", c.title),
       fld("cBody", "Message", "Write the message. Leave a blank line between paragraphs.", 3000, "textarea", "", c.body),
       fld("cBtn", "Button text", "For example: Book your place", 40, null, "", c.button),
       fld("cUrl", "Button link", "https://", 300, null, "Must start with https://", c.url),
+      noticeNote, editable ? svcBox : null,
       editable ? h("div", { class: "grid g2", style: "margin-top:12px" }, [h("div", { class: "field" }, [h("label", { for: "cMode", text: "When" }), mode]), h("div", { class: "field", id: "cWhenBox", hidden: true }, [h("label", { for: "cWhen", text: "Send at" }), when, whenHint])]) : null
     ]);
+    drawTpls();
     /* live preview of the inbox line and the opened email */
     var pvSubject = h("b"), pvPre = h("span", { class: "muted" }), pvTitle = h("h2", { style: "margin:0 0 10px;font-size:20px" }), pvBody = h("div"), pvBtn = h("span", { style: "display:inline-block;margin-top:14px;padding:11px 18px;border-radius:8px;background:#e03939;color:#fff;font-weight:700" });
+    var pvFoot = h("div", { style: "padding:12px 18px;border-top:1px solid #eee;font-size:11.5px;color:#777" });
     var preview = h("div", null, [
       h("div", { class: "muted", style: "font-size:12px;margin-bottom:6px", text: "In the inbox" }),
       h("div", { style: "border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--panel);margin-bottom:14px" }, [h("div", { style: "font-size:12px;color:var(--mut)", text: "MY GYM London" }), h("div", null, [pvSubject, document.createTextNode("  "), pvPre])]),
@@ -928,7 +967,7 @@
       h("div", { style: "border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;color:#222" }, [
         h("div", { style: "background:#111;color:#fff;padding:14px 18px;font-weight:800;letter-spacing:.04em", text: "MY GYM LONDON" }),
         h("div", { style: "padding:20px 18px" }, [pvTitle, pvBody, pvBtn]),
-        h("div", { style: "padding:12px 18px;border-top:1px solid #eee;font-size:11.5px;color:#777", text: "You are getting this because you agreed to hear from MY GYM London. Every email has an unsubscribe link at the bottom." })
+        pvFoot
       ])
     ]);
     var checks = h("ul", { style: "list-style:none;margin:0;padding:0;display:grid;gap:6px;font-size:13.5px" });
@@ -938,11 +977,26 @@
     var bClose = h("button", { class: "btn sm", type: "button", text: "Close", onclick: function () { if (saved) done(); else close(); } });
     var testedFor = "", armed = false, busy = false, confirming = false, savedId = c.id;
     function v(id) { return (F[id].value || "").trim(); }
-    function sig() { return [v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
+    function sig() { return [kind, v("cSubject"), v("cPre"), v("cTitle"), v("cBody"), v("cBtn"), v("cUrl")].join("\u0001"); }
     function later() { return mode.value === "later"; }
     function whenIso() { return later() && when.value ? londonToIso(when.value) : null; }
-    function n() { var k = counts[seg.value]; return k == null ? 0 : k; }
-    function plural(k) { return k + " subscriber" + (k === 1 ? "" : "s"); }
+    var noticeN = 0, noticeKey = "", noticeTimer = null;
+    function n() { if (kind === "notice") return noticeN; var k = counts[seg.value]; return k == null ? 0 : k; }
+    function plural(k) { return k + (kind === "notice" ? " recipient" : " subscriber") + (k === 1 ? "" : "s"); }
+    var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    function extraTokens() { return extra.value.toLowerCase().split(/[\s,;]+/).filter(Boolean); }
+    // the exact number of people a notice reaches (groups and typed addresses overlap), asked from the database
+    function refreshNotice() {
+      if (kind !== "notice") return;
+      var key = seg.value + "\u0001" + extra.value.trim();
+      if (key === noticeKey) return;
+      noticeKey = key; noticeN = 0; clearTimeout(noticeTimer);
+      noticeTimer = setTimeout(async function () {
+        var k0 = key, r = 0;
+        try { r = await rpc("admin_notice_count", { p_segment: seg.value, p_extra: extra.value }); } catch (e) { r = 0; }
+        if (k0 === noticeKey) { noticeN = r || 0; changed(); }
+      }, 250);
+    }
     var ph = /\[[^\]]{2,}\]/;
     // a passed test is remembered in this browser for this campaign, for exactly this wording
     function hash(t) { var x = 5381; for (var i = 0; i < t.length; i++) x = ((x << 5) + x + t.charCodeAt(i)) | 0; return String(x); }
@@ -959,6 +1013,11 @@
         [!ph.test(all), "No [placeholder] text left to fill in"],
         [n() > 0, "Someone is in the audience (" + plural(n()) + ")"]
       ];
+      if (kind === "notice") {
+        var tk = extraTokens(), badTk = tk.filter(function (x) { return !EMAIL_RE.test(x); });
+        list.push([badTk.length === 0 && tk.length <= 300, badTk.length ? "Fix this email address: " + badTk[0].slice(0, 40) : tk.length > 300 ? "Up to 300 extra addresses" : "Any typed email addresses look right"]);
+        list.push([svc.checked, "Tick the box: this is service information, not an offer or promotion"]);
+      }
       if (later()) list.push([!!w && Date.parse(w) > Date.now() + 150000, "Send time is at least a few minutes from now"]);
       list.push([testedFor !== "" && testedFor === sig(), "Test email sent and checked, for this exact wording"]);
       return list;
@@ -967,6 +1026,10 @@
     function problem() { var l = review(); for (var i = 0; i < l.length - 1; i++) if (!l[i][0]) return "still to do: " + l[i][1].charAt(0).toLowerCase() + l[i][1].slice(1) + "."; return ""; }
     function changed() {
       confirming = false; $("cWhenBox") && ($("cWhenBox").hidden = !later());
+      noticeNote.hidden = kind !== "notice"; extraBox.hidden = kind !== "notice"; svcBox.hidden = kind !== "notice";
+      segHint.textContent = kind === "notice" ? "Goes to the group you choose, whether or not they are on your marketing list." : "Only people who confirmed they want news and offers are ever included.";
+      pvFoot.textContent = kind === "notice" ? "This is a service email about your MY GYM London account or booking, so it is sent even if you have unsubscribed from marketing." : "You are getting this because you agreed to hear from MY GYM London. Every email has an unsubscribe link at the bottom.";
+      refreshNotice();
       F.cSubject._cnt.textContent = v("cSubject").length + "/78"; F.cTitle._cnt.textContent = v("cTitle").length + "/60"; F.cPre._cnt.textContent = v("cPre").length + "/120"; F.cBody._cnt.textContent = v("cBody").length + "/3000";
       pvSubject.textContent = v("cSubject") || "Your subject line"; pvPre.textContent = v("cPre") ? "– " + v("cPre") : "";
       pvTitle.textContent = v("cTitle") || "Your heading"; pvBody.textContent = "";
@@ -979,7 +1042,7 @@
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
     function lock(b) { busy = b; bSave.disabled = b; bTest.disabled = b; bGo.disabled = b; }
     async function save(iso) {
-      var r = await rpc("admin_campaign_save", { p_id: savedId, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl"), p_segment: seg.value, p_scheduled_for: iso || null });
+      var r = await rpc("admin_campaign_save", { p_id: savedId, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl"), p_segment: seg.value, p_scheduled_for: iso || null, p_kind: kind, p_extra: kind === "notice" ? extra.value : "" });
       savedId = r.id; saved = true; return r;
     }
     async function sendLoop(label) {
@@ -993,6 +1056,7 @@
       }
       toast("Sent to " + sent + (failed ? ", " + failed + " failed" : "") + "."); done(); return true;
     }
+    kindSel.addEventListener("change", function () { kind = kindSel.value === "notice" ? "notice" : "marketing"; svc.checked = false; noticeKey = ""; drawSeg(null); drawTpls(); });
     if (editable) {
       form.addEventListener("input", changed); form.addEventListener("change", changed);
       bSave.addEventListener("click", async function () { lock(true); try { await save(null); say("Draft saved.", "ok"); } catch (e) { say(e.message, "bad"); } lock(false); });
@@ -1021,14 +1085,14 @@
     var note = null, statsBox = null;
     if (editable) actions = [bSave, bTest, bGo, h("button", { class: "btn sm", type: "button", text: "Save as template", onclick: function () { templateEditor({ name: "", subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }, function () { toast("Saved to your templates."); }); } })].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
     else if (c.status === "scheduled") {
-      note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Scheduled for " + fDateTime(c.scheduled_for) + ". " }), document.createTextNode("It goes to " + segLabel(c.segment).toLowerCase() + ". Unschedule it to change anything.")])]);
+      note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Scheduled for " + fDateTime(c.scheduled_for) + ". " }), document.createTextNode("It goes to " + segLabel(c.segment, c.kind).toLowerCase() + (c.extra_emails ? " and the typed email addresses" : "") + ". Unschedule it to change anything.")])]);
       actions = [h("button", { class: "btn", type: "button", text: "Unschedule and edit", onclick: async function () { try { await rpc("admin_campaign_unschedule", { p_id: c.id }); toast("Back to a draft."); done(); } catch (e) { say(e.message, "bad"); } } })];
     } else {
       var st = c.stats || {}, pc = function (a) { return c.sent ? " (" + Math.round(100 * a / c.sent) + "%)" : ""; };
       note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: c.status === "sending" ? "This campaign is sending. " : "Sent " + (c.finished_at ? fDateTime(c.finished_at) : "") + ". " }), document.createTextNode(c.status === "sending" ? "If you closed the page it carries on by itself within a minute or two." : "Sent to " + (c.audience != null ? c.audience : c.sent) + " people.")])]);
       statsBox = h("div", { class: "grid g3", style: "margin-top:12px" }, [kpi("Sent", c.sent, c.failed ? c.failed + " failed to send" : ""), kpi("Delivered", st.delivered || 0, pc(st.delivered || 0).trim()), kpi("Clicked a link", st.clicked || 0, pc(st.clicked || 0).trim()),
         kpi("Unsubscribed", st.unsubscribed || 0), kpi("Marked as spam", st.complained || 0, "", (st.complained || 0) > 0), kpi("Bounced", st.bounced || 0, "", (st.bounced || 0) > 0)]);
-      actions = [h("button", { class: "btn", type: "button", text: "Duplicate as new draft", onclick: function () { close(); openComposerFn(Object.assign(newForm(), { subject: c.subject, preheader: c.preheader, title: c.title, body: c.body, button: c.button, url: c.url, segment: c.segment })); } })];
+      actions = [h("button", { class: "btn", type: "button", text: "Duplicate as new draft", onclick: function () { close(); openComposerFn(Object.assign(newForm(), { subject: c.subject, preheader: c.preheader, title: c.title, body: c.body, button: c.button, url: c.url, segment: c.segment, kind: c.kind, extra_emails: c.extra_emails })); } })];
       if (c.status === "sending" || (c.status === "sent" && c.failed > 0)) { savedId = c.id; actions.unshift(h("button", { class: "btn pri", type: "button", text: c.status === "sending" ? "Continue sending" : "Retry the " + c.failed + " that failed", onclick: async function () { lock(true); await sendLoop("Sending"); lock(false); } })); }
     }
     var left = h("div", null, [note, statsBox, form, editable ? h("div", { style: "margin-top:16px" }, [h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin-bottom:6px", text: "Before you send" }), checks]) : null, out,
@@ -1059,27 +1123,27 @@
     });
   }
   async function vMarketing() {
-    var d = await rpc("admin_marketing"), root = h("div"), isAdmin = can(["admin"]), camps = [], counts = { all: d.confirmed };
-    if (isAdmin) { try { var both = await Promise.all([rpc("admin_campaign_list"), rpc("admin_campaign_counts")]); camps = both[0]; counts = both[1]; } catch (e) { root.appendChild(errBox(e)); } }
+    var d = await rpc("admin_marketing"), root = h("div"), isAdmin = can(["admin"]), camps = [], counts = { all: d.confirmed }, ncounts = {};
+    if (isAdmin) { try { var both = await Promise.all([rpc("admin_campaign_list"), rpc("admin_campaign_counts"), rpc("admin_notice_counts").catch(function () { return {}; })]); camps = both[0]; counts = both[1]; ncounts = both[2]; } catch (e) { root.appendChild(errBox(e)); } }
     var tpls = []; if (isAdmin) { try { tpls = await rpc("admin_templates_list"); } catch (e) { tpls = []; } }
     var host = h("div", { style: "margin-bottom:16px" });
-    function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); }, tpls)); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    function openComposer(c) { clear(host); host.appendChild(campaignCard(c, counts, function () { route(); }, function () { clear(host); }, tpls, ncounts)); host.scrollIntoView({ behavior: "smooth", block: "start" }); }
     openComposerFn = openComposer;
     if (pendingTpl && isAdmin) { var pt = pendingTpl; pendingTpl = null; setTimeout(function () { openComposer(null); var set = function (id, v) { var e = $(id); if (e) { e.value = v || ""; e.dispatchEvent(new Event("input", { bubbles: true })); } }; set("cSubject", pt.subject); set("cPre", pt.preheader); set("cTitle", pt.title); set("cBody", pt.body); set("cBtn", pt.button); set("cUrl", pt.url); }, 0); }
-    root.appendChild(pageHead("Marketing", "People who agreed to hear from you by email. Only confirmed subscribers ever receive news and offers.", isAdmin ? [h("button", { class: "btn", onclick: function () { wixSubsDialog(); }, text: "Bring in Wix subscribers" }), h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New campaign" })] : null));
+    root.appendChild(pageHead("Marketing", "News and offers only go to people who agreed to hear from you. A one-off service notice (closure, timetable change) is a separate kind of email.", isAdmin ? [h("button", { class: "btn", onclick: function () { wixSubsDialog(); }, text: "Bring in Wix subscribers" }), h("button", { class: "btn pri", onclick: function () { openComposer(null); }, text: "New email" })] : null));
     root.appendChild(host);
     if (isAdmin) {
       var rows = camps.map(function (c) {
         var st = c.stats || {};
         return h("tr", { style: "cursor:pointer", onclick: function () { openComposer(c); } }, [
-          h("td", null, [h("b", { text: c.subject || "(no subject yet)" }), h("div", { class: "muted", style: "font-size:12px", text: c.title })]),
-          h("td", { text: segLabel(c.segment) }), h("td", null, [statusChip(c)]),
+          h("td", null, [h("b", { text: c.subject || "(no subject yet)" }), c.kind === "notice" ? chip("Service notice", "plain") : null, h("div", { class: "muted", style: "font-size:12px", text: c.title })]),
+          h("td", { text: segLabel(c.segment, c.kind) + (c.extra_emails ? " + typed addresses" : "") }), h("td", null, [statusChip(c)]),
           h("td", { class: "num", text: c.status === "sent" || c.status === "sending" ? c.sent + " sent · " + (st.delivered || 0) + " delivered · " + (st.clicked || 0) + " clicked" : "" }),
           h("td", { class: "num", text: fDate((c.finished_at || c.started_at || c.created_at).slice(0, 10)) })]);
       });
       root.appendChild(h("div", { style: "margin-bottom:16px" }, [card("Campaigns", camps.length ? "click one to open it" : "", [camps.length ?
         h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["Campaign", "Goes to", "Status", "Results", "Date"].map(function (x) { return h("th", { text: x }); }))]), h("tbody", null, rows)])]) :
-        empty("No campaigns yet. Press New campaign to write your first one.")])]));
+        empty("No emails yet. Press New email to write your first one.")])]));
     } else root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Campaigns. " }), document.createTextNode("Only an admin can write and send a campaign.")])]));
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Confirmed subscribers", d.confirmed, "can receive campaigns"), kpi("Waiting to confirm", d.pending, "they have not clicked the email yet"), kpi("Unsubscribed", d.withdrawn)]));
     var src = h("div", { class: "list" }); d.by_source.forEach(function (s) { src.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: s.source })]), h("span", { class: "num", text: s.n })])); });
