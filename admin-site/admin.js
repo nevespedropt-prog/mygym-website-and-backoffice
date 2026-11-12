@@ -9,7 +9,7 @@
   var ROLE_LABEL = { admin: "Owner / admin", manager: "Manager", reception: "Reception", coach: "Coach" };
   var FORMS = { "contact": "Contact", "pt-enquiry": "Personal training", "trial-class": "Free class", "landing-offer": "Offer", "corporate-enquiry": "Corporate", "kids-registration": "Kids Gym", "pause-cancel-request": "Pause / cancel", "feedback": "Feedback", "refer-a-friend": "Referral", "newsletter-signup": "Newsletter" };
   var STATUS = { "new": "New", contacted: "Contacted", trial: "Trial booked", joined: "Joined", not_now: "Not now", spam: "Spam" };
-  var HIDE = { utm_source: 1, utm_medium: 1, utm_campaign: 1, page_url: 1 };
+  var HIDE = { answers: 1, form_title: 1, utm_source: 1, utm_medium: 1, utm_campaign: 1, page_url: 1 };
 
   /* ---------- small helpers ---------- */
   function h(tag, attrs, kids) {
@@ -806,7 +806,7 @@
     btns.appendChild(h("button", { class: "btn sm ghost", onclick: function (ev) { save(null, ev.target); }, text: "Save note" }));
     var links = []; if (email) links.push(h("a", { href: "mailto:" + email, text: email })); if (email && phone) links.push(document.createTextNode("  ·  ")); if (phone) links.push(h("a", { href: "tel:" + String(phone).replace(/[^+\d]/g, ""), text: phone }));
     return h("section", { class: "card" + (r.status === "new" ? " newq" : "") }, [h("div", { class: "bd" }, [
-      h("div", { class: "head" }, [h("b", { text: name }), h("span", { class: "muted", text: (FORMS[r.form_id] || r.form_id) + " · " + fDateTime(r.created_at) }), chip(STATUS[r.status] || r.status, r.status === "new" ? "bad" : r.status === "joined" ? "ok" : "plain")]),
+      h("div", { class: "head" }, [h("b", { text: name }), h("span", { class: "muted", text: (FORMS[r.form_id] || (r.data && r.data.form_title) || r.form_id) + " · " + fDateTime(r.created_at) }), chip(STATUS[r.status] || r.status, r.status === "new" ? "bad" : r.status === "joined" ? "ok" : "plain")]),
       h("div", { class: "contact" }, links), dl, note, btns])]);
   }
 
@@ -1227,7 +1227,7 @@
   var BTYPES = [["text", "Short answer"], ["textarea", "Long answer"], ["select", "Choose one"], ["checkbox", "Tick box"], ["number", "Number"], ["date", "Date"], ["tel", "Phone"], ["email", "Email"]];
   function goBase() { return CFG.GO_BASE || "https://nevespedropt-prog.github.io/mygym-website-and-backoffice/go.html"; }
   function goLink(kind, slug) { return goBase() + "?" + (kind === "form" ? "f" : "p") + "=" + encodeURIComponent(slug); }
-  function slugOf(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+  function slugOf(t) { return String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30); }
   function linkRow(kind, slug) {
     var u = goLink(kind, slug);
     return h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-top:6px" }, [h("a", { class: "btn sm", href: u, target: "_blank", rel: "noopener", text: "Open" }),
@@ -1241,7 +1241,7 @@
   function formBuilder(f, done) {
     var isNew = !f, d = f || { slug: "", title: "", intro: "", fields: [], ask_phone: true, button: "Send", success: "Thank you. We have your message and will be in touch soon.", notify_staff: true, autoreply: true, active: true };
     var fields = (d.fields || []).map(function (x) { return Object.assign({}, x, { options: (x.options || []).slice() }); });
-    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: Summer challenge sign-up" }), slug = h("input", { class: "in", maxlength: "49", value: d.slug, disabled: !isNew, placeholder: "summer-challenge" });
+    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: Summer challenge sign-up" }), slug = h("input", { class: "in", maxlength: "35", value: d.slug, disabled: !isNew, placeholder: "summer-challenge" });
     title.addEventListener("input", function () { if (isNew && !slug.dataset.edited) slug.value = slugOf(title.value); }); slug.addEventListener("input", function () { slug.dataset.edited = "1"; });
     var intro = h("textarea", { class: "in", rows: "3", maxlength: "1000", placeholder: "A short line shown above the form" }); intro.value = d.intro;
     var button = h("input", { class: "in", maxlength: "40", value: d.button }), success = h("textarea", { class: "in", rows: "2", maxlength: "500" }); success.value = d.success;
@@ -1277,7 +1277,7 @@
   function pageBuilder(pg, forms, done) {
     var isNew = !pg, d = pg || { slug: "", title: "", blocks: [{ type: "heading", level: "1", text: "" }], active: true };
     var blocks = (d.blocks || []).map(function (b) { return Object.assign({}, b); });
-    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: January offer" }), slug = h("input", { class: "in", maxlength: "49", value: d.slug, disabled: !isNew, placeholder: "january-offer" });
+    var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: January offer" }), slug = h("input", { class: "in", maxlength: "35", value: d.slug, disabled: !isNew, placeholder: "january-offer" });
     title.addEventListener("input", function () { if (isNew && !slug.dataset.edited) slug.value = slugOf(title.value); }); slug.addEventListener("input", function () { slug.dataset.edited = "1"; });
     var active = h("input", { type: "checkbox", checked: !!d.active }), list = h("div"), out = h("div", { class: "msg", hidden: true });
     var BT = [["heading", "Heading"], ["text", "Text"], ["image", "Image"], ["button", "Button"], ["list", "Bullet list"], ["form", "A form"], ["divider", "Divider line"]];
