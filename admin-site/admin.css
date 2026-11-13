@@ -307,3 +307,7 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 .btn.off{opacity:.55}
 
 .grp{border-top:1px solid var(--line);padding:2px 0}.grp>summary{cursor:pointer;font-weight:700;padding:10px 0;list-style:revert}.grp .list{margin:0 0 8px}
+.drawer textarea.in{min-height:46px;line-height:1.45;font-size:15px;overflow-y:auto}
+.drawer textarea.in,.drawer .sect input.in{width:100%;box-sizing:border-box;display:block}
+.drawer .df{flex-wrap:wrap}
+@media (max-width:560px){.drawer .dh2,.drawer .df{padding-left:14px;padding-right:14px}.drawer .db{padding:16px 14px}.drawer .df .btn{flex:1 1 140px;justify-content:center}}
