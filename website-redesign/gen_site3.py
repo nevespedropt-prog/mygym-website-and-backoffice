@@ -8,7 +8,7 @@ exec(compile(src, "gen_site_base", "exec"))
 w2 = open(os.path.join(HERE, "gen_site2.py"), encoding="utf-8").read()
 CSS_W = w2.split("CSS_W = '''")[1].split("'''")[0]      # white theme CSS from v2
 
-TICKER = ["No contract needed", "Classes from £6", "30+ classes a week", "Open 5am – midnight", "Free induction & health check", "Personal training from £32.50", "Bush Hill Park · Enfield"]
+TICKER = ["No contract needed", "Classes from £6", "25+ classes a week", "Open 5am – midnight", "Free induction & health check", "Personal training from £32.50", "Bush Hill Park · Enfield"]
 def ticker():
     one = "".join(f"<span>{t}</span><i>✕</i>" for t in TICKER)
     return f'<div class="ticker"><div class="track">{one}{one}</div></div>'
@@ -37,12 +37,12 @@ def home_w():
 <h1>The private gym where everybody <em>knows your name.</em></h1>
 <p>Premium personal training and fun, effective classes for all abilities. Experienced trainers, new equipment, and a bespoke experience in every session.</p>
 <div class="hbtns"><a class="btn" href="#memberships">Join now</a><a class="btn ghost" href="#classes">View our classes</a></div>
-<div class="hstats"><div><b>30+</b><span>classes a week</span></div><div><b>£6</b><span>classes from</span></div><div><b>NO</b><span>contracts</span></div></div></div></div>
+<div class="hstats"><div><b>25+</b><span>classes a week</span></div><div><b>£6</b><span>classes from</span></div><div><b>NO</b><span>contracts</span></div></div></div></div>
 {ticker()}
 <section class="sec"><div class="wrap"><span class="chip">Welcome</span><h2>Welcome to MyGym London</h2><p class="lead">We provide premium personal training services tailored to your fitness goals, and fun, effective exercise classes for all abilities. With experienced personal trainers and new equipment, every session is a bespoke experience, carefully crafted to meet your needs.</p>
 <div class="pgrid">{pillars()}</div></div></section>
 <section class="sec alt"><div class="wrap two">
-<article class="feat"><img src="gym-kettlebell.jpg" alt="Kettlebell on the turf at MyGym London" class="kb"><div><h3>Classes that suit you</h3><p>Over 30 classes a week, from HIIT and strength to Pilates and cardio. Training for an event, unwinding or working up a sweat, there is a class for every age and ability.</p><a class="btn" href="#classes">View the classes</a></div></article>
+<article class="feat"><img src="gym-kettlebell.jpg" alt="Kettlebell on the turf at MyGym London" class="kb"><div><h3>Classes that suit you</h3><p>Over 25 classes a week, from HIIT and strength to Pilates and cardio. Training for an event, unwinding or working up a sweat, there is a class for every age and ability.</p><a class="btn" href="#classes">View the classes</a></div></article>
 <article class="feat"><img src="pt-card.jpg" alt="A MyGym London personal trainer spotting a client on the bench press" class="ptc"><div><h3>Expert personal training</h3><p>Our qualified Personal Trainer has years of experience and will design programmes that push your limits and get the results you want.</p><a class="btn" href="#pt">Expert personal training</a></div></article></div></section>
 <section class="sec appsec"><div class="wrap two center">
 <div class="phones"><img class="ph p1" src="app-dash.png" alt="MyGym app dashboard"><img class="ph p2" src="app-timetable.png" alt="MyGym app timetable"></div>
@@ -62,7 +62,7 @@ def home_w():
 </section>'''
 
 def classes_w():
-    return f'''<section class="view" id="classes"><div class="phead"><div class="himg"><img src="{PH["classes"]}" alt=""></div><div class="wrap"><span class="chip">Our classes</span><h1>Class schedule &amp; bookings</h1><p>Over 30 classes every week, from £6 a session. Pick a day, book your spot, and manage your bookings right here.</p></div></div>
+    return f'''<section class="view" id="classes"><div class="phead"><div class="himg"><img src="{PH["classes"]}" alt=""></div><div class="wrap"><span class="chip">Our classes</span><h1>Class schedule &amp; bookings</h1><p>Over 25 classes every week, from £6 a session. Pick a day, book your spot, and manage your bookings right here.</p></div></div>
 <div class="wrap sec" style="padding-bottom:20px">
 <div class="shead"><div><h2 id="timetable">Book a class</h2><p class="sub" id="wkSub">Pilates now available to book</p></div><div class="who" id="who" hidden><span class="dot"></span><span id="whoTxt"></span><button class="lnk" id="whoBtn" type="button">Switch to logged out</button></div></div>
 <div class="dates" id="sdates"></div><div class="chips" id="sfilter"></div>
@@ -79,16 +79,16 @@ NAV[:] = sorted(NAV, key=lambda kt: _ord.index(kt[0])) + [("faq", "FAQ")]
 
 SERVICES = [
  # name, price, per, description, features, style, cta, href
- ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], "best", "Join now", "#login", "Best value"),
- ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check"], "", "Join now", "#login", ""),
+ ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], "best", "Join now", "#login", "Best value"),
+ ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check"], "", "Join now", "#login", ""),
  ("Gym, Classes & 2 Personal Training Membership", "£75", "every month", "Everything in the gym and class membership, plus two personal training sessions.", ["Gym access", "All exercise classes", "2 personal training sessions"], "special", "Claim the offer", "#login", "Special offer"),
  ("Gym Membership", "£26", "every month", "Use the gym whenever you like, with no contract.", ["Gym access"], "", "Join now", "#login", ""),
- ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 30 classes a week"], "", "Join now", "#login", ""),
- ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 30 classes a week"], "", "Join now", "#login", ""),
+ ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 25 classes a week"], "", "Join now", "#login", ""),
+ ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 25 classes a week"], "", "Join now", "#login", ""),
  ("Small Group Personal Training", "£60", "per month", "Train with 2–4 friends and split the cost: £15 each per session.", ["2–4 people per group", "£15 each per session", "Minimum 4 sessions per month"], "", "Enquire", "#pt", ""),
  ("Kids Gym", "£20", "per month", "Kids gym sessions every Tuesday and Thursday from 4pm to 5pm. <a href=\"#kids-gym\">Read more</a>", ["Minimum 8 years old", "Tuesdays and Thursdays", "4pm to 5pm", "Up to 12 children", "Book ahead or just turn up"], "", "Join now", "#login", ""),
  ("PAYG Gym", "£4", "per visit", "Pay as you go. No membership and no commitment.", ["Gym access", "Pay only when you train"], "", "Book a visit", "#book", ""),
- ("PAYG Class", "£6", "per class, from", "Pay as you go. Pick any class and pay only for what you book. Most classes are £6 and Pilates is £7. No membership and no commitment.", ["Any of our 30+ classes a week", "Pay only when you train"], "", "Book a class", "#classes", ""),
+ ("PAYG Class", "£6", "per class, from", "Pay as you go. Pick any class and pay only for what you book. Most classes are £6 and Pilates is £7. No membership and no commitment.", ["Any of our 25+ classes a week", "Pay only when you train"], "", "Book a class", "#classes", ""),
 ]
 SERVICES.sort(key=lambda r: float(r[1].replace("£", "").replace(",", "")))   # cheapest first
 G[:] = ["gallery-%d.jpg" % i for i in range(1, 7)]   # "Space to train" photos (own gym photos)

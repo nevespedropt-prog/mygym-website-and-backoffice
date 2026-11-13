@@ -25,10 +25,10 @@ CLASSES = [
  ("Abs Attack", "Sculpted abs, empowered core!", "Tue, Fri", "Varies", "£6"),
 ]
 PLANS = [
- ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], True),
- ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check"], False),
- ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 30 classes a week"], False),
- ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 30 classes a week"], False),
+ ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], True),
+ ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check"], False),
+ ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 25 classes a week"], False),
+ ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 25 classes a week"], False),
 ]
 PILLARS = [
  ("Exclusivity Redefined", "Our exclusive membership gives you the space and attention you deserve. Say goodbye to crowded workout spaces and hello to a gym that prioritises your journey."),
