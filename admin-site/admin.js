@@ -993,61 +993,106 @@
   var AUTO = null;
   async function loadAuto() {
     if (AUTO) return AUTO;
-    var r = await fetch("auto-emails.json?v=20261113", { cache: "no-cache" });
+    var r = await fetch("auto-emails.json?v=20261113b", { cache: "no-cache" });
     if (!r.ok) throw new Error("The list of automatic emails could not be loaded.");
     AUTO = await r.json(); return AUTO;
   }
   function emailName(id) { var t = id.replace(/-/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); }
   var PH_RE = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
-  // wording editor for one automatic email (a side panel). Only subject, preview line, heading, button text and paragraphs can change; the rest stays as built.
+  // editor for one automatic email (a side panel): subject, preview line, heading, button text and the whole body, block by block (paragraphs, small headings, highlighted boxes, bullet lists, details tables, small print), in any order.
+  var BLOCK_NAME = { p: "Paragraph", h: "Small heading", note: "Highlighted box", muted: "Small print", list: "Bullet list", kv: "Details table" };
+  function blockKind(bl) { return ["p", "h", "note", "muted", "list", "kv"].filter(function (k) { return k in bl; })[0]; }
+  function blockTexts(bl) { var k = blockKind(bl); return k === "list" ? bl.list.slice() : k === "kv" ? [].concat.apply([], bl.kv.map(function (r) { return [r[0], r[1]]; })) : [bl[k]]; }
   function emailEditor(e, ov, globals, onChange) {
     ov = ov || {}; var b = ov.body || {}, F = {};
     var allowed = {}; e.needs.concat(globals).forEach(function (k) { allowed[k] = 1; });
-    function field(id, label, val, max, tag, hint) {
-      var el = h(tag || "input", { class: "in", id: id, maxlength: String(max) }); if (tag === "textarea") el.rows = 4; el.value = val || ""; F[id] = el;
+    var clone = function (x) { return JSON.parse(JSON.stringify(x)); };
+    var orig = e.body || e.paras.map(function (p) { return { p: p }; });
+    var cur;
+    if (Array.isArray(b.blocks) && b.blocks.length) cur = clone(b.blocks);
+    else {
+      cur = clone(orig);
+      if (Array.isArray(b.paragraphs) && b.paragraphs.length) {
+        var pi = 0, ps = b.paragraphs.filter(function (x) { return typeof x === "string" && x.trim(); }), last = -1;
+        cur.forEach(function (x, ix) { if ("p" in x) { last = ix; if (pi < ps.length) x.p = ps[pi]; pi++; } });
+        var extra = ps.slice(pi).map(function (t) { return { p: t }; }); if (extra.length) cur.splice.apply(cur, [last + 1, 0].concat(extra));
+      }
+    }
+    function field(id, label, val, max, hint) {
+      var el = h("input", { class: "in", id: id, maxlength: String(max) }); el.value = val || ""; F[id] = el;
       return h("div", { class: "field" }, [h("label", { for: id, text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]);
     }
-    var paraVals = e.paras.map(function (d, i) { return b.paragraphs && typeof b.paragraphs[i] === "string" && b.paragraphs[i].trim() ? b.paragraphs[i] : d; });
+    var host = h("div", { style: "display:grid;gap:12px" });
+    function move(i, d) { var j = i + d; if (j < 0 || j >= cur.length) return; var t = cur[i]; cur[i] = cur[j]; cur[j] = t; draw(); }
+    function blockCard(bl, i) {
+      var k = blockKind(bl), ctl;
+      if (k === "h") { ctl = h("input", { class: "in", maxlength: "1500" }); ctl.value = bl.h; ctl.addEventListener("input", function () { bl.h = ctl.value; }); }
+      else if (k === "list") { ctl = h("textarea", { class: "in", rows: String(Math.min(9, bl.list.length + 1)), maxlength: "7000" }); ctl.value = bl.list.join("\n"); ctl.addEventListener("input", function () { bl.list = ctl.value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }); }
+      else if (k === "kv") {
+        ctl = h("div", { style: "display:grid;gap:6px" });
+        bl.kv.forEach(function (r, ri) {
+          var l = h("input", { class: "in", maxlength: "120", placeholder: "Label", "aria-label": "Label" }), v = h("input", { class: "in", maxlength: "400", placeholder: "Value", "aria-label": "Value" });
+          l.value = r[0]; v.value = r[1]; l.addEventListener("input", function () { r[0] = l.value; }); v.addEventListener("input", function () { r[1] = v.value; });
+          ctl.appendChild(h("div", { style: "display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;align-items:center" }, [l, v, h("button", { class: "btn sm", type: "button", title: "Remove this row", text: "✕", onclick: function () { if (bl.kv.length > 1) { bl.kv.splice(ri, 1); draw(); } else toast("A table needs at least one row. Remove the whole table instead.", true); } })]));
+          if (r[2]) ctl.appendChild(h("small", { class: "muted", style: "margin-top:-3px", text: "Only shown when " + r[2].replace(/_/g, " ") + " is known." }));
+        });
+        ctl.appendChild(h("div", null, [h("button", { class: "btn sm", type: "button", text: "Add a row", onclick: function () { if (bl.kv.length < 14) { bl.kv.push(["Label", "Value"]); draw(); } } })]));
+      } else { ctl = h("textarea", { class: "in", rows: k === "p" && bl.p.length < 90 ? "2" : "4", maxlength: "1500" }); ctl.value = bl[k]; ctl.addEventListener("input", function () { bl[k] = ctl.value; }); }
+      return h("div", { class: "sect", style: "padding:10px 12px;border:1px solid var(--line);border-radius:10px" }, [
+        h("div", { style: "display:flex;gap:6px;align-items:center;margin-bottom:6px" }, [h("b", { style: "flex:1;font-size:13px", text: BLOCK_NAME[k] + (bl.if ? " (only when " + bl.if.replace(/_/g, " ") + " is known)" : "") }),
+          h("button", { class: "btn sm", type: "button", title: "Move up", text: "↑", disabled: i === 0, onclick: function () { move(i, -1); } }), h("button", { class: "btn sm", type: "button", title: "Move down", text: "↓", disabled: i === cur.length - 1, onclick: function () { move(i, 1); } }),
+          h("button", { class: "btn sm dng", type: "button", title: "Remove this block", text: "Remove", onclick: function () { cur.splice(i, 1); draw(); } })]), ctl]);
+    }
+    function draw() { clear(host); cur.forEach(function (bl, i) { host.appendChild(blockCard(bl, i)); }); if (!cur.length) host.appendChild(h("small", { class: "muted", text: "No blocks left. Add one below, or restore the original." })); }
+    draw();
+    var addSel = h("select", { class: "in", "aria-label": "Kind of block to add" }, Object.keys(BLOCK_NAME).map(function (k) { return h("option", { value: k, text: BLOCK_NAME[k] }); }));
+    var addBtn = h("button", { class: "btn sm", type: "button", text: "Add block", onclick: function () {
+      if (cur.length >= 40) return toast("Up to 40 blocks.", true); var k = addSel.value;
+      cur.push(k === "list" ? { list: ["First point"] } : k === "kv" ? { kv: [["Label", "Value"]] } : (function () { var o = {}; o[k] = "New text"; return o; })()); draw();
+    } });
     var blocks = [
-      h("div", { class: "banner" }, [h("div", null, [h("b", { text: "When it is sent: " }), document.createTextNode(e.when + ". ")]), ]),
-      field("eSubject", "Subject line", ov.subject || e.subject, 200, null, ""),
-      field("ePre", "Preview line (the grey text after the subject)", b.pre || e.pre, 300, null, ""),
-      field("eTitle", "Heading inside the email", b.title || e.title, 200, null, "")
+      h("div", { class: "banner" }, [h("div", null, [h("b", { text: "When it is sent: " }), document.createTextNode(e.when + ". ")])]),
+      field("eSubject", "Subject line", ov.subject || e.subject, 200, ""),
+      field("ePre", "Preview line (the grey text after the subject)", b.pre || e.pre, 300, ""),
+      field("eTitle", "Heading inside the email", b.title || e.title, 200, "")
     ];
-    if (e.cta) blocks.push(field("eCta", "Button text", b.cta_label || e.cta, 80, null, "The button link cannot be changed here."));
-    paraVals.forEach(function (v, i) { blocks.push(field("eP" + i, e.paras.length > 1 ? "Paragraph " + (i + 1) : "Paragraph", v, 1500, "textarea", i === 0 && /^Hi /.test(e.paras[0]) ? "This is the greeting line." : "")); });
-    if (!e.paras.length) blocks.push(h("small", { class: "muted", text: "This email has no paragraphs you can change; everything else about it is built in." }));
+    if (e.cta) blocks.push(field("eCta", "Button text", b.cta_label || e.cta, 80, "The button link cannot be changed here."));
+    blocks.push(h("div", { class: "field" }, [h("label", { text: "The email, block by block" }), host, h("div", { style: "display:flex;gap:6px;margin-top:8px" }, [addSel, addBtn])]));
     var ph = Object.keys(allowed).filter(function (k) { return e.needs.indexOf(k) > -1; });
-    blocks.push(h("div", { class: "field" }, [h("label", { text: "You can put these in any text, exactly like this" }), h("small", { class: "muted", style: "word-break:break-word", text: ph.length ? ph.map(function (k) { return "{{" + k + "}}"; }).join("  ") : "No personal details are filled in for this email." }), h("small", { class: "muted", text: "They are replaced by the real details when the email is sent. Fixed details such as {{gym_email}}, {{gym_address}} and {{app_url}} also work. Anything else in double curly brackets is refused." })]));
-    if (e.fixed.length) blocks.push(h("div", { class: "field" }, [h("label", { text: "Also in this email (fixed, cannot be changed here)" }), h("ul", { class: "muted", style: "margin:0;padding-left:18px;font-size:13px;display:grid;gap:4px" }, e.fixed.map(function (f) { return h("li", { text: f.k + ": " + f.t }); }))]));
+    blocks.push(h("div", { class: "field" }, [h("label", { text: "You can put these in any text, exactly like this" }), h("small", { class: "muted", style: "word-break:break-word", text: ph.length ? ph.map(function (k) { return "{{" + k + "}}"; }).join("  ") : "No personal details are filled in for this email." }), h("small", { class: "muted", text: "They are replaced by the real details when the email is sent. Anything else in double curly brackets is refused." })]));
     var out = h("div", { class: "msg", hidden: true });
     blocks.push(out);
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
     function val(id) { return (F[id].value || "").trim(); }
     function problem() {
-      var ids = ["eSubject", "ePre", "eTitle"].concat(e.cta ? ["eCta"] : []).concat(e.paras.map(function (_, i) { return "eP" + i; })), unknown = {};
-      ids.forEach(function (id) { (val(id).match(PH_RE) || []).forEach(function (m) { var k = m.replace(/[{}\s]/g, ""); if (!allowed[k]) unknown[k] = 1; }); });
-      var u = Object.keys(unknown); if (u.length) return "These do not exist for this email: " + u.map(function (k) { return "{{" + k + "}}"; }).join(", ") + ". Use only the ones listed above.";
+      var texts = [val("eSubject"), val("ePre"), val("eTitle")].concat(e.cta ? [val("eCta")] : []), unknown = {};
       if (!val("eSubject")) return "The subject cannot be empty.";
       if (!val("eTitle")) return "The heading cannot be empty.";
       if (e.cta && !val("eCta")) return "The button text cannot be empty.";
-      for (var i = 0; i < e.paras.length; i++) if (!val("eP" + i)) return "Every paragraph needs some text.";
+      if (!cur.length) return "The email needs at least one block.";
+      for (var i = 0; i < cur.length; i++) {
+        var k = blockKind(cur[i]), t = blockTexts(cur[i]);
+        if (!t.length || t.some(function (x) { return !String(x || "").trim(); })) return "Block " + (i + 1) + " (" + BLOCK_NAME[k].toLowerCase() + ") has something empty. Fill it in or remove the block.";
+        texts = texts.concat(t);
+      }
+      texts.forEach(function (x) { (String(x).match(PH_RE) || []).forEach(function (m) { var kk = m.replace(/[{}\s]/g, ""); if (!allowed[kk]) unknown[kk] = 1; }); });
+      var u = Object.keys(unknown); if (u.length) return "These do not exist for this email: " + u.map(function (kk) { return "{{" + kk + "}}"; }).join(", ") + ". Use only the ones listed above.";
       return "";
     }
     function diff(id, def) { var v = val(id); return v && v !== def ? v : ""; }
     async function save() {
       var bad = problem(); if (bad) { say(bad, "bad"); return false; }
-      var paras = e.paras.map(function (_, i) { return val("eP" + i); }), pchanged = paras.some(function (x, i) { return x !== e.paras[i]; });
-      var args = { p_template: e.id, p_subject: diff("eSubject", e.subject), p_pre: diff("ePre", e.pre), p_title: diff("eTitle", e.title), p_cta: e.cta ? diff("eCta", e.cta) : "", p_paras: pchanged ? paras : null };
-      await rpc("admin_email_override_save", args);
-      var body = {}; if (args.p_pre) body.pre = args.p_pre; if (args.p_title) body.title = args.p_title; if (args.p_cta) body.cta_label = args.p_cta; if (args.p_paras) body.paragraphs = args.p_paras;
-      onChange({ template_id: e.id, subject: args.p_subject || null, body: Object.keys(body).length ? body : null, enabled: ov.enabled !== false });
+      var changed = JSON.stringify(cur) !== JSON.stringify(orig);
+      var args = { p_template: e.id, p_subject: diff("eSubject", e.subject), p_pre: diff("ePre", e.pre), p_title: diff("eTitle", e.title), p_cta: e.cta ? diff("eCta", e.cta) : "", p_blocks: changed ? clone(cur) : null };
+      await rpc("admin_email_override_save_blocks", args);
+      var body = {}; if (args.p_pre) body.pre = args.p_pre; if (args.p_title) body.title = args.p_title; if (args.p_cta) body.cta_label = args.p_cta; if (args.p_blocks) body.blocks = args.p_blocks;
       ov = { subject: args.p_subject || null, body: Object.keys(body).length ? body : null, enabled: ov.enabled !== false };
+      onChange({ template_id: e.id, subject: ov.subject, body: ov.body, enabled: ov.enabled });
       return true;
     }
-    var bSave = h("button", { class: "btn pri", type: "button", text: "Save wording" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bReset = h("button", { class: "btn dng", type: "button", text: "Back to the original" });
+    var bSave = h("button", { class: "btn pri", type: "button", text: "Save changes" }), bTest = h("button", { class: "btn", type: "button", text: "Send me a test" }), bReset = h("button", { class: "btn dng", type: "button", text: "Back to the original" });
     function lock(x) { bSave.disabled = x; bTest.disabled = x; bReset.disabled = x; }
-    bSave.addEventListener("click", async function () { lock(true); try { if (await save()) say("Saved. New emails use this wording straight away.", "ok"); } catch (er) { say(er.message, "bad"); } lock(false); });
+    bSave.addEventListener("click", async function () { lock(true); try { if (await save()) say("Saved. New emails use this straight away.", "ok"); } catch (er) { say(er.message, "bad"); } lock(false); });
     bTest.addEventListener("click", async function () {
       lock(true); say("Saving and sending a test to your own email...");
       try { if (!(await save())) { lock(false); return; } } catch (er) { lock(false); return say(er.message, "bad"); }
@@ -1056,9 +1101,9 @@
       say(r.j.note ? r.j.note : "Test sent to " + (r.j.sent_to || "your email") + ". It uses example names and dates, and its subject starts with [TEST].", r.j.note ? "bad" : "ok");
     });
     bReset.addEventListener("click", async function () {
-      if (bReset.dataset.sure !== "1") { bReset.dataset.sure = "1"; bReset.textContent = "Yes, restore the original"; return say("This throws away your wording for this email. Press the red button again to confirm.", "bad"); }
+      if (bReset.dataset.sure !== "1") { bReset.dataset.sure = "1"; bReset.textContent = "Yes, restore the original"; return say("This throws away your changes to this email. Press the red button again to confirm.", "bad"); }
       lock(true);
-      try { await rpc("admin_email_override_reset", { p_template: e.id }); onChange({ template_id: e.id, subject: null, body: null, enabled: ov.enabled !== false }); toast("Original wording restored."); closeDrawer(); }
+      try { await rpc("admin_email_override_reset", { p_template: e.id }); onChange({ template_id: e.id, subject: null, body: null, enabled: ov.enabled !== false }); toast("Original restored."); closeDrawer(); }
       catch (er) { lock(false); say(er.message, "bad"); }
     });
     openDrawer(emailName(e.id), blocks, [bReset, bTest, bSave]);
@@ -1088,7 +1133,7 @@
           });
           return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: emailName(e.id) }), h("small", { text: e.when })]),
             isOff ? chip("Switched off", "warn") : null, isEdited ? chip("Your wording", "info") : null, e.marketing ? chip("Needs consent", "plain") : null,
-            h("button", { class: "btn sm", type: "button", text: "Edit wording", onclick: function () { emailEditor(e, map[e.id], data.globals, function (row) { map[e.id] = row; draw(); }); } }), sw]);
+            h("button", { class: "btn sm", type: "button", text: "Edit email", onclick: function () { emailEditor(e, map[e.id], data.globals, function (row) { map[e.id] = row; draw(); }); } }), sw]);
         })));
         box.appendChild(d);
       });
