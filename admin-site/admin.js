@@ -832,9 +832,37 @@
     } else if (o.status === "paused") { b.push(btn("Resume", "resume")); b.push(btn("Cancel now", "cancel_now")); }
     return b.length ? h("div", { class: "li", style: "justify-content:flex-start;flex-wrap:wrap;gap:6px" }, b) : null;
   }
+  async function emailMemberDialog(m) {
+    var F = {}, tpls = [];
+    try { tpls = await rpc("admin_templates_list"); } catch (e) { tpls = []; }
+    var fld = function (id, label, el, hint) { F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]); };
+    var sel = h("select", { class: "in" }, [h("option", { value: "", text: "Write my own" })].concat(tpls.map(function (t, i) { return h("option", { value: String(i), text: t.name }); })));
+    var subj = h("input", { class: "in", maxlength: "78" }), ttl = h("input", { class: "in", maxlength: "60" }), body = h("textarea", { class: "in", rows: "7", maxlength: "3000" }), btn = h("input", { class: "in", maxlength: "30" }), url = h("input", { class: "in", maxlength: "300", placeholder: "https://" });
+    sel.addEventListener("change", function () { var t = tpls[Number(sel.value)]; if (sel.value === "" || !t) return; subj.value = t.subject || ""; ttl.value = t.title || ""; body.value = t.body || ""; btn.value = t.button || ""; url.value = t.url || ""; });
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Send email" });
+    var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
+    var armed = false;
+    openModal("Email " + (m.name || m.email), [h("small", { class: "muted", text: "Goes to " + m.email + " from MY GYM London, and stays on this page. It is sent as a one-to-one service email, so no marketing consent is needed and there is no unsubscribe link. Do not use it for offers to people who have not agreed to them." }),
+      fld("tpl", "Start from a template", sel), fld("subj", "Subject", subj), fld("ttl", "Heading", ttl), fld("body", "Message", body, "Leave a blank line between paragraphs."), fld("btn", "Button text (optional)", btn), fld("url", "Button link (optional)", url), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    [subj, ttl, body, btn, url].forEach(function (el) { el.addEventListener("input", function () { armed = false; go.textContent = "Send email"; }); });
+    go.addEventListener("click", async function () {
+      if (!subj.value.trim() || !ttl.value.trim() || !body.value.trim()) return say("Add a subject, a heading and a message first.", "bad");
+      if (btn.value.trim() && !/^https:\/\//i.test(url.value.trim())) return say("A button needs a link that starts with https://", "bad");
+      if (!armed) { armed = true; go.textContent = "Yes, send to " + m.email; return say("This emails " + m.email + " now and cannot be undone. Press the button again to send. Change anything to cancel.", "bad"); }
+      go.disabled = true; say("Sending...");
+      try {
+        var r = await rpc("admin_campaign_save", { p_id: null, p_subject: subj.value, p_preheader: "", p_title: ttl.value, p_body: body.value, p_button: btn.value.trim(), p_url: btn.value.trim() ? url.value.trim() : "", p_segment: "custom", p_scheduled_for: null, p_kind: "notice", p_extra: m.email });
+        var s = await fn("admin-campaign", { action: "send", campaign_id: r.id }, 90);
+        if (!s.ok) { go.disabled = false; armed = false; go.textContent = "Send email"; return say(s.j.error || "Something went wrong.", "bad"); }
+        if (!(s.j.sent > 0)) { go.disabled = false; armed = false; go.textContent = "Send email"; return say("Nothing was sent. This address may be blocked because the person once marked an email as spam.", "bad"); }
+        closeModal(); toast("Email sent to " + m.email + ".");
+      } catch (e) { go.disabled = false; armed = false; go.textContent = "Send email"; say(e.message, "bad"); }
+    });
+  }
   async function memberProfile(m) {
     var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
-    var foot = m.email ? [h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })] : [];
+    var foot = m.email ? [can(["admin"]) ? h("button", { class: "btn pri", type: "button", onclick: function () { emailMemberDialog(m); }, text: "Email" }) : h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })] : [];
     if (m.user_id && can(["admin", "manager"])) foot.unshift(h("button", { class: "btn", onclick: function () { showHealth({ id: m.user_id, name: m.name, email: m.email }); }, text: "Health form (logged)" }));
     openDrawer(m.name || m.email, [host], foot);
     try {

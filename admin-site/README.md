@@ -64,3 +64,5 @@ This site stays on Cloudflare Pages. Only the DNS record matters: if the domain'
 - **Birthdays:** date of birth is asked in the app profile; a birthday email goes to subscribed members at 09:15.
 - **Coaches:** the class editor suggests coaches and accepts new names; "Coaches by day" sets who teaches each day (default Pedro Sunday to Friday, James Saturday).
 - Edge function sources for `admin-add-member` and `forms-public` can be read back from Supabase (Edge Functions) if the repo copy is missing.
+
+- **Email one person (added 2026-11-13):** the Email button on a member profile (owner only; other roles still get a mail link) opens a box on the same page: pick a template or write your own, press send twice. It is saved and sent as a one-person service notice (segment `custom`, that address only), so it appears in Marketing history, needs no marketing consent and has no unsubscribe link. Spam complainers are still never emailed. To email any typed address from the Marketing page, choose Service notice and type it in the extra addresses box.
