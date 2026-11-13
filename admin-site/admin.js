@@ -612,7 +612,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -743,9 +743,51 @@
       host.appendChild(h("p", { class: "muted", text: d.length ? d.length + " groups where the same phone number or the same full name appears under different email addresses. Often it is one person who signed up twice. This list only shows them: to combine two into one, merge them in Wix (Contacts, select both, Merge). The list updates after the next 30-minute sync." : "No possible duplicates found." }));
       d.forEach(function (g) {
         host.appendChild(h("div", { class: "sect" }, [h("h4", { text: g.kind === "phone" ? "Same phone number" : "Same name" }), h("div", { class: "list" }, g.people.map(function (x) {
-          return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: x.name || x.email }), h("small", { text: x.email + (x.phone ? " · " + x.phone : "") })]), x.status ? chip(STATUS_LABEL[x.status] || x.status, STATUS_CHIP[x.status] || "plain") : chip("No plan", "plain")]);
+          return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: x.name || x.email }), h("small", { text: x.email + (x.phone ? " · " + x.phone : "") })]), x.status ? chip(STATUS_LABEL[x.status] || x.status, STATUS_CHIP[x.status] || "plain") : chip("No plan", "plain"), h("button", { class: "btn sm", text: "Open", onclick: function () { memberProfile({ email: x.email, key: x.email, name: x.name, phone: x.phone }); } })]);
         }))]));
       });
+    } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
+  }
+  function hideMember(m) {
+    var key = m.key || m.email, go = h("button", { class: "btn pri", text: "Hide from list" }), out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" });
+    openModal("Hide " + (m.name || m.email) + "?", [h("p", { text: "They disappear from Members and from the possible-duplicates list, and stay hidden after every Wix sync. Nothing changes in Wix or the app, and they keep any plan, booking or app login. You can bring them back any time from Members, Hidden." }), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    go.addEventListener("click", async function () {
+      go.disabled = true;
+      try { await rpc("admin_member_hide", { p_email: key }); doneEdit("Hidden."); } catch (e) { go.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+  }
+  async function deleteMemberDialog(m) {
+    var key = m.key || m.email, out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), box = h("div", null, [h("div", { class: "muted", text: "Checking what would be removed..." })]);
+    var go = h("button", { class: "btn dng", text: "Delete for good", disabled: true }), typed = h("input", { class: "in", placeholder: "Type DELETE", autocomplete: "off" });
+    var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
+    openModal("Delete " + (m.name || m.email) + " for good?", [box, out], [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    var p = await fn("admin-delete-member", { action: "preview", key: key }, 40); clear(box);
+    if (!p.ok) { box.appendChild(h("div", { class: "msg bad", text: p.j.error || "Something went wrong." })); return; }
+    if (p.j.blockers && p.j.blockers.length) {
+      box.appendChild(h("p", { text: "This person cannot be deleted yet:" })); p.j.blockers.forEach(function (b) { box.appendChild(h("div", { class: "msg bad", style: "margin-bottom:8px", text: b })); });
+      box.appendChild(h("small", { class: "muted", text: "Hide takes them off the list without deleting anything." })); return;
+    }
+    box.appendChild(h("p", { text: "This cannot be undone from here. It will:" })); box.appendChild(h("ul", null, p.j.will.map(function (w) { return h("li", { text: w }); })));
+    box.appendChild(h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: "To confirm, type DELETE" }), typed]));
+    typed.addEventListener("input", function () { go.disabled = typed.value.trim() !== "DELETE"; });
+    go.addEventListener("click", async function () {
+      go.disabled = true; say("Deleting...");
+      var r = await fn("admin-delete-member", { action: "delete", key: key, confirm: "DELETE" }, 90);
+      if (!r.ok) { go.disabled = false; return say((r.j.error || "Something went wrong.") + (r.j.steps ? " " + r.j.steps.map(function (s) { return s.name + ": " + (s.ok ? "ok" : s.detail); }).join(" · ") : ""), "bad"); }
+      doneEdit("Deleted.");
+    });
+  }
+  async function hiddenDialog() {
+    var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
+    openDrawer("Hidden members", [host], [h("button", { class: "btn", onclick: closeDrawer, text: "Close" })]);
+    try {
+      var d = await rpc("admin_hidden_members"); clear(host);
+      if (!d.length) { host.appendChild(h("p", { class: "muted", text: "Nobody is hidden." })); return; }
+      host.appendChild(h("p", { class: "muted", text: "These people are off the Members list. Press Show again to bring one back." }));
+      host.appendChild(h("div", { class: "list" }, d.map(function (x) {
+        return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: x.name || x.email }), h("small", { text: x.email })]), h("button", { class: "btn sm", text: "Show again", onclick: async function () { try { await rpc("admin_member_unhide", { p_email: x.email }); toast("Shown again."); closeDrawer(); route(); } catch (e) { toast(e.message, true); } } })]);
+      })));
     } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
   }
   function doneEdit(msg) { toast(msg); closeModal(); closeDrawer(); route(); }
@@ -864,6 +906,8 @@
     var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
     var foot = m.email ? [can(["admin"]) ? h("button", { class: "btn pri", type: "button", onclick: function () { emailMemberDialog(m); }, text: "Email" }) : h("a", { class: "btn pri", href: "mailto:" + m.email, text: "Email" })] : [];
     if (m.user_id && can(["admin", "manager"])) foot.unshift(h("button", { class: "btn", onclick: function () { showHealth({ id: m.user_id, name: m.name, email: m.email }); }, text: "Health form (logged)" }));
+    if (can(["admin", "manager"])) foot.unshift(h("button", { class: "btn", type: "button", onclick: function () { hideMember(m); }, text: "Hide" }));
+    if (can(["admin"])) foot.unshift(h("button", { class: "btn dng", type: "button", onclick: function () { deleteMemberDialog(m); }, text: "Delete" }));
     openDrawer(m.name || m.email, [host], foot);
     try {
       var p = await rpc("admin_member_profile", { p_email: m.key || m.email }); clear(host);
