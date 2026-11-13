@@ -92,7 +92,7 @@ def footer():
 <div><h4>Menu</h4>{nav_links()}</div>
 <div><h4>Contact us</h4><p>{I_PIN}Main Avenue, Bush Hill Park<br>Enfield, EN1 1DS</p><p>{I_PHONE}<a href="tel:+447459020381">07459 020381</a></p><p>{I_MAIL}info@mygymlondon.co.uk</p><p>{I_IG}@mygym_london</p></div>
 <div><h4>Opening hours</h4><p>Every day<br><b>5am – midnight</b></p><a class="btn sm app" href="#home">Get the MyGym app</a></div>
-</div><div class="legal"><a href="#terms">Terms and conditions</a> · <a href="#privacy">Privacy policy</a> · <a href="#cookies">Cookie notice</a> · © 2024 by MyGymLondon.co.uk</div></footer>'''
+</div><div class="legal"><a href="#terms">Terms and conditions</a> · <a href="#privacy">Privacy policy</a> · <a href="#cookies">Cookie notice</a> · © <span class="yr">{__import__("datetime").date.today().year}</span> by MyGymLondon.co.uk</div></footer><script>document.querySelectorAll(".yr").forEach(function(e){{e.textContent=new Date().getFullYear()}})</script>'''
 
 def header():
     return f'''<header><div class="hw"><a href="#home"><img class="logo" src="logo.png" alt="MyGym London"></a><nav class="mnav">{nav_links()}</nav><div class="hr"><a class="login" href="#login">Log in</a><a class="btn sm" href="#memberships">Join now</a></div></div></header>'''

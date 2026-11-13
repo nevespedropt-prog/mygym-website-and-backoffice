@@ -64,10 +64,10 @@ def home_w():
 def classes_w():
     return f'''<section class="view" id="classes"><div class="phead"><div class="himg"><img src="{PH["classes"]}" alt=""></div><div class="wrap"><span class="chip">Our classes</span><h1>Class schedule &amp; bookings</h1><p>Over 30 classes every week, from £6 a session. Pick a day, book your spot, and manage your bookings right here.</p></div></div>
 <div class="wrap sec" style="padding-bottom:20px">
-<div class="shead"><div><h2 id="timetable">Book a class</h2><p class="sub">Week starting Monday 5 October · Pilates now available to book · Sample timetable for the design preview</p></div><div class="who"><span class="dot"></span><span id="whoTxt">Preview: signed in as a member</span><button class="lnk" id="whoBtn" type="button">Switch to logged out</button></div></div>
+<div class="shead"><div><h2 id="timetable">Book a class</h2><p class="sub" id="wkSub">Pilates now available to book</p></div><div class="who" id="who" hidden><span class="dot"></span><span id="whoTxt"></span><button class="lnk" id="whoBtn" type="button">Switch to logged out</button></div></div>
 <div class="dates" id="sdates"></div><div class="chips" id="sfilter"></div>
 <div id="sslots" class="slots"></div></div>
-<div class="wrap" style="padding-bottom:30px"><div class="mybk" id="mybk"><div class="toast" id="toast"></div>
+<div class="wrap" id="mybkWrap" hidden style="padding-bottom:30px"><div class="mybk" id="mybk"><div class="toast" id="toast"></div>
 <div class="mbh"><h2>Your bookings</h2><span class="tag" id="mbTag">Members only</span></div>
 <p class="sub">Booking confirmations, cancellations and changes all live here.</p><div id="mblist"></div>
 <div class="mbout"><p><b>Log in to book and manage classes.</b> Members can book, cancel and reschedule any class in two taps.</p><a class="btn" href="#login">Log in</a></div></div></div>
@@ -196,21 +196,23 @@ LOGIN_JS = r"""
 """
 BOOK_JS = r'''
 (function(){var g=document.getElementById("gslots");if(!g)return;
-var D=[["Mon",5],["Tue",6],["Wed",7],["Thu",8],["Fri",9],["Sat",10],["Sun",11]],FD={5:"Monday 5 October",6:"Tuesday 6 October",7:"Wednesday 7 October",8:"Thursday 8 October",9:"Friday 9 October",10:"Saturday 10 October",11:"Sunday 11 October"};
-var sel=5,bk={},$=function(i){return document.getElementById(i)};
+var DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],DF=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],MF=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var now=new Date(),dw=(now.getDay()+6)%7,WK=[];for(var wi=0;wi<7;wi++)WK.push(new Date(now.getFullYear(),now.getMonth(),now.getDate()-dw+wi));
+var D=WK.map(function(d,i){return [DOW[i],i+5,d.getDate()]}),FD={},DS={};WK.forEach(function(d,i){FD[i+5]=DF[i]+" "+d.getDate()+" "+MF[d.getMonth()];DS[i+5]=DOW[i]+" "+d.getDate()+" "+MN[d.getMonth()]});
+var sel=dw+5,bk={},$=function(i){return document.getElementById(i)};
 function hh(h){return("0"+h).slice(-2)+":00"}
 function spots(h,d){return 2+((h*3+d)%5)}
 function toast(m){var t=$("gtoast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove("on")},3500)}
-function strip(){var s="";D.forEach(function(d){s+='<button type="button" class="dt'+(d[1]===sel?" sel":"")+'" data-d="'+d[1]+'"><small>'+d[0]+'</small><b>'+d[1]+'</b></button>'});$("gdates").innerHTML=s}
+function strip(){var s="";D.forEach(function(d){s+='<button type="button" class="dt'+(d[1]===sel?" sel":"")+'" data-d="'+d[1]+'"><small>'+d[0]+'</small><b>'+d[2]+'</b></button>'});$("gdates").innerHTML=s}
 function rows(){var s="";for(var h=5;h<=23;h++){var b=bk[sel+"-"+h],n=spots(h,sel)-(b?1:0);
  if((sel===6||sel===8)&&h===16){s+='<div class="slot"><span class="tm">16:00</span><div><b>Kids Gym</b><small>1 hr · Children only</small></div><span style="font-size:12px;font-weight:700;color:#66656d;text-align:right">Closed to adults</span></div>';continue}
  s+='<div class="slot"><span class="tm">'+hh(h)+'</span><div><b>Open Gym Access</b><small>1 hr · '+(b?'Booked ✓':(n<=3?'<em>only '+n+' spots left</em>':n+' spots left'))+'</small></div>'
   +(b?'<button type="button" class="btn sm ghost gcx" data-h="'+h+'">Cancel</button>':'<button type="button" class="btn sm gbk" data-h="'+h+'">Book</button>')+'</div>'}
- g.innerHTML=s;$("gsub").textContent="Week starting Monday 5 October · "+FD[sel]+" · Sample availability for the design preview"}
+ g.innerHTML=s;$("gsub").textContent="Week starting Monday "+WK[0].getDate()+" "+MF[WK[0].getMonth()]+" · "+FD[sel]}
 function paint(){strip();rows()}
 document.addEventListener("click",function(e){var v=document.getElementById("book");if(!v||!v.contains(e.target))return;
  var d=e.target.closest("#gdates .dt");if(d){sel=+d.dataset.d;paint();return}
- var b=e.target.closest("#gslots .gbk");if(b){var h=+b.dataset.h;bk[sel+"-"+h]=1;paint();toast("Booked! Gym slot "+FD[sel].split(" ")[0].slice(0,3)+" "+sel+" Oct, "+hh(h)+".");return}
+ var b=e.target.closest("#gslots .gbk");if(b){var h=+b.dataset.h;bk[sel+"-"+h]=1;paint();toast("Booked! Gym slot "+DS[sel]+", "+hh(h)+".");return}
  var c=e.target.closest("#gslots .gcx");if(c){var k=+c.dataset.h;delete bk[sel+"-"+k];paint();toast("Booking cancelled. Your slot was released.");return}});
 paint();
 })();
@@ -324,16 +326,18 @@ CSS_ADD = '''
 
 SCHED_JS = r'''
 (function(){
-var D=[["Mon",5],["Tue",6],["Wed",7],["Thu",8],["Fri",9],["Sat",10],["Sun",11]];
+var DOW=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"],MN=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],MF=["January","February","March","April","May","June","July","August","September","October","November","December"];
+var now=new Date(),dw=(now.getDay()+6)%7,WK=[];for(var wi=0;wi<7;wi++)WK.push(new Date(now.getFullYear(),now.getMonth(),now.getDate()-dw+wi));
+var D=WK.map(function(d,i){return [DOW[i],i+5,d.getDate()]});
 var C={cardio:["Cardio n Abs","cardio","45 min"],hiit:["HIIT","cardio","30 min"],box:["BoxFit","cardio","30 min"],vit:["Vitality 50+ Circuit","fifty","1 hr"],str:["Strength","strength","1 hr"],pil:["Pilates","mind","1 hr"],kids:["Kids Gym","kids","1 hr"],abs:["Abs Attack","strength","45 min"],body:["Body Conditioning","strength","45 min"]};
 var W={11:[["09:00","str",8]],5:[["07:00","cardio",6],["09:30","vit",8],["12:30","hiit",5],["18:00","box",4],["19:15","pil",7]],6:[["07:00","cardio",6],["16:00","kids",12],["18:00","hiit",3],["19:15","abs",8]],7:[["07:00","hiit",6],["07:30","cardio",5],["09:30","str",8],["18:00","box",2]],8:[["07:00","cardio",7],["16:00","kids",12],["18:00","hiit",4]],9:[["07:00","cardio",6],["09:30","vit",8],["12:30","str",5],["18:00","body",6],["19:15","abs",3]],10:[["09:00","str",8],["10:15","pil",6]]};
 var F=[["all","All classes"],["cardio","HIIT & cardio"],["strength","Strength"],["mind","Pilates"],["fifty","50+"],["kids","Kids"]];
-var sel=5,flt="all",member=true,bk=[{id:1,day:11,t:"09:00",k:"str"},{id:2,day:6,t:"18:00",k:"hiit"}],uid=3,resc=null;
+var PREVIEW=/[?&]preview\b/.test(location.search),sel=dw+5,flt="all",member=PREVIEW,bk=PREVIEW?[{id:1,day:11,t:"09:00",k:"str"},{id:2,day:6,t:"18:00",k:"hiit"}]:[],uid=3,resc=null;
 var $=function(i){return document.getElementById(i)};
-var DN={11:"Sun 11 Oct",5:"Mon 5 Oct",6:"Tue 6 Oct",7:"Wed 7 Oct",8:"Thu 8 Oct",9:"Fri 9 Oct",10:"Sat 10 Oct"};
+var DN={};D.forEach(function(d,i){DN[d[1]]=d[0]+" "+d[2]+" "+MN[WK[i].getMonth()]});
 function toast(m){var t=$("toast");t.textContent=m;t.classList.add("on");clearTimeout(toast.h);toast.h=setTimeout(function(){t.classList.remove("on")},3500)}
 function has(day,t,k){return bk.some(function(b){return !b.gone&&b.day===day&&b.t===t&&b.k===k})}
-function strip(){var h="";D.forEach(function(d){h+='<button type="button" class="dt'+(d[1]===sel?" sel":"")+'" data-d="'+d[1]+'"><small>'+d[0]+'</small><b>'+d[1]+'</b></button>'});$("sdates").innerHTML=h}
+function strip(){var h="";D.forEach(function(d){h+='<button type="button" class="dt'+(d[1]===sel?" sel":"")+'" data-d="'+d[1]+'"><small>'+d[0]+'</small><b>'+d[2]+'</b></button>'});$("sdates").innerHTML=h}
 function chips(){var h="";F.forEach(function(f){h+='<button type="button" class="fc'+(f[0]===flt?" on":"")+'" data-f="'+f[0]+'">'+f[1]+'</button>'});$("sfilter").innerHTML=h}
 function slots(){var h="",rows=(W[sel]||[]).filter(function(r){return flt==="all"||C[r[1]][1]===flt});
  rows.forEach(function(r){var c=C[r[1]],b=has(sel,r[0],r[1]);
@@ -348,7 +352,7 @@ function list(){var h="";
    +(resc===b.id?'<div class="rsbar">Rescheduling <b>'+c[0]+'</b>: pick a new day above, then tap “Move here”. <button type="button" class="lnk" data-rc="1">Keep original</button></div>':'')});
  if(!bk.length)h='<p class="note">No upcoming bookings yet. Pick a class above.</p>';
  $("mblist").innerHTML=h}
-function paint(){strip();chips();slots();list();$("mybk").classList.toggle("out",!member);$("whoTxt").textContent=member?"Preview: signed in as a member":"Preview: not signed in";$("whoBtn").textContent=member?"Switch to logged out":"Switch to logged in";$("mbTag").textContent=member?bk.filter(function(b){return !b.gone}).length+" upcoming":"Members only"}
+function paint(){strip();chips();slots();list();$("mybk").classList.toggle("out",!member);$("who").hidden=!PREVIEW;$("mybkWrap").hidden=!member;if(PREVIEW){$("whoTxt").textContent=member?"Preview: signed in as a member":"Preview: not signed in";$("whoBtn").textContent=member?"Switch to logged out":"Switch to logged in"}$("wkSub").textContent="Week starting Monday "+WK[0].getDate()+" "+MF[WK[0].getMonth()]+" · Pilates now available to book";$("mbTag").textContent=member?bk.filter(function(b){return !b.gone}).length+" upcoming":"Members only"}
 document.addEventListener("click",function(e){var t=e.target.closest("button");if(!t||!$("sdates"))return;
  if(t.dataset.d){sel=+t.dataset.d;paint();return}
  if(t.dataset.f){flt=t.dataset.f;paint();return}
