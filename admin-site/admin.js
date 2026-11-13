@@ -575,7 +575,7 @@
   }
 
   /* ---------- members ---------- */
-  var memberQ = "";
+  var memberQ = "", memberRefocus = false;
   /* ---------- members: your real client list (Wix clients + app accounts) ---------- */
   var memberQ = memberQ || "", memberTab = "active", memberType = "all";
   var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", other: "Other plan" };
@@ -623,7 +623,8 @@
     tabs.forEach(function (t) { var n = cnt(function (m) { return inTab(m, t[0]); }); bar.appendChild(h("button", { class: "btn sm" + (memberTab === t[0] ? " pri" : ""), onclick: function () { memberTab = t[0]; route(); }, text: t[1] + " " + n })); });
     var typeSel = h("select", { class: "sel", "aria-label": "Membership type", onchange: function () { memberType = typeSel.value; route(); } }, [["all", "All types"], ["gym_classes", "Gym + Classes"], ["classes", "Classes only"], ["pt", "Personal training"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: o[0] === memberType }); }));
     var search = h("input", { class: "in", type: "search", placeholder: "Search name, email or phone", value: memberQ, "aria-label": "Search members" }); var t;
-    search.addEventListener("input", function () { clearTimeout(t); t = setTimeout(function () { memberQ = search.value; route(); }, 300); });
+    search.addEventListener("input", function () { clearTimeout(t); t = setTimeout(function () { memberQ = search.value; memberRefocus = true; route(); }, 300); });
+    if (memberRefocus) { memberRefocus = false; setTimeout(function () { search.focus(); try { search.setSelectionRange(search.value.length, search.value.length); } catch (e) {} }, 0); }
     var q = memberQ.trim().toLowerCase();
     var rows = all.filter(function (m) { return inTab(m, memberTab) && (memberType === "all" || m.plan_type === memberType) && (!q || (m.name + " " + m.email + " " + m.phone).toLowerCase().indexOf(q) > -1); });
     var shown = rows.slice(0, 300), body = h("tbody");
