@@ -24,7 +24,7 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 
 /* ---------- shell ---------- */
 .app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh}
-.side{background:var(--panel);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding:18px 14px;z-index:30}
+.side{background:var(--panel);border-right:1px solid var(--line);position:sticky;top:0;height:100vh;height:100dvh;display:flex;flex-direction:column;padding:18px 14px;z-index:30}
 .brand{display:flex;align-items:center;gap:10px;padding:2px 8px 18px}
 .brand img{height:38px;width:auto;border-radius:6px}
 .brand b{font:800 20px/1 var(--disp);letter-spacing:.06em;text-transform:uppercase;display:block}
@@ -174,7 +174,7 @@ table.t{width:100%;border-collapse:collapse;min-width:720px}
 /* ---------- drawer & modal ---------- */
 .scrim{position:fixed;inset:0;background:rgba(20,20,25,.38);opacity:0;pointer-events:none;transition:opacity .18s;z-index:60}
 .scrim.on{opacity:1;pointer-events:auto}
-.drawer{position:fixed;top:0;right:0;height:100vh;width:min(520px,100vw);background:var(--panel);box-shadow:var(--sh2);transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1);z-index:70;display:flex;flex-direction:column}
+.drawer{position:fixed;top:0;right:0;height:100vh;height:100dvh;width:min(520px,100vw);background:var(--panel);box-shadow:var(--sh2);transform:translateX(102%);transition:transform .22s cubic-bezier(.2,.8,.2,1);z-index:70;display:flex;flex-direction:column}
 .drawer.on{transform:none}
 .drawer .dh2{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
 .drawer .dh2 h2{font:800 24px var(--disp);letter-spacing:.04em;text-transform:uppercase;flex:1;line-height:1.05}
@@ -234,7 +234,7 @@ table.t{width:100%;border-collapse:collapse;min-width:720px}
 @media (max-width:1180px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g-main,.g-eq{grid-template-columns:1fr}}
 @media (max-width:900px){
   .app{grid-template-columns:1fr}
-  .side{position:fixed;left:0;top:0;transform:translateX(-102%);transition:transform .2s;width:272px;box-shadow:var(--sh2)}
+  .side{position:fixed;left:0;top:0;transform:translateX(-102%);transition:transform .2s;width:272px;box-shadow:var(--sh2);z-index:65}
   .side.on{transform:none}
   .burger{display:grid}
   .top{padding:10px 14px}.page{padding:18px 14px 60px}
