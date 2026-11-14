@@ -578,7 +578,7 @@
   var memberQ = "", memberRefocus = false;
   /* ---------- members: your real client list (Wix clients + app accounts) ---------- */
   var memberQ = memberQ || "", memberTab = "active", memberType = "all";
-  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", payg: "Pay as you go", other: "Other plan" };
+  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", gym: "Gym only", payg: "Pay as you go", other: "Other plan" };
   var STATUS_LABEL = { active: "Active", failed: "Payment failed", paused: "Paused", cancelled: "Cancelled", ended: "Ended", lead: "Not a member" };
   var STATUS_CHIP = { active: "ok", failed: "bad", paused: "warn", cancelled: "plain", ended: "plain", lead: "plain" };
   function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
