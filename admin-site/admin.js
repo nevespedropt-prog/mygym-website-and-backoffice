@@ -612,7 +612,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { requestsDialog(); }, text: "Requests" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -789,6 +789,25 @@
         return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: x.name || x.email }), h("small", { text: x.email })]), h("button", { class: "btn sm", text: "Show again", onclick: async function () { try { await rpc("admin_member_unhide", { p_email: x.email }); toast("Shown again."); closeDrawer(); route(); } catch (e) { toast(e.message, true); } } })]);
       })));
     } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); }
+  }
+  async function requestsDialog() {
+    var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
+    openDrawer("Membership requests", [host], [h("button", { class: "btn", onclick: closeDrawer, text: "Close" })]);
+    var LBL = { pause: "Pause", cancel: "Cancel", change: "Change plan" };
+    async function draw() {
+      var d; try { d = await rpc("admin_membership_requests", { p_status: "received" }); } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); return; }
+      clear(host);
+      host.appendChild(h("p", { class: "muted", text: d.length ? "Members asked for these. Nothing has been changed yet: open the member, press Pause or Cancel on their plan (or change it), then Mark done." : "No requests waiting." }));
+      d.forEach(function (q) {
+        host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [h("b", { text: q.name }), chip(LBL[q.type] || q.type, q.type === "cancel" ? "bad" : "warn"), h("span", { class: "muted", text: "from " + fDate(q.from_date) })]),
+          h("div", { class: "muted", text: (q.plan || "") + " · sent " + fDateTime(q.created_at) + (q.reason ? " · " + q.reason : "") }), q.message ? h("div", { style: "white-space:pre-wrap;margin-top:6px", text: q.message }) : null,
+          h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-top:10px" }, [
+            h("button", { class: "btn sm", type: "button", text: "Open member", onclick: function () { closeDrawer(); memberProfile({ email: q.email, key: q.email, name: q.name }); } }),
+            h("button", { class: "btn sm pri", type: "button", text: "Mark done", onclick: async function () { try { await rpc("admin_membership_request_resolve", { p_id: q.id, p_status: "done", p_note: null }); toast("Marked done."); draw(); } catch (e) { toast(e.message, true); } } }),
+            h("button", { class: "btn sm dng", type: "button", text: "Decline", onclick: async function () { try { await rpc("admin_membership_request_resolve", { p_id: q.id, p_status: "declined", p_note: null }); toast("Declined."); draw(); } catch (e) { toast(e.message, true); } } })])]));
+      });
+    }
+    draw();
   }
   function doneEdit(msg) { toast(msg); closeModal(); closeDrawer(); route(); }
   async function accessCheck() {
