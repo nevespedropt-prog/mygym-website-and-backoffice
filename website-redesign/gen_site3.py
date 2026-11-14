@@ -375,7 +375,7 @@ CSS_ADD += '''
 header.open .burger i{background:transparent}header.open .burger i:before{top:0;transform:rotate(45deg)}header.open .burger i:after{top:0;transform:rotate(-45deg)}
 .dates{overflow-x:auto;scrollbar-width:none}.dates::-webkit-scrollbar{display:none}.dt{flex:0 0 auto}
 @media(max-width:900px){
- .burger{display:block}.hw{gap:10px;padding:8px 16px}.logo{height:46px}.hr{margin-left:auto}.hr .login{display:none}.hr .btn.sm{padding:9px 16px 9px 14px;font-size:15px}
+ .burger{display:block}.hw{gap:10px;padding:8px 16px}.logo{height:46px}.hr{margin-left:auto}.hr .login{display:inline-block;padding:9px 4px;font-size:15px;font-weight:700}.hr .btn.sm{padding:9px 16px 9px 14px;font-size:15px}
  header.open .mnav{display:flex;flex-direction:column;align-items:stretch;position:absolute;top:100%;left:0;right:0;background:#fff;padding:8px 20px 18px;border-bottom:3px solid var(--acc);box-shadow:0 20px 30px rgba(0,0,0,.1)}
  header.open .mnav a{padding:14px 4px;border-bottom:1px solid var(--line);font-size:15px}
  .sec{padding:56px 0}.hero h1{font-size:50px}.hcopy{padding:26px 20px 34px}.hstats{gap:26px}.hstats b{font-size:44px}
