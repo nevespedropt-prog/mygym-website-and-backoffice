@@ -288,16 +288,67 @@
     root.appendChild(wrap);
     var gb = gym.reduce(function (a, c) { return a + c.booked; }, 0);
     var g = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["Hour", "Booked", "Capacity", "Who"].map(function (x) { return h("th", { text: x }); }))]),
-      h("tbody", null, gym.map(function (c) { return h("tr", { style: "cursor:default" }, [h("td", { class: "num", text: String(c.start).slice(0, 5) }), h("td", { class: "num", text: c.booked }), h("td", { class: "num", text: c.capacity }), h("td", { text: c.people.map(function (p) { return p.name; }).join(", ") || "-" })]); }))])]);
+      h("tbody", null, gym.map(function (c) { return h("tr", { style: "cursor:default" }, [h("td", { class: "num", text: String(c.start).slice(0, 5) }), h("td", { class: "num", text: c.booked }), h("td", { class: "num", text: c.capacity }), h("td", null, [document.createTextNode(c.people.map(function (p) { return p.name; }).concat((c.walkins || []).map(function (k) { return k.name + (k.kind === "payg" ? " (pay as you go)" : ""); })).join(", ") || "-"), can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm", style: "margin-left:8px", type: "button", text: "Add", onclick: function () { bookInDialog(c, ds); } }) : null])]); }))])]);
     root.appendChild(h("div", { style: "margin-top:16px" }, [card("Gym floor slots", gb + " booked", [gym.length ? g : empty("No gym slots on this day.")])]));
     return root;
+  }
+  /* ---------- schedule: book a member, or a pay as you go person who pays at the gym, into a session ---------- */
+  var DIRC = { at: 0, rows: [] };
+  async function bookInDialog(c, ds) {
+    var gym = c.kind === "gym", tab = "member", picked = null;
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
+    var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
+    var seg = h("div", { class: "seg", style: "margin-bottom:12px" });
+    var body = h("div");
+    var nm = h("input", { class: "in", maxlength: "80", placeholder: "Name" }), ph = h("input", { class: "in", maxlength: "30", placeholder: "Phone (optional)", type: "tel" }), em = h("input", { class: "in", maxlength: "120", placeholder: "Email (optional)", type: "email" });
+    var price = /pilates/i.test(c.name) ? "7" : gym || /kids/i.test(c.name) ? "4" : "6";
+    var amt = h("input", { class: "in", type: "number", min: "0", step: "0.5", value: price }), paid = h("input", { type: "checkbox", checked: true });
+    var q = h("input", { class: "in", placeholder: "Search a member by name or email", "aria-label": "Search members" }), list = h("div", { class: "list", style: "max-height:260px;overflow:auto;margin-top:8px" });
+    function eligible(m) { var t = m.plan_type; return !!m.email && (m.status === "active" || m.status === "failed") && (gym ? (t === "gym" || t === "gym_classes") : (t === "classes" || t === "gym_classes")); }
+    function drawList() {
+      clear(list); var s = q.value.trim().toLowerCase(), n = 0;
+      DIRC.rows.filter(eligible).forEach(function (m) {
+        if (n >= 30 || (s && (m.name || "").toLowerCase().indexOf(s) < 0 && (m.email || "").toLowerCase().indexOf(s) < 0)) return; n++;
+        list.appendChild(h("div", { class: "li", style: "cursor:pointer" + (picked && picked.email === m.email ? ";background:var(--accs)" : ""), onclick: function () { picked = m; drawList(); } }, [h("div", { class: "tx" }, [h("b", { text: m.name || m.email }), h("small", { text: (m.plan || "") + " · " + m.email })]), picked && picked.email === m.email ? chip("Chosen", "ok") : null]));
+      });
+      if (!n) list.appendChild(h("small", { class: "muted", text: DIRC.rows.length ? "No member with a " + (gym ? "gym" : "class") + " membership matches. Use Pay as you go for everyone else." : "Loading members..." }));
+    }
+    function draw() {
+      clear(seg); clear(body);
+      [["member", "Member with a membership"], ["payg", "Pay as you go"]].forEach(function (t) { seg.appendChild(h("button", { type: "button", class: tab === t[0] ? "on" : "", text: t[1], onclick: function () { tab = t[0]; draw(); } })); });
+      if (tab === "member") { body.appendChild(q); body.appendChild(list); drawList(); go.textContent = "Book member"; }
+      else {
+        body.appendChild(h("small", { class: "muted", text: "For someone who pays at the gym. They are booked in Wix too, so the space is taken everywhere." }));
+        [["Name", nm], ["Phone", ph], ["Email", em], ["Price (pounds)", amt]].forEach(function (f) { body.appendChild(h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: f[0] }), f[1]])); });
+        body.appendChild(h("label", { style: "display:flex;gap:8px;align-items:center;margin-top:10px" }, [paid, document.createTextNode("Paid at the gym")]));
+        go.textContent = "Add pay as you go";
+      }
+    }
+    q.addEventListener("input", drawList);
+    openModal("Add someone to " + c.name + ", " + String(c.start).slice(0, 5) + " on " + fDate(ds), [seg, body, out], [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    draw();
+    if (!DIRC.rows.length || Date.now() - DIRC.at > 120000) { try { DIRC.rows = await rpc("admin_member_directory", { p_limit: 3000 }); DIRC.at = Date.now(); } catch (e) { DIRC.rows = []; } if (tab === "member") drawList(); }
+    go.addEventListener("click", async function () {
+      var p = { action: "book", class_id: c.id, date: ds };
+      if (tab === "member") { if (!picked) return say("Choose a member first.", "bad"); p.mode = "member"; p.email = picked.email; }
+      else { if (nm.value.trim().length < 2) return say("Add their name.", "bad"); p.mode = "payg"; p.name = nm.value; p.phone = ph.value; p.email = em.value; p.amount = Number(amt.value) || 0; p.paid = paid.checked; }
+      go.disabled = true; say("Booking...");
+      var r = await fn("admin-book-member", p, 60);
+      if (!r.ok) { go.disabled = false; return say(r.j.error || "Something went wrong.", "bad"); }
+      closeModal(); toast("Booked."); route();
+    });
   }
   function sessionCard(c, ds) {
     var head = h("div", { class: "li" }, [h("div", { class: "time num", text: String(c.start).slice(0, 5) }), h("div", { class: "tx" }, [h("b", { text: c.name, style: c.cancelled ? "text-decoration:line-through" : "" }), h("small", { text: (c.cancelled ? "CANCELLED" + (c.cancel_reason ? ": " + c.cancel_reason : "") + " · " : "") + (c.coach ? "Coach " + c.coach : "No coach set") + (c.other_wix ? " · " + c.other_wix + " booked on the website only" : "") })]),
       h("div", { style: "width:120px" }, [fill(c.booked, c.capacity)]), h("span", { class: "num", text: c.booked + "/" + c.capacity }),
+      (!c.cancelled && can(["admin", "manager", "reception"])) ? h("button", { class: "btn sm pri", type: "button", text: "Add someone", onclick: function () { bookInDialog(c, ds); } }) : null,
       can(["admin"]) ? h("button", { class: "btn sm " + (c.cancelled ? "" : "dng"), onclick: function () { cancelClass(c, ds); }, text: c.cancelled ? "Cancelled: manage" : "Cancel class" }) : null]);
     var people = c.people.length ? h("div", { class: "people" }, c.people.map(function (p) { return h("span", { class: "chip " + (p.source === "wix" ? "info" : "plain"), text: p.name }); })) : h("small", { class: "muted", text: "Nobody booked through the app yet." });
-    return h("section", { class: "card" }, [h("div", { class: "bd" }, [head, people])]);
+    var walk = (c.walkins || []).length ? h("div", { class: "people", style: "margin-top:8px" }, (c.walkins || []).map(function (k) {
+      return h("span", { class: "chip warn", style: "display:inline-flex;gap:6px;align-items:center" }, [document.createTextNode(k.name + (k.kind === "payg" ? " · pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " paid" : " NOT PAID") : "")),
+        can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm", type: "button", title: "Remove from this class", text: "×", onclick: async function () { if (!window.confirm("Remove " + k.name + " from this class?")) return; var r = await fn("admin-book-member", { action: "remove", id: k.id }, 60); if (!r.ok) return toast(r.j.error || "Could not remove.", true); toast("Removed."); route(); } }) : null]);
+    })) : null;
+    return h("section", { class: "card" }, [h("div", { class: "bd" }, [head, people, walk])]);
   }
   function cancelClass(c, ds) {
     var reason = h("input", { class: "in", id: "cReason", maxlength: "200", placeholder: "Optional, shown in the email (for example: our coach is unwell)", value: c.cancel_reason || "" });
