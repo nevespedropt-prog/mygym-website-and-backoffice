@@ -294,7 +294,7 @@
   }
   /* ---------- schedule: book a member, or a pay as you go person who pays at the gym, into a session ---------- */
   var DIRC = { at: 0, rows: [] };
-  async function bookInDialog(c, ds) {
+  async function bookInDialog(c, ds, after) {
     var gym = c.kind === "gym", tab = "member", picked = null;
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
@@ -335,7 +335,7 @@
       go.disabled = true; say("Booking...");
       var r = await fn("admin-book-member", p, 60);
       if (!r.ok) { go.disabled = false; return say(r.j.error || "Something went wrong.", "bad"); }
-      closeModal(); toast("Booked."); route();
+      closeModal(); toast("Booked."); (after || route)();
     });
   }
   function sessionCard(c, ds) {
@@ -485,6 +485,36 @@
     return h("div", null, [fromHtml('<div class="legend" style="margin-bottom:12px"><span><i style="background:#f6cfcf"></i>Class</span><span><i style="background:#cfdcf4"></i>Gym hour</span><span><i style="background:#c8e8d4"></i>Kids</span><span><i style="background:#e3e1df"></i>Switched off</span><span>The bar inside each block is the average fill over the last 4 weeks</span></div>'), wrap]);
   }
 
+  /* timetable drawer: who is booked on a chosen date of this class, add someone, remove someone */
+  function classBookingsPanel(c) {
+    var host = h("div", { class: "sect" }), date = c.next_date || iso(new Date());
+    function shift(n) { var d = new Date(date + "T12:00:00"); d.setDate(d.getDate() + n); date = iso(d); draw(); }
+    async function draw() {
+      clear(host); host.appendChild(h("h4", { text: "Bookings" }));
+      host.appendChild(h("div", { style: "display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap" }, [
+        h("button", { class: "btn sm", type: "button", text: "‹ Week", onclick: function () { shift(-7); } }), h("b", { text: fDate(date) }), h("button", { class: "btn sm", type: "button", text: "Week ›", onclick: function () { shift(7); } }),
+        can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm pri", type: "button", text: "Add someone", onclick: function () { bookInDialog({ id: c.id, name: c.name, kind: c.kind, start: c.time }, date, draw); } }) : null]));
+      var d; try { d = await rpc("admin_class_bookings", { p_class_id: c.id, p_date: date }); } catch (e) { host.appendChild(h("div", { class: "muted", text: e.message })); return; }
+      var canEdit = can(["admin", "manager", "reception"]);
+      if (!d.people.length && !d.walkins.length && !d.other_wix) host.appendChild(h("small", { class: "muted", text: "Nobody booked for this date." }));
+      var list = h("div", { class: "list" }); host.appendChild(list);
+      d.people.forEach(function (p) {
+        list.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: p.name }), h("small", { text: (p.email || "") + (p.source === "wix" ? " · booked on the website" : "") })]),
+          canEdit ? h("button", { class: "btn sm dng", type: "button", text: "Remove", onclick: async function (ev) {
+            if (!window.confirm("Take " + p.name + " off this class? Their Wix booking is cancelled. No email is sent.")) return; ev.target.disabled = true;
+            var r = await fn("admin-book-member", { action: "remove_booking", id: p.id }, 60); if (!r.ok) { ev.target.disabled = false; return toast(r.j.error || "Could not remove.", true); } toast("Removed."); draw(); } }) : null]));
+      });
+      d.walkins.forEach(function (k) {
+        list.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: k.name }), h("small", { text: (k.kind === "payg" ? "Pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " · paid at the gym" : " · NOT PAID") : "Member") + (k.phone ? " · " + k.phone : "") })]),
+          canEdit ? h("button", { class: "btn sm dng", type: "button", text: "Remove", onclick: async function (ev) {
+            if (!window.confirm("Remove " + k.name + " from this class? Their Wix booking is cancelled.")) return; ev.target.disabled = true;
+            var r = await fn("admin-book-member", { action: "remove", id: k.id }, 60); if (!r.ok) { ev.target.disabled = false; return toast(r.j.error || "Could not remove.", true); } toast("Removed."); draw(); } }) : null]));
+      });
+      if (d.other_wix) host.appendChild(h("small", { class: "muted", style: "display:block;margin-top:8px", text: "+ " + d.other_wix + " booked through the Wix website without an app account (names are in Wix)." }));
+    }
+    draw(); return host;
+  }
+
   function ttDrawer(c, ctx) {
     var kv = h("dl", { class: "kv" });
     [["Day and time", c.day + " " + String(c.time).slice(0, 5)], ["Type", c.kind === "gym" ? "Gym hour" : "Class"], ["Coach", c.coach || "Not set"], ["Length", c.kind === "gym" ? "-" : (c.info || "-")], ["Places", c.capacity],
@@ -492,6 +522,7 @@
       ["Average booked (4 weeks)", c.avg], ["Status", c.active ? "On" : "Switched off"], ["Source", c.source === "wix" ? "Wix website" : "Added in this back office"]]
       .forEach(function (p) { kv.appendChild(h("dt", { text: p[0] })); kv.appendChild(h("dd", { text: p[1] })); });
     var body = [h("div", { class: "sect" }, [kv])];
+    if (can(["admin", "manager", "reception", "coach"])) body.push(classBookingsPanel(c));
     if (ctx.canEdit) {
       body.push(h("div", { class: "btns" }, [
         h("button", { class: "btn pri", onclick: function () { ttEdit(c, ctx); }, text: "Edit" }),
