@@ -1,4 +1,4 @@
-# Website: account, booking and payment flow (DRAFT for owner approval, nothing built)
+# Website: account, booking and payment flow (decisions answered 2026-11-14; steps 1 to 5 not built yet)
 
 Written 2026-11-14. Goal: a visitor can find the website, see the timetable, create an account, pay as you go or buy a membership, and book, with the same access as today's Wix site. The app is for people with a membership. Every booking, payment and person ends up in one place, matched by email, with no manual steps.
 
@@ -53,11 +53,23 @@ Written 2026-11-14. Goal: a visitor can find the website, see the timetable, cre
 - **Health form before first booking**, the same gate as the app.
 - **Security:** no card data on our side, the Wix key never reaches the browser, the website address is the only one allowed to call the new functions, sign-in required for every action, rate limits on sign-up and checkout creation.
 
-## Decisions needed from the owner
-1. **Gym visits without a membership.** The FAQ says "PAYG Gym is £4 per visit", but Wix has Open Gym Access as plan-only. Which is true? If PAYG gym exists it must be a Wix product we can sell online.
-2. **Cancelled pay-as-you-go class** (your 16 October answer: a credit, not a refund). Where does the credit live (a Wix plan/credit, or a record on our side), how long does it last, how is it used on the next booking? I recommend a small credit record on our side that the booking function checks first.
-3. **Confirm Wix stays the payment system** (plans, card payments, refunds, invoices) behind the website, so `join.mygymlondon.co.uk` stays published after the new website goes live.
-4. **Allow one real test payment** from your own account (a £6 class, then refunded) once the PAYG step is built. I cannot prove the Wix checkout and the return step without one.
+## Rule: nobody pays without an account
+Confirmed by the owner. A payment link or checkout is only ever created for a person who is signed in, so every payment, booking and credit belongs to an account (one email). There is no "pay as a guest" path. Wix pages stay reachable directly, but nothing on our website links to them without sign-in; a payment made there anyway is matched by email later and listed under "unmatched" until the person has an account.
+
+## Decisions (owner answers, 2026-11-14)
+1. **Pay as you go options, kept on the side until the website moves.** Nothing is added to what the current Wix site shows. Each option exists in Wix but is switched off for the public:
+   - **PAYG Gym Visit, 4 pounds (price still to be confirmed)**: created in Wix as a PRIVATE plan (id `b0a85203-cbb9-4232-b91d-8312b62c8ee8`). Wix does not allow a plan shorter than 7 days, so it is valid 7 days from purchase and is one visit. Not linked to the gym service, not on any page. Checked: the string does not appear on the public Wix plans or gym booking page.
+   - **PAYG Kids Gym Visit, 4 pounds**: same, PRIVATE plan `f565d7c2-fab9-4170-96d1-1dde735c2395`.
+   - **PAYG classes (6 pounds) and Pilates (7 pounds)**: already set up on the Wix class services; nothing created here. The owner said "yoga"; the timetable has Pilates at 7 pounds, so Pilates is assumed. Please confirm.
+2. **Cancelled pay-as-you-go class = a credit, no refund.** Built: table `class_credits`, back office "Class credits" on each member (add, use, cancel), and `consume_class_credit()` for the booking function. Credits do not expire unless an expiry date is typed. Nothing creates or spends a credit automatically yet: that is wired in step 3.
+3. **Wix is the till**, confirmed. Important finding: `join.mygymlondon.co.uk` does not exist yet (DNS lookup says no such domain, 2026-11-14). It is a launch-day step (the Wix site moves to join). Until then the back office "Open the Wix checkout" button points to the working Wix plans page on www (set in `admin-site/config.js` as `CHECKOUT_URL`); after launch change it to join.
+4. **Real test payment: last**, together with the owner, on a pay-as-you-go class, then refunded by the owner in Wix (we cannot refund it from here).
+
+## To-do at the website move (nothing here is live now)
+- Create `join.mygymlondon.co.uk`, check Wix checkout works there, then set `CHECKOUT_URL` in `admin-site/config.js` and the `CHECKOUT` / `MANAGE` constants in `admin-edit-member`, `admin-add-member` and `sync-wix-payments` to join.
+- Switch on the pay-as-you-go options: link PAYG Gym Visit to the Open Gym Access service and PAYG Kids Gym Visit to the Kids Gym service, make the plans buyable, confirm the gym price (4 pounds), confirm Pilates (7 pounds), then map the plan ids to access in the app (`gym_access_plans`) so a PAYG visit unlocks one booking and not a week of access. Until that mapping exists, a bought PAYG plan would otherwise unlock the gym for its whole 7 days.
+- `_plan_type` already labels any plan with "PAYG" or "pay as you go" in its name as "Pay as you go". `admin-add-member` still uses its own copy of the old rule (a PAYG gym plan added by hand would be labelled Gym + Classes); fix it when that function is next redeployed.
+- Steps 1 to 5 below.
 
 ## Proposed order (each step ends with a test you can see)
 1. Website sign-up and log in + account page (no payments yet).
