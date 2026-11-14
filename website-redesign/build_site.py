@@ -127,14 +127,7 @@ views["book"] = bk
 
 # Login: members use the app
 views["login"] = (
-    '<section class="view" id="login"><div class="phead"><div class="wrap"><span class="chip">Members</span>'
-    '<h1>Log in to MyGym London</h1><p>Book classes and gym slots, manage your bookings and track your progress in the MyGym app.</p></div></div>'
-    '<div class="wrap sec"><div class="loginwrap"><div class="card loginf"><h3>Members log in on the app</h3>'
-    '<p class="sub">Use the same email and password you used to create your account.</p>'
-    '<a class="btn" href="{APP}/#login">Log in on the app</a></div>'
-    '<aside class="card loginnew"><h3>New to MyGym?</h3><p>Pick a plan to join. Classes start from £6.</p>'
-    '<a class="btn" href="services.html">See our plans</a>'
-    '<p class="fine">Already a member? Get 100% off for each friend you refer. <a href="refer-friends.html">See Refer Friends</a></p></aside></div></div></section>'.replace("{APP}", APP)
+    '<section class="view" id="login"><div class="phead"><div class="wrap"><span class="chip">Members</span><h1>Log in or create an account</h1><p>One account for the website and the MyGym app. Free to create. You need an account before you book or pay.</p></div></div><div class="wrap sec"><div class="loginwrap"><div class="card loginf" id="lgBox"><h3 id="lgTitle">Log in</h3><noscript><p>Please turn on JavaScript to log in, or use the MyGym app.</p></noscript><form id="lgForm"><div id="lgNameRow" hidden><label class="lb" for="lgName">Your name</label><input id="lgName" class="wemail" autocomplete="name"></div><label class="lb" for="lgEmail">Email</label><input id="lgEmail" class="wemail" type="email" autocomplete="username" required><label class="lb" for="lgPass">Password</label><input id="lgPass" class="wemail" type="password" autocomplete="current-password" required><p class="fine" id="lgTermsRow" hidden><label><input type="checkbox" id="lgTerms"> I agree to the <a href="terms.html">terms and conditions</a> and have read the <a href="privacy.html">privacy notice</a>.</label></p><button class="btn" type="submit" id="lgGo">Log in</button></form><p class="fine"><button type="button" class="lnk" id="lgSwap">Create an account</button> &middot; <button type="button" class="lnk" id="lgForgot">Forgot password?</button></p><p class="mbmsg" id="lgMsg" role="status" hidden></p></div><aside class="card loginnew"><h3>What you can do</h3><p>Members book classes and gym slots, see their plan and credits and ask to pause or cancel. Everyone with an account can pay as you go.</p><a class="btn" href="services.html">See our plans</a><p class="fine">Already use the app? Same email and password. <a href="https://app.mygymlondon.co.uk/#login">Open the app</a></p></aside></div></div></section>'
 )
 
 # Services: real join link; everything else stays
@@ -298,18 +291,29 @@ var rows=[],sel=(new Date().getDay()+6)%%7,flt="all";
 function $(i){return document.getElementById(i)}
 function cat(n){n=n.toLowerCase();if(/kids/.test(n))return"kids";if(/50\+|vitality/.test(n))return"fifty";if(/pilates|yoga/.test(n))return"mind";if(/cardio|hiit|box/.test(n))return"cardio";if(/strength|abs|body/.test(n))return"strength";return"all"}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+var sb=null,sess=null,SLUG={"cardio n abs":"cardio-n-abs","hiit":"hiit","hiit glow":"hiit-glow","boxfit":"boxfit","strength":"strength","vitality 50+ circuit":"vitality-50-circuit","abs attack":"abs-attack","pilates":"pilates","body conditioning":"body-conditioning","circuit training":"circuit-training"};
+if(window.supabase&&$("sslots")){sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}});sb.auth.getSession().then(function(r){sess=r.data.session;paint()}).catch(function(){})}
+function bkSay(t,kind,link){var m=$("bkMsg");if(!m){m=document.createElement("p");m.id="bkMsg";m.className="note";$("sslots").parentNode.insertBefore(m,$("sslots"))}m.className="note"+(kind?" "+kind:"");m.textContent=t||"";m.hidden=!t;if(link){m.appendChild(document.createTextNode(" "));var a=document.createElement("a");a.href=link[1];a.textContent=link[0];m.appendChild(a)}}
+function dateFor(i){var n=new Date(),t=(n.getDay()+6)%7,d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+((i-t+7)%7));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function paygLink(name){var L=window.MGL_LINKS||{},s=SLUG[String(name).toLowerCase()];return s?[ "Pay as you go for "+name, (L.wix||"")+(L.service||"/service-page/")+s ]:null}
+document.addEventListener("click",async function(e){var b=e.target.closest("[data-book]");if(!b)return;
+ if(!sess){location.href="login.html?next=classes.html";return}
+ b.disabled=true;bkSay("Booking...","");
+ try{var t=(await sb.auth.getSession()).data.session.access_token,r=await fetch(URL+"/functions/v1/book-class",{method:"POST",headers:{"Content-Type":"application/json",apikey:KEY,Authorization:"Bearer "+t},body:JSON.stringify({action:"book",class_id:Number(b.dataset.book),date:dateFor(sel)})}),j=await r.json().catch(function(){return{}});
+  if(!r.ok||j.error){var msg=j.error||"We could not book this. Please try again.";var dup=/already booked|full|limit/i.test(msg);bkSay(msg+(dup?"":" If you do not have a membership you can pay as you go."),"bad",dup?null:paygLink(b.dataset.name));b.disabled=false;return}
+  bkSay("Booked. We have emailed you to confirm.","ok",["See my bookings","my-bookings.html"]);b.textContent="Booked"}catch(x){bkSay("No connection. Please check your internet and try again.","bad");b.disabled=false}});
 function paint(){
  var h="";days.forEach(function(d,i){h+='<button type="button" class="dt'+(i===sel?" sel":"")+'" data-d="'+i+'"><small>'+short[i]+'</small><b>'+short[i]+'</b></button>'});$("sdates").innerHTML=h;
  h="";F.forEach(function(f){h+='<button type="button" class="fc'+(f[0]===flt?" on":"")+'" data-f="'+f[0]+'">'+f[1]+'</button>'});$("sfilter").innerHTML=h;
  var list=rows.filter(function(r){return r.day_name===days[sel]&&(flt==="all"||cat(r.name)===flt)}).sort(function(a,b){return a.start_time<b.start_time?-1:1});
- h="";list.forEach(function(r){h+='<div class="slot"><span class="tm">'+esc(String(r.start_time).slice(0,5))+'</span><div><b>'+esc(r.name)+'</b><small>'+esc(r.info||"")+(r.coach?" · "+esc(r.coach):"")+(r.capacity?" · "+r.capacity+" places":"")+'</small></div><a class="btn sm" href="'+APP+'/#timetable">Book in the app</a></div>'});
+ h="";list.forEach(function(r){h+='<div class="slot"><span class="tm">'+esc(String(r.start_time).slice(0,5))+'</span><div><b>'+esc(r.name)+'</b><small>'+esc(r.info||"")+(r.coach?" · "+esc(r.coach):"")+(r.capacity?" · "+r.capacity+" places":"")+'</small></div><button type="button" class="btn sm" data-book="'+r.id+'" data-name="'+esc(r.name)+'">'+(sess?"Book":"Log in to book")+'</button></div>'});
  if(!list.length)h='<p class="note">No matching classes this day. Try another day or filter.</p>';
  $("sslots").innerHTML=h}
 document.addEventListener("click",function(e){var t=e.target.closest("button");if(!t||!$("sdates"))return;if(t.dataset.d){sel=+t.dataset.d;paint();return}if(t.dataset.f){flt=t.dataset.f;paint()}});
 document.addEventListener("click",function(e){var a=e.target.closest("[data-cf]");if(!a||!$("sfilter"))return;e.preventDefault();flt=a.dataset.cf;paint();$("timetable").scrollIntoView({behavior:"smooth",block:"start"})});
 if(!$("sdates"))return;
-fetch(URL+"/rest/v1/classes?select=day_name,start_time,name,coach,info,capacity&active=eq.true&kind=eq.class&order=sort",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
- .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){rows=d;$("ttsub").textContent="The same timetable as the MyGym app. Book your place in the app.";paint()})
+fetch(URL+"/rest/v1/classes?select=id,day_name,start_time,name,coach,info,capacity&active=eq.true&kind=eq.class&order=sort",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
+ .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){rows=d;$("ttsub").textContent="The same timetable as the MyGym app. Log in and book your place here or in the app.";paint()})
  .catch(function(){$("ttsub").innerHTML='We could not load the timetable. <a href="'+APP+'/#timetable">Open it in the app</a>.';paint()});
 })();
 """ % {"url": SUPABASE_URL, "key": SUPABASE_KEY, "app": APP}
@@ -426,6 +430,8 @@ os.makedirs(os.path.join(OUT, "assets", "icons"), exist_ok=True)
 for _f in ("favicon-32.png", "apple-touch-icon.png"):
     shutil.copyfile(os.path.join(_ic, _f), os.path.join(OUT, "assets", "icons", _f))
 shutil.copyfile(os.path.join(_ic, "favicon.ico"), os.path.join(OUT, "favicon.ico"))
+shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "login.js"), os.path.join(OUT, "assets", "login.js"))
+shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "links-config.js"), os.path.join(OUT, "assets", "links-config.js"))
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mybookings.js"), os.path.join(OUT, "assets", "mybookings.js"))
 shutil.copyfile(os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram.js"), os.path.join(OUT, "assets", "instagram.js"))
 open(os.path.join(OUT, "assets", "forms.css"), "w", encoding="utf-8").write(
@@ -448,7 +454,7 @@ def mark_active(html, key):
 
 
 hdr = fix_links(header).replace("services.html\">Join now", "%s\">Join now" % JOIN_URL)
-hdr = hdr.replace('class="login" href="login.html"', 'class="login" href="%s/#login"' % APP)
+# the header Log in link stays on login.html (accounts are created and used on the website too)
 ftr = fix_links(footer).replace('href="index.html">Get the MyGym app', 'href="%s">Get the MyGym app' % APP)
 ftr = ftr.replace('<a class="btn sm app" href="index.html">', '<a class="btn sm app" href="%s">' % APP)
 ftr = ftr.replace("© 2024 by MyGymLondon.co.uk", "© MyGym London")
@@ -583,6 +589,9 @@ def page(key, body):
     ) % (title, desc, SITE, "" if fn == "index.html" else fn, title, desc, SITE, mark_active(hdr, key), body, ftr)
     if key == "home": html = html.replace('<script src="assets/site.js">', '<script src="assets/instagram.js"></script><script src="assets/site.js">')
     if key == "mybookings": html = html.replace('<script src="assets/site.js">', '<script src="assets/vendor/supabase.js"></script><script src="assets/mybookings.js"></script><script src="assets/site.js">')
+    if key == "mybookings": html = html.replace('<script src="assets/vendor/supabase.js">', '<script src="assets/links-config.js"></script><script src="assets/vendor/supabase.js">')
+    if key == "login": html = html.replace('<script src="assets/site.js">', '<script src="assets/links-config.js"></script><script src="assets/vendor/supabase.js"></script><script src="assets/login.js"></script><script src="assets/site.js">')
+    if key == "classes": html = html.replace('<script src="assets/site.js">', '<script src="assets/links-config.js"></script><script src="assets/vendor/supabase.js"></script><script src="assets/site.js">')
     html = re.sub(r'data-go="free-class"(?: data-kind="(\w+)")? href="#home"', lambda m: 'data-go="free-class"%s href="index.html%s#free-class"' % ((' data-kind="%s"' % m.group(1)) if m.group(1) else "", ("?free=" + m.group(1)) if m.group(1) else ""), html)
     html = html.replace("30+ classes", "25+ classes").replace("Over 30 classes", "Over 25 classes")
     # launch clean-up (2026-10-27): no sample quotes or placeholder notes on the live site; rating from the public Google listing

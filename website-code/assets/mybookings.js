@@ -28,7 +28,16 @@
   async function renderMem() {
     var box = $("mbMem"); if (!box) return; while (box.firstChild) box.removeChild(box.firstChild);
     var res = await sb.rpc("my_membership"), m = res.data;
-    if (res.error || !m || (!m.plan && !m.request && !m.credits)) return;
+    if (res.error || !m) return;
+    var L = window.MGL_LINKS || {}, wix = (L.wix || "https://www.mygymlondon.co.uk");
+    if (!m.plan && !m.request && !m.credits) {
+      var w0 = el("div", "card loginf"); box.appendChild(w0);
+      w0.appendChild(el("h3", null, "Welcome"));
+      w0.appendChild(el("p", "sub", "Your account is ready. You do not have a membership yet. Members book classes and gym slots here or in the app. You can also pay as you go for a single class."));
+      var b1 = el("a", "btn", "See memberships"); b1.href = wix + (L.memberships || "/pricing-plans/memberships"); w0.appendChild(b1);
+      var b2 = el("a", "btn ghost", "Pay as you go: pick a class"); b2.href = "classes.html"; w0.appendChild(b2);
+      return;
+    }
     var card = el("div", "card loginf"); box.appendChild(card);
     card.appendChild(el("h3", null, "My membership"));
     var p = m.plan;
@@ -40,7 +49,7 @@
       if (p.ends && (p.cancelling || p.status !== "active")) card.appendChild(row(p.cancelling ? "Ends" : "Until", fmtD(p.ends)));
       card.appendChild(row("You can book", p.type === "gym_classes" ? "Classes and gym slots" : p.type === "classes" ? "Classes" : p.type === "gym" ? "Gym slots" : "See your plan"));
       if (p.payment_failed) card.appendChild(el("p", "mbmsg bad", "Your last payment did not go through. We try again 5 days after the failed attempt. To avoid your membership being suspended, update your card with the link below."));
-      var upd = el("a", "btn ghost", "Update my card or see receipts"); upd.href = "https://www.mygymlondon.co.uk/my-subscriptions"; upd.target = "_blank"; upd.rel = "noopener"; card.appendChild(upd);
+      var upd = el("a", "btn ghost", "Update my card or see receipts"); upd.href = wix + (L.cardPage || "/my-subscriptions"); upd.target = "_blank"; upd.rel = "noopener"; card.appendChild(upd);
     }
     if (m.credits > 0) card.appendChild(el("p", "sub", "🎟️ " + m.credits + (m.credits === 1 ? " class credit" : " class credits") + " available. Ask us at the gym to use it."));
     var q = m.request;

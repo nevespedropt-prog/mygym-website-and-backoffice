@@ -57,18 +57,29 @@ var rows=[],sel=(new Date().getDay()+6)%7,flt="all";
 function $(i){return document.getElementById(i)}
 function cat(n){n=n.toLowerCase();if(/kids/.test(n))return"kids";if(/50\+|vitality/.test(n))return"fifty";if(/pilates|yoga/.test(n))return"mind";if(/cardio|hiit|box/.test(n))return"cardio";if(/strength|abs|body/.test(n))return"strength";return"all"}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+var sb=null,sess=null,SLUG={"cardio n abs":"cardio-n-abs","hiit":"hiit","hiit glow":"hiit-glow","boxfit":"boxfit","strength":"strength","vitality 50+ circuit":"vitality-50-circuit","abs attack":"abs-attack","pilates":"pilates","body conditioning":"body-conditioning","circuit training":"circuit-training"};
+if(window.supabase&&$("sslots")){sb=window.supabase.createClient(URL,KEY,{auth:{persistSession:true,autoRefreshToken:true}});sb.auth.getSession().then(function(r){sess=r.data.session;paint()}).catch(function(){})}
+function bkSay(t,kind,link){var m=$("bkMsg");if(!m){m=document.createElement("p");m.id="bkMsg";m.className="note";$("sslots").parentNode.insertBefore(m,$("sslots"))}m.className="note"+(kind?" "+kind:"");m.textContent=t||"";m.hidden=!t;if(link){m.appendChild(document.createTextNode(" "));var a=document.createElement("a");a.href=link[1];a.textContent=link[0];m.appendChild(a)}}
+function dateFor(i){var n=new Date(),t=(n.getDay()+6)%7,d=new Date(n.getFullYear(),n.getMonth(),n.getDate()+((i-t+7)%7));return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function paygLink(name){var L=window.MGL_LINKS||{},s=SLUG[String(name).toLowerCase()];return s?[ "Pay as you go for "+name, (L.wix||"")+(L.service||"/service-page/")+s ]:null}
+document.addEventListener("click",async function(e){var b=e.target.closest("[data-book]");if(!b)return;
+ if(!sess){location.href="login.html?next=classes.html";return}
+ b.disabled=true;bkSay("Booking...","");
+ try{var t=(await sb.auth.getSession()).data.session.access_token,r=await fetch(URL+"/functions/v1/book-class",{method:"POST",headers:{"Content-Type":"application/json",apikey:KEY,Authorization:"Bearer "+t},body:JSON.stringify({action:"book",class_id:Number(b.dataset.book),date:dateFor(sel)})}),j=await r.json().catch(function(){return{}});
+  if(!r.ok||j.error){var msg=j.error||"We could not book this. Please try again.";var dup=/already booked|full|limit/i.test(msg);bkSay(msg+(dup?"":" If you do not have a membership you can pay as you go."),"bad",dup?null:paygLink(b.dataset.name));b.disabled=false;return}
+  bkSay("Booked. We have emailed you to confirm.","ok",["See my bookings","my-bookings.html"]);b.textContent="Booked"}catch(x){bkSay("No connection. Please check your internet and try again.","bad");b.disabled=false}});
 function paint(){
  var h="";days.forEach(function(d,i){h+='<button type="button" class="dt'+(i===sel?" sel":"")+'" data-d="'+i+'"><small>'+short[i]+'</small><b>'+short[i]+'</b></button>'});$("sdates").innerHTML=h;
  h="";F.forEach(function(f){h+='<button type="button" class="fc'+(f[0]===flt?" on":"")+'" data-f="'+f[0]+'">'+f[1]+'</button>'});$("sfilter").innerHTML=h;
  var list=rows.filter(function(r){return r.day_name===days[sel]&&(flt==="all"||cat(r.name)===flt)}).sort(function(a,b){return a.start_time<b.start_time?-1:1});
- h="";list.forEach(function(r){h+='<div class="slot"><span class="tm">'+esc(String(r.start_time).slice(0,5))+'</span><div><b>'+esc(r.name)+'</b><small>'+esc(r.info||"")+(r.coach?" · "+esc(r.coach):"")+(r.capacity?" · "+r.capacity+" places":"")+'</small></div><a class="btn sm" href="'+APP+'/#timetable">Book in the app</a></div>'});
+ h="";list.forEach(function(r){h+='<div class="slot"><span class="tm">'+esc(String(r.start_time).slice(0,5))+'</span><div><b>'+esc(r.name)+'</b><small>'+esc(r.info||"")+(r.coach?" · "+esc(r.coach):"")+(r.capacity?" · "+r.capacity+" places":"")+'</small></div><button type="button" class="btn sm" data-book="'+r.id+'" data-name="'+esc(r.name)+'">'+(sess?"Book":"Log in to book")+'</button></div>'});
  if(!list.length)h='<p class="note">No matching classes this day. Try another day or filter.</p>';
  $("sslots").innerHTML=h}
 document.addEventListener("click",function(e){var t=e.target.closest("button");if(!t||!$("sdates"))return;if(t.dataset.d){sel=+t.dataset.d;paint();return}if(t.dataset.f){flt=t.dataset.f;paint()}});
 document.addEventListener("click",function(e){var a=e.target.closest("[data-cf]");if(!a||!$("sfilter"))return;e.preventDefault();flt=a.dataset.cf;paint();$("timetable").scrollIntoView({behavior:"smooth",block:"start"})});
 if(!$("sdates"))return;
-fetch(URL+"/rest/v1/classes?select=day_name,start_time,name,coach,info,capacity&active=eq.true&kind=eq.class&order=sort",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
- .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){rows=d;$("ttsub").textContent="The same timetable as the MyGym app. Book your place in the app.";paint()})
+fetch(URL+"/rest/v1/classes?select=id,day_name,start_time,name,coach,info,capacity&active=eq.true&kind=eq.class&order=sort",{headers:{apikey:KEY,Authorization:"Bearer "+KEY}})
+ .then(function(r){if(!r.ok)throw 0;return r.json()}).then(function(d){rows=d;$("ttsub").textContent="The same timetable as the MyGym app. Log in and book your place here or in the app.";paint()})
  .catch(function(){$("ttsub").innerHTML='We could not load the timetable. <a href="'+APP+'/#timetable">Open it in the app</a>.';paint()});
 })();
 
