@@ -311,3 +311,4 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 .drawer textarea.in,.drawer .sect input.in{width:100%;box-sizing:border-box;display:block}
 .drawer .df{flex-wrap:wrap}
 @media (max-width:560px){.drawer .dh2,.drawer .df{padding-left:14px;padding-right:14px}.drawer .db{padding:16px 14px}.drawer .df .btn{flex:1 1 140px;justify-content:center}}
+.nbadge{margin-left:auto;background:#c0392b;color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:800;line-height:1.5}

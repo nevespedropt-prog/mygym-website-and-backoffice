@@ -83,6 +83,19 @@
     }
   }
 
+  async function loadPast(uid) {
+    var box = $("mbPast"); if (!box) return; while (box.firstChild) box.removeChild(box.firstChild);
+    var from = iso(new Date(Date.now() - 90 * 864e5)), to = iso(new Date());
+    var b = await sb.from("class_bookings").select("id,class_id,date").eq("user_id", uid).gte("date", from).lte("date", to).order("date", { ascending: false }).limit(80);
+    if (b.error) { box.appendChild(el("p", "sub", "We could not load your past bookings.")); return; }
+    var ids = Array.from(new Set((b.data || []).map(function (x) { return x.class_id; })));
+    var c = ids.length ? await sb.from("classes").select("id,name,start_time,kind").in("id", ids) : { data: [] };
+    var by = {}; (c.data || []).forEach(function (x) { by[x.id] = x; });
+    var rows = (b.data || []).map(function (x) { var k = by[x.class_id] || {}; return { date: x.date, time: k.start_time || "00:00", name: k.kind === "gym" ? "Gym session" : (k.name || "Class") }; })
+      .filter(function (x) { return startMs(x.date, x.time) <= Date.now(); }).sort(function (a, z) { return startMs(z.date, z.time) - startMs(a.date, a.time); });
+    if (!rows.length) { box.appendChild(el("p", "sub", "No past bookings in the last 90 days.")); return; }
+    rows.forEach(function (r) { var row = el("div", "mbrow"), info = el("div", "mbinfo"); info.appendChild(el("b", null, r.name)); info.appendChild(el("span", null, nice(r.date, r.time))); row.appendChild(info); box.appendChild(row); });
+  }
   async function load() {
     var s = (await sb.auth.getSession()).data.session;
     $("mbLogin").hidden = !!s; $("mbList").hidden = !s;
@@ -99,6 +112,7 @@
     while (list.firstChild) list.removeChild(list.firstChild);
     $("mbWho").textContent = s.user.email;
     renderMem();
+    loadPast(s.user.id);
     if (!rows.length) { list.appendChild(el("p", "sub", "You have no upcoming bookings. Book a class in the app.")); return; }
     rows.forEach(function (r) {
       var can = startMs(r.date, r.time) - Date.now() > LIMIT_MIN * 60000;

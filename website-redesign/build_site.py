@@ -413,7 +413,7 @@ views["mybookings"] = (
     '<label class="lb" for="mbPass">Password</label><input id="mbPass" class="wemail" type="password" autocomplete="current-password" required>'
     '<button class="btn" type="submit" id="mbGo">Sign in</button></form>'
     '<p class="fine">No account yet? <a href="login.html">Find out how to join</a>.</p></div>'
-    '<div id="mbList" hidden><p class="sub">Signed in as <b id="mbWho"></b> <button type="button" class="btn ghost" id="mbOut">Sign out</button></p><div id="mbMem"></div><h3>Upcoming bookings</h3><div id="mbItems"></div>'
+    '<div id="mbList" hidden><p class="sub">Signed in as <b id="mbWho"></b> <button type="button" class="btn ghost" id="mbOut">Sign out</button></p><div id="mbMem"></div><h3>Upcoming bookings</h3><div id="mbItems"></div><h3>Past bookings</h3><div id="mbPast"></div>'
     '<p class="fine">Pay as you go classes you cancel in time become a credit for another class. Questions? <a href="mailto:info@mygymlondon.co.uk">info@mygymlondon.co.uk</a></p></div>'
     '<p class="mbmsg" id="mbMsg" role="status" hidden></p></div></section>'
 )
