@@ -198,7 +198,7 @@
   }
   function sampleOn() { return CFG.SAMPLE_FIGURES !== false; }
   var SAMPLE = {
-    plans: [{ n: "Gym + Classes", v: 28, c: "#e03939" }, { n: "Classes only", v: 12, c: "#2f6fd0" }, { n: "Gym only", v: 9, c: "#238a52" }, { n: "Annual", v: 4, c: "#c26b13" }, { n: "PT bundles", v: 2, c: "#7a5cc7" }],
+    plans: [{ n: "Gym + Classes", v: 28, c: "#e03939" }, { n: "Classes only", v: 12, c: "#2f6fd0" }, { n: "Gym membership", v: 9, c: "#238a52" }, { n: "Annual", v: 4, c: "#c26b13" }, { n: "PT bundles", v: 2, c: "#7a5cc7" }],
     revenue: [1290, 1350, 1420, 1500, 1590, 1710, 1778], failed: 2
   };
   async function vDashboard() {
@@ -578,7 +578,7 @@
   var memberQ = "", memberRefocus = false;
   /* ---------- members: your real client list (Wix clients + app accounts) ---------- */
   var memberQ = memberQ || "", memberTab = "active", memberType = "all";
-  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", gym: "Gym only", payg: "Pay as you go", other: "Other plan" };
+  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", gym: "Gym membership", payg: "Pay as you go", other: "Other plan" };
   var STATUS_LABEL = { active: "Active", failed: "Payment failed", paused: "Paused", cancelled: "Cancelled", ended: "Ended", lead: "Not a member" };
   var STATUS_CHIP = { active: "ok", failed: "bad", paused: "warn", cancelled: "plain", ended: "plain", lead: "plain" };
   function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }

@@ -513,7 +513,9 @@ def _offer(name, price, desc, unit="MON"):
 
 OFFERS = [
     _offer("PAYG Gym", "4.00", "Pay as you go gym visit. No membership, no commitment.", None),
-    _offer("PAYG Class", "6.00", "Pay as you go exercise class. Most classes 6 pounds, Pilates 7 pounds.", None),
+    _offer("PAYG Class", "6.00", "Pay as you go exercise class, 6 pounds (Pilates is 7 pounds, listed separately).", None),
+    _offer("PAYG Pilates", "7.00", "Pay as you go Pilates class, 7 pounds.", None),
+    _offer("PAYG Kids Gym", "4.00", "Pay as you go Kids Gym visit, 4 pounds. Tuesdays and Thursdays 4pm to 5pm, minimum age 8.", None),
     _offer("Gym Membership", "26.00", "Gym access every month. No contract."),
     _offer("Exercise Class Only Membership", "26.00", "All exercise classes every month. No contract."),
     _offer("Gym & Exercise Class Membership", "35.00", "Gym access and all exercise classes, with free induction and health check. 400 pounds a year as an annual plan."),
