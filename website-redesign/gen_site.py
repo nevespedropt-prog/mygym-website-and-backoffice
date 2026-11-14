@@ -25,10 +25,10 @@ CLASSES = [
  ("Abs Attack", "Sculpted abs, empowered core!", "Tue, Fri", "Varies", "£6"),
 ]
 PLANS = [
- ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], True),
- ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 30 classes a week", "Gym access", "Free induction", "Introductory health check"], False),
- ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 30 classes a week"], False),
- ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 30 classes a week"], False),
+ ("Gym & Exercise Class Membership (Annual)", "£400", "every year", "Valid for 2 years. Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check", "Saving of £20"], True),
+ ("Gym & Exercise Class Membership", "£35", "every month", "Includes all exercise classes and gym use.", ["Access to over 25 classes a week", "Gym access", "Free induction", "Introductory health check"], False),
+ ("Exercise Class Only Membership", "£26", "every month", "Book a space in any class (space is limited).", ["Access to over 25 classes a week"], False),
+ ("Exercise Classes (Annual)", "£299", "every year", "Valid for 2 years. Annual saving £13.", ["Access to over 25 classes a week"], False),
 ]
 PILLARS = [
  ("Exclusivity Redefined", "Our exclusive membership gives you the space and attention you deserve. Say goodbye to crowded workout spaces and hello to a gym that prioritises your journey."),
@@ -92,7 +92,7 @@ def footer():
 <div><h4>Menu</h4>{nav_links()}</div>
 <div><h4>Contact us</h4><p>{I_PIN}Main Avenue, Bush Hill Park<br>Enfield, EN1 1DS</p><p>{I_PHONE}<a href="tel:+447459020381">07459 020381</a></p><p>{I_MAIL}info@mygymlondon.co.uk</p><p>{I_IG}@mygym_london</p></div>
 <div><h4>Opening hours</h4><p>Every day<br><b>5am – midnight</b></p><a class="btn sm app" href="#home">Get the MyGym app</a></div>
-</div><div class="legal"><a href="#terms">Terms and conditions</a> · <a href="#privacy">Privacy policy</a> · <a href="#cookies">Cookie notice</a> · © 2024 by MyGymLondon.co.uk</div></footer>'''
+</div><div class="legal"><a href="#terms">Terms and conditions</a> · <a href="#privacy">Privacy policy</a> · <a href="#cookies">Cookie notice</a> · © <span class="yr">{__import__("datetime").date.today().year}</span> by MyGymLondon.co.uk</div></footer><script>document.querySelectorAll(".yr").forEach(function(e){{e.textContent=new Date().getFullYear()}})</script>'''
 
 def header():
     return f'''<header><div class="hw"><a href="#home"><img class="logo" src="logo.png" alt="MyGym London"></a><nav class="mnav">{nav_links()}</nav><div class="hr"><a class="login" href="#login">Log in</a><a class="btn sm" href="#memberships">Join now</a></div></div></header>'''
@@ -122,7 +122,7 @@ def pages(variant):
     pt = f'''<section class="view" id="pt"><div class="phead"><div class="wrap"><span class="chip">Personal training</span><h1>Personal Training at MyGym London</h1><p>Are you seeking specialist advice on how to reach your health goals? One-to-one sessions with one of our qualified personal trainers could help. Sessions start from as low as £32.50.</p></div></div>
 <div class="wrap sec two"><form class="card form"><h3>Book your free PT session</h3><label>Choose an option</label><div class="sel"><span class="opt on">AM PT session</span><span class="opt">PM PT session</span></div><label class="chk"><span class="box"></span> I agree to the terms &amp; conditions</label><a class="btn" href="#pt">Submit</a><p class="note">Complete and submit the form to book your free PT session.</p></form>
 <div class="trainers"><h3>Meet your trainers</h3><div class="tr"><span class="av">P</span><div><b>Pedro</b><small>Personal Trainer</small></div></div><div class="tr"><span class="av">I</span><div><b>Israel</b><small>Personal Trainer</small></div></div><img class="timg" src="{P2}" alt=""></div></div></section>'''
-    book = f'''<section class="view" id="book"><div class="phead"><div class="wrap"><span class="chip">Book MyGym</span><h1>Book your MyGym time slot</h1><p>Only available to Gym &amp; Exercise Class members. Pick a time slot that suits you.</p><a class="btn ghost" href="#memberships">Explore plans</a></div></div>
+    book = f'''<section class="view" id="book"><div class="phead"><div class="wrap"><span class="chip">Book MyGym</span><h1>Book your MyGym time slot</h1><p>Only available to Gym &amp; Exercise Class members. Pick a time slot that suits you.</p><a class="btn ghost" href="#memberships" style="margin-top:16px">Explore plans</a></div></div>
 <div class="wrap sec"><div class="card"><h3>Open Gym Access</h3></div><div class="gwrap" style="position:relative"><div class="toast" id="gtoast"></div><div class="dates" id="gdates"></div><p class="sub" id="gsub"></p><div class="slots" id="gslots"></div></div></div></section>'''
     refer = f'''<section class="view" id="refer"><div class="phead"><div class="wrap"><span class="chip">Refer friends</span><h1>Get a 100% discount for each friend you refer</h1><p>Our thank-you for bringing a friend to MyGym London.</p></div></div>
 <div class="wrap sec"><article class="card perk hi referone"><b class="big">100%</b><h3>Get 100% off for each friend who buys a plan</h3><p>Applies to the first billing cycle of "Gym &amp; Exercise Class Membership". Refer as many friends as you like.</p><a class="btn" href="#login">Log in to refer</a></article></div></section>'''

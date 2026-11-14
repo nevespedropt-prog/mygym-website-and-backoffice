@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My membership: design for approval (not built)</title>
+<style>
+@font-face{font-family:"Barlow Condensed";font-weight:700;src:url(../../app/fonts/barlow-condensed-700.woff2) format("woff2")}
+@font-face{font-family:"Barlow Condensed";font-weight:800;src:url(../../app/fonts/barlow-condensed-800.woff2) format("woff2")}
+:root{--bg:#f6f5f4;--card:#fff;--card2:#f6f6f7;--line:#ececee;--txt:#1d1d20;--mut:#66656d;--acc:#e03939;--accd:#a03535;--accs:#fdecec;--ok:#2e9e5b;--oks:#e6f5ec;--warn:#b7791f;--warns:#fdf3df;--disp:"Barlow Condensed","Arial Narrow",Impact,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:#e9e7e5;color:var(--txt);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:24px 16px}
+h1.t{font:800 30px var(--disp);text-transform:uppercase;letter-spacing:.03em;margin:0 0 4px;text-align:center}p.s{text-align:center;color:var(--mut);margin:0 0 22px}
+.row{display:flex;gap:26px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.col{width:390px;max-width:100%}.cap{font-weight:700;margin:0 0 8px;text-align:center}.cap small{display:block;font-weight:400;color:var(--mut)}
+.phone{width:390px;max-width:100%;height:844px;background:var(--bg);border-radius:30px;border:8px solid #1d1d20;overflow:hidden;position:relative;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.scroll{height:100%;overflow:auto;padding:14px 14px 90px}
+.top{display:flex;align-items:center;gap:10px;margin-bottom:12px}.back{width:38px;height:38px;border-radius:12px;background:#fff;border:1px solid var(--line);display:grid;place-items:center;font-size:20px}
+h2{font:800 30px var(--disp);text-transform:uppercase;letter-spacing:.03em;margin:0}
+.card{background:var(--card);border-radius:20px;padding:16px;margin-bottom:12px;box-shadow:0 1px 3px rgba(20,20,25,.05)}
+.card h3{font:800 20px var(--disp);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px}
+.pill{display:inline-block;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}.ok{background:var(--oks);color:var(--ok)}.warn{background:var(--warns);color:var(--warn)}.acc{background:var(--accs);color:var(--accd)}.grey{background:var(--card2);color:var(--mut)}
+.plan{background:linear-gradient(135deg,#e03939,#a03535);color:#fff;border-radius:20px;padding:18px;margin-bottom:12px}
+.plan .n{font:800 26px/1.05 var(--disp);text-transform:uppercase}.plan .p{font:800 34px var(--disp);margin-top:6px}.plan small{opacity:.9}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;margin:0}.kv dt{color:var(--mut)}.kv dd{margin:0;text-align:right;font-weight:600}
+.btn{display:block;width:100%;text-align:center;border:0;border-radius:14px;padding:13px;font:800 17px var(--disp);letter-spacing:.06em;text-transform:uppercase;background:var(--acc);color:#fff}
+.btn.o{background:#fff;color:var(--acc);border:2px solid var(--acc)}.btn.g{background:var(--card2);color:var(--txt)}
+.li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line)}.li:first-child{border-top:0}
+.mut{color:var(--mut);font-size:13px}.chk{color:var(--ok);font-weight:800}
+.opt{border:2px solid var(--line);border-radius:14px;padding:12px;margin-bottom:8px;background:#fff;display:flex;gap:10px;align-items:flex-start}.opt.on{border-color:var(--acc);background:var(--accs)}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid #c9c8cd;flex:0 0 20px;margin-top:2px}.opt.on .dot{border-color:var(--acc);background:radial-gradient(var(--acc) 45%,transparent 50%)}
+label.f{display:block;font-weight:700;margin:12px 0 6px}.in{border:1px solid var(--line);background:#fff;border-radius:12px;padding:12px;color:var(--mut)}
+.note{background:var(--warns);border-radius:14px;padding:12px;margin:12px 0;color:#6b4a0f;font-size:14px}
+.steps{display:flex;gap:6px;margin:12px 0}.st{flex:1;text-align:center;font-size:12px;color:var(--mut)}.st i{display:block;height:6px;border-radius:3px;background:var(--line);margin-bottom:6px}.st.on i{background:var(--ok)}.st.now i{background:var(--acc)}.st.now{color:var(--txt);font-weight:700}
+.tab{position:absolute;left:10px;right:10px;bottom:10px;background:#fff;border-radius:24px;box-shadow:0 4px 20px rgba(0,0,0,.12);display:flex;justify-content:space-around;padding:10px 4px;font-size:11px;color:var(--mut)}.tab b{color:var(--acc)}
+.spec{max-width:1240px;margin:34px auto 0;background:#fff;border-radius:16px;padding:22px 26px}.spec h2{font-size:26px;margin-bottom:8px}.spec ul{margin:6px 0 14px;padding-left:20px}.spec li{margin:4px 0}
+</style></head><body>
+<h1 class="t">My membership</h1>
+<p class="s">Design for approval, nothing is built. Same screens in the app (Profile, Membership) and on the website (My account). Example member and dates.</p>
+<div class="row">
+
+<div class="col"><p class="cap">1. Membership page<small>what a member sees</small></p>
+<div class="phone"><div class="scroll">
+<div class="top"><div class="back">‹</div><h2>My membership</h2></div>
+<div class="plan"><span class="pill" style="background:rgba(255,255,255,.22);color:#fff">Active</span><div class="n" style="margin-top:8px">Gym &amp; Exercise Class Membership</div><div class="p">£35 <small>every month</small></div><small>Started 2 Nov 2026 · No minimum term</small></div>
+<div class="card"><h3>Your next payment</h3><dl class="kv"><dt>Date</dt><dd>2 Dec 2026</dd><dt>Amount</dt><dd>£35.00</dd><dt>Paid with</dt><dd>Visa ending 4242</dd></dl><div style="height:10px"></div><div class="btn g">Update my card</div></div>
+<div class="card"><h3>What you can book</h3><div class="li"><span>Fitness classes</span><span class="chk">✓ Included</span></div><div class="li"><span>Gym slots</span><span class="chk">✓ Included</span></div><div class="li"><span>Free induction and health check</span><span class="chk">✓ Included</span></div></div>
+<div class="card"><h3>Class credits</h3><div class="li"><span><b>1 credit</b><br><span class="mut">From a cancelled pay as you go class</span></span><span class="pill ok">Available</span></div><div class="mut">It is used automatically when you book a class.</div></div>
+<div class="card"><h3>Payments and receipts</h3><div class="li"><span>2 Nov 2026</span><span>£35.00 <span class="pill ok">Paid</span></span></div><div class="li"><span>2 Oct 2026</span><span>£35.00 <span class="pill ok">Paid</span></span></div><div class="li"><span class="mut">All receipts and invoices</span><span class="mut">Open ›</span></div></div>
+<div class="card"><h3>Need a change?</h3><div class="btn o" style="margin-bottom:8px">Pause or cancel</div><div class="btn o">Change my plan</div><p class="mut" style="margin:10px 0 0">Monthly plans have no minimum term. To cancel, give us at least 1 week's notice before your next billing date. <u>Terms</u></p></div>
+</div><div class="tab"><span>Home</span><span>Timetable</span><span>Bookings</span><span>Log</span><b>Me</b></div></div></div>
+
+<div class="col"><p class="cap">2. Pause or cancel request<small>replaces writing an email</small></p>
+<div class="phone"><div class="scroll">
+<div class="top"><div class="back">‹</div><h2>Pause or cancel</h2></div>
+<div class="card"><h3>What would you like to do?</h3>
+<div class="opt on"><i class="dot"></i><div><b>Pause my membership</b><br><span class="mut">Stops payments and booking until you restart. Time paused is added to your end date.</span></div></div>
+<div class="opt"><i class="dot"></i><div><b>Cancel my membership</b><br><span class="mut">Stops at the end of the period you have paid for.</span></div></div>
+<div class="opt"><i class="dot"></i><div><b>Change my plan</b><br><span class="mut">Move to a different membership.</span></div></div>
+<label class="f">From which date?</label><div class="in">Wed 2 Dec 2026</div>
+<div class="note"><b>Notice:</b> your next payment is on 2 Dec. A request sent after 25 Nov takes effect after that payment. Nothing changes until we confirm it by email.</div>
+<label class="f">Mind telling us why? (optional)</label><div class="in">Injury or health</div>
+<label class="f">Anything else? (optional)</label><div class="in" style="min-height:70px">Back in January after surgery.</div>
+</div><div class="btn" style="margin-bottom:8px">Send request</div><div class="btn g">Back</div>
+</div><div class="tab"><span>Home</span><span>Timetable</span><span>Bookings</span><span>Log</span><b>Me</b></div></div></div>
+
+<div class="col"><p class="cap">3. After sending<small>status stays on the membership page</small></p>
+<div class="phone"><div class="scroll">
+<div class="top"><div class="back">‹</div><h2>My membership</h2></div>
+<div class="card" style="border:2px solid var(--acc)"><h3>Your request</h3><span class="pill warn">Received</span><p style="margin:10px 0 0"><b>Pause from 2 Dec 2026</b><br><span class="mut">Sent 14 Nov 2026, 10:32. We reply within 2 working days.</span></p>
+<div class="steps"><div class="st on"><i></i>Sent</div><div class="st now"><i></i>We are checking</div><div class="st"><i></i>Confirmed</div></div>
+<div class="mut">You do not need to do anything else. You will get an email when it is done. Changed your mind?</div><div style="height:8px"></div><div class="btn o" style="font-size:15px;padding:10px">Withdraw this request</div></div>
+<div class="plan"><span class="pill" style="background:rgba(255,255,255,.22);color:#fff">Active</span><div class="n" style="margin-top:8px">Gym &amp; Exercise Class Membership</div><div class="p">£35 <small>every month</small></div><small>Next payment 2 Dec 2026</small></div>
+<div class="card"><h3>Questions?</h3><div class="li"><span>Email the gym</span><span class="mut">info@mygymlondon.co.uk</span></div><div class="li"><span>Call or text</span><span class="mut">07459 020381</span></div></div>
+</div><div class="tab"><span>Home</span><span>Timetable</span><span>Bookings</span><span>Log</span><b>Me</b></div></div></div>
+
+</div>
+
+<div class="spec"><h2>How it works</h2>
+<ul>
+<li><b>What Wix does today (checked):</b> a member can see and pay a plan in the Wix member area, but none of the public memberships lets the member cancel (the "buyer can cancel" setting is off on every one), and Wix has no member self-pause. So today a member has to message the gym. Our page is easier: they see everything and send one clear request.</li>
+<li><b>Request, not instant:</b> pausing or cancelling changes money, so it goes to you as a request. You press one button in the back office (Pause, Cancel at end of period, Change plan), the member gets a confirmation email and the status turns to Confirmed. Nothing is cancelled by accident and nobody has to write an email.</li>
+<li><b>Same on the website</b> for people who do not use the app: log in, My account, same three screens. Pay as you go customers see their bookings, class credits and receipts instead of a plan.</li>
+<li><b>Shown to the member:</b> plan, price, start date, next payment and card, what the plan includes and what they can book, class credits, recent payments with receipt link, health form status, the notice rule from your terms, contact details. Updating the card opens the secure Wix page (we never handle card details).</li>
+<li><b>Notice rule:</b> from your terms (1 week before the next billing date). The form shows the earliest effective date and warns when a request comes late, so there are no surprises.</li>
+<li><b>Payment failed or suspended:</b> a red banner explains what happened, the retry date (5 days later) and the "Update my card" button, as in your terms.</li>
+<li><b>For you:</b> a "Membership requests" list in the back office with the member, what they asked, from when and why; one-tap actions; an email to you when a request arrives; everything logged.</li>
+<li><b>Not included on purpose:</b> refunds (done in Wix by you, as your terms say) and changing the card number here.</li>
+</ul></div>
+</body></html>

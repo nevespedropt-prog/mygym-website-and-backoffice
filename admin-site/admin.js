@@ -578,7 +578,7 @@
   var memberQ = "", memberRefocus = false;
   /* ---------- members: your real client list (Wix clients + app accounts) ---------- */
   var memberQ = memberQ || "", memberTab = "active", memberType = "all";
-  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", other: "Other plan" };
+  var TYPE_LABEL = { gym_classes: "Gym + Classes", classes: "Classes only", pt: "Personal training", payg: "Pay as you go", other: "Other plan" };
   var STATUS_LABEL = { active: "Active", failed: "Payment failed", paused: "Paused", cancelled: "Cancelled", ended: "Ended", lead: "Not a member" };
   var STATUS_CHIP = { active: "ok", failed: "bad", paused: "warn", cancelled: "plain", ended: "plain", lead: "plain" };
   function csvCell(v) { var s = v == null ? "" : String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
@@ -729,7 +729,7 @@
       if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
       clear(out); out.hidden = false; out.className = "msg ok"; out.appendChild(h("b", { text: "Added. Here is what happened:" }));
       r.j.steps.forEach(function (x) { out.appendChild(h("div", { style: "margin-top:6px" }, [h("b", { text: (x.ok ? "\u2713 " : "\u26A0 ") + x.name + ": " }), document.createTextNode(x.detail || "")])); });
-      if (r.j.checkout_link) out.appendChild(h("div", { style: "margin-top:10px" }, [h("a", { class: "btn pri", href: r.j.checkout_link, target: "_blank", rel: "noopener", text: "Open the Wix checkout" })]));
+      if (r.j.checkout_link) out.appendChild(h("div", { style: "margin-top:10px" }, [h("a", { class: "btn pri", href: checkoutUrl(r.j.checkout_link), target: "_blank", rel: "noopener", text: "Open the Wix checkout" })]));
       go.hidden = true; changedMember = true;
     });
   }
@@ -857,7 +857,7 @@
       clear(out); out.hidden = false; out.className = "msg " + (r.ok ? "ok" : "bad"); out.appendChild(h("b", { text: r.ok ? "Done. Here is what happened:" : "Something needs your attention:" }));
       steps.forEach(function (x) { out.appendChild(h("div", { style: "margin-top:6px" }, [h("b", { text: (x.ok ? "\u2713 " : "\u26A0 ") + x.name + ": " }), document.createTextNode(x.detail || "")])); });
       if (!r.ok && r.j.error && !steps.length) out.appendChild(h("div", { text: r.j.error }));
-      if (r.ok && r.j.checkout_link) out.appendChild(h("div", { style: "margin-top:10px" }, [h("a", { class: "btn pri", href: r.j.checkout_link, target: "_blank", rel: "noopener", text: "Open the Wix checkout" })]));
+      if (r.ok && r.j.checkout_link) out.appendChild(h("div", { style: "margin-top:10px" }, [h("a", { class: "btn pri", href: checkoutUrl(r.j.checkout_link), target: "_blank", rel: "noopener", text: "Open the Wix checkout" })]));
       go.hidden = true; changedMember = true;
       var fin = h("button", { class: "btn pri", text: "Close and refresh" }); fin.addEventListener("click", function () { doneEdit("Updated."); }); $("modal").querySelector(".row").appendChild(fin);
     });
@@ -879,7 +879,7 @@
     try { tpls = await rpc("admin_templates_list"); } catch (e) { tpls = []; }
     var fld = function (id, label, el, hint) { F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]); };
     var sel = h("select", { class: "in" }, [h("option", { value: "", text: "Write my own" })].concat(tpls.map(function (t, i) { return h("option", { value: String(i), text: t.name }); })));
-    var subj = h("input", { class: "in", maxlength: "78" }), ttl = h("input", { class: "in", maxlength: "60" }), body = h("textarea", { class: "in", rows: "7", maxlength: "3000" }), btn = h("input", { class: "in", maxlength: "30" }), url = h("input", { class: "in", maxlength: "300", placeholder: "https://" });
+    var subj = h("input", { class: "in", maxlength: "78" }), ttl = h("input", { class: "in", maxlength: "60" }), body = autoGrow(h("textarea", { class: "in", rows: "7", maxlength: "3000" })), btn = h("input", { class: "in", maxlength: "30" }), url = h("input", { class: "in", maxlength: "300", placeholder: "https://" });
     sel.addEventListener("change", function () { var t = tpls[Number(sel.value)]; if (sel.value === "" || !t) return; subj.value = t.subject || ""; ttl.value = t.title || ""; body.value = t.body || ""; btn.value = t.button || ""; url.value = t.url || ""; });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Send email" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
@@ -901,6 +901,72 @@
         closeModal(); toast("Email sent to " + m.email + ".");
       } catch (e) { go.disabled = false; armed = false; go.textContent = "Send email"; say(e.message, "bad"); }
     });
+  }
+  /* ---------- class credits: a cancelled pay-as-you-go class becomes a credit for another class ---------- */
+  function checkoutUrl(u) { return CFG.CHECKOUT_URL || u; }
+  async function creditsSection(m) {
+    var box = h("div", { class: "sect" }, [h("h4", { text: "Class credits" }), h("div", { class: "muted", text: "Loading..." })]);
+    var email = (m.email || "").toLowerCase();
+    async function draw() {
+      var d; try { d = await rpc("admin_credits_list", { p_email: email }); } catch (e) { clear(box); box.appendChild(h("h4", { text: "Class credits" })); box.appendChild(h("div", { class: "muted", text: e.message })); return; }
+      clear(box); box.appendChild(h("h4", { text: "Class credits" }));
+      box.appendChild(h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px" }, [chip(d.balance + (d.balance === 1 ? " credit available" : " credits available"), d.balance > 0 ? "ok" : "plain"),
+        h("button", { class: "btn sm", type: "button", text: "Add a credit", onclick: function () { creditDialog(email, m.name, draw); } })]));
+      if (!d.credits.length) { box.appendChild(h("small", { class: "muted", text: "None yet. A cancelled pay-as-you-go class gives one credit, no refund. Use it to put them into another class." })); return; }
+      var ST = { available: ["Available", "ok"], used: ["Used", "plain"], void: ["Cancelled", "plain"], expired: ["Expired", "warn"] };
+      box.appendChild(h("div", { class: "list" }, d.credits.map(function (c) {
+        var st = ST[c.status] || [c.status, "plain"], what = c.reason + (c.original_class ? " (" + c.original_class + (c.original_date ? ", " + fDate(c.original_date) : "") + ")" : "");
+        var sub = "Added " + fDate(c.created_at) + (c.expires_at && c.status === "available" ? " · expires " + fDate(c.expires_at) : "") + (c.used_for ? " · used for " + c.used_for : "") + (c.note ? " · " + c.note : "");
+        return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: c.credits + (c.credits === 1 ? " credit · " : " credits · ") + what }), h("small", { text: sub })]), chip(st[0], st[1]),
+          c.status === "available" ? h("button", { class: "btn sm", type: "button", text: "Use", onclick: function () { creditUseDialog(c, draw); } }) : null,
+          c.status === "available" ? h("button", { class: "btn sm dng", type: "button", text: "Cancel", onclick: function () { creditVoidDialog(c, draw); } }) : null]);
+      })));
+    }
+    draw(); return box;
+  }
+  function creditDialog(email, name, done) {
+    var F = {}, out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Add credit" });
+    var fld = function (id, label, el, hint) { F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]); };
+    var n = h("input", { class: "in", type: "number", min: "1", max: "10", value: "1" }), why = h("input", { class: "in", maxlength: "200", value: "Pay as you go class cancelled" }), cls = h("input", { class: "in", maxlength: "120", placeholder: "For example HIIT" }), dt = h("input", { class: "in", type: "date" }), ex = h("input", { class: "in", type: "date" });
+    openModal("Add a class credit for " + (name || email), [h("small", { class: "muted", text: "No refund: a cancelled pay-as-you-go class becomes a credit for another class. Nobody is emailed from here." }),
+      fld("n", "How many classes", n), fld("why", "Reason", why), fld("cls", "Class that was cancelled (optional)", cls), fld("dt", "Date of that class (optional)", dt), fld("ex", "Credit runs out on (optional, empty means it never expires)", ex), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    go.addEventListener("click", async function () {
+      go.disabled = true;
+      try { await rpc("admin_credit_grant", { p_email: email, p_credits: Number(n.value) || 1, p_reason: why.value, p_original_class: cls.value, p_original_date: dt.value || null, p_expires_on: ex.value || null }); closeModal(); toast("Credit added."); done(); }
+      catch (e) { go.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+  }
+  function creditUseDialog(c, done) {
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Mark as used" }), f = h("input", { class: "in", maxlength: "200", placeholder: "For example Mon 16 Nov 09:30 Strength" });
+    openModal("Use a credit", [h("p", { text: "First put them into the class (in Wix or the app timetable), then record it here so the credit is spent." }), h("div", { class: "field" }, [h("label", { text: "Which class was it used for?" }), f]), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+    go.addEventListener("click", async function () {
+      go.disabled = true;
+      try { await rpc("admin_credit_use", { p_id: c.id, p_used_for: f.value }); closeModal(); toast("Credit used."); done(); }
+      catch (e) { go.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+  }
+  function creditVoidDialog(c, done) {
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn dng", text: "Cancel this credit" }), f = h("input", { class: "in", maxlength: "300", placeholder: "Why (optional)" });
+    openModal("Cancel this credit?", [h("p", { text: "It can no longer be used. This cannot be undone." }), h("div", { class: "field" }, [h("label", { text: "Note" }), f]), out],
+      [h("button", { class: "btn", onclick: closeModal, text: "Keep it" }), go]);
+    go.addEventListener("click", async function () {
+      go.disabled = true;
+      try { await rpc("admin_credit_void", { p_id: c.id, p_note: f.value }); closeModal(); toast("Credit cancelled."); done(); }
+      catch (e) { go.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+  }
+
+  function marketingBox(m) {
+    var out = h("div", { class: "msg", hidden: true, style: "margin-top:8px" }), b = h("button", { class: "btn sm dng", type: "button", text: "Unsubscribe from news and offers" });
+    b.addEventListener("click", async function () {
+      if (b.dataset.sure !== "1") { b.dataset.sure = "1"; b.textContent = "Yes, unsubscribe them"; out.hidden = false; out.className = "msg bad"; out.textContent = "They stop getting news and offers straight away. Service emails about bookings and payments still go out. They can only join again by confirming themselves."; return; }
+      b.disabled = true;
+      try { await rpc("admin_member_marketing_withdraw", { p_email: m.email }); b.textContent = "Unsubscribed"; out.hidden = false; out.className = "msg ok"; out.textContent = "Done. They will not get news or offers."; }
+      catch (e) { b.disabled = false; out.hidden = false; out.className = "msg bad"; out.textContent = e.message; }
+    });
+    return h("div", { class: "sect" }, [h("h4", { text: "News and offers" }), h("div", { class: "muted", text: "They agreed to get news and offers by email." }), b, out]);
   }
   async function memberProfile(m) {
     var host = h("div", null, [h("div", { class: "muted", text: "Loading..." })]);
@@ -932,7 +998,9 @@
       if (p.bookings.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Recent bookings" }), h("div", { class: "list" }, p.bookings.slice(0, 8).map(function (b) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: b.name }), h("small", { text: fDate(b.date) + " at " + String(b.time).slice(0, 5) })])]); }))]));
       if (p.forms.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Forms they sent" }), h("div", { class: "list" }, p.forms.map(function (f) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: FORMS[f.form] || f.form }), h("small", { text: fDateTime(f.at) })]), chip(f.status || "new", "plain")]); }))]));
       if (p.emails.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Emails sent to them" }), h("div", { class: "list" }, p.emails.slice(0, 8).map(function (e) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: e.template }), h("small", { text: fDateTime(e.at) })]), e.status === "sent" ? chip("Sent", "ok") : chip(e.status, "warn")]); }))]));
-      var note = h("textarea", { class: "in", rows: "2", placeholder: "Add a private note (for example: called Tuesday, will return after holiday)", maxlength: "2000" }), nl = h("div", { class: "list", style: "margin-top:10px" });
+      if (m.email && can(["admin", "manager"])) host.appendChild(await creditsSection(m));
+      if (m.email && m.marketing === "subscribed" && can(["admin", "manager"])) host.appendChild(marketingBox(m));
+      var note = autoGrow(h("textarea", { class: "in", rows: "2", placeholder: "Add a private note (for example: called Tuesday, will return after holiday)", maxlength: "2000" })), nl = h("div", { class: "list", style: "margin-top:10px" });
       var drawNotes = function (ns) { clear(nl); ns.forEach(function (n) { nl.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: n.note, style: "font-weight:500;white-space:pre-wrap" }), h("small", { text: n.by + " · " + fDateTime(n.at) })]),
         can(["admin", "manager"]) ? h("button", { class: "btn sm", onclick: async function () { try { await rpc("admin_member_note_delete", { p_id: n.id }); ns = ns.filter(function (x) { return x.id !== n.id; }); drawNotes(ns); } catch (e) { toast(e.message, true); } }, text: "Delete" }) : null])); }); if (!ns.length) nl.appendChild(h("div", { class: "muted", text: "No notes yet." })); };
       drawNotes(p.notes);
@@ -975,7 +1043,7 @@
     var d = r.data || {}, name = d.full_name || d.parent_name || d.first_name || d.friend_name || d.email || "(no name)", email = d.email || d.friend_email, phone = d.phone;
     var dl = h("dl", { class: "kv" });
     Object.keys(d).forEach(function (k) { if (HIDE[k] || k === "email" || k === "phone" || k === "full_name" || d[k] === "" || d[k] == null) return; dl.appendChild(h("dt", { text: pretty(k) })); dl.appendChild(h("dd", { text: val(d[k]) })); });
-    var note = h("textarea", { class: "in", maxlength: "500", placeholder: "Private note (staff only)", "aria-label": "Note for " + name }); note.value = r.note || "";
+    var note = autoGrow(h("textarea", { class: "in", maxlength: "500", placeholder: "Private note (staff only)", "aria-label": "Note for " + name })); note.value = r.note || "";
     var btns = h("div", { class: "btns" });
     function save(status, b) {
       var all = btns.querySelectorAll("button"); all.forEach(function (x) { x.disabled = true; });
@@ -1003,6 +1071,10 @@
   var BLOCK_NAME = { p: "Paragraph", h: "Small heading", note: "Highlighted box", muted: "Small print", list: "Bullet list", kv: "Details table" };
   function blockKind(bl) { return ["p", "h", "note", "muted", "list", "kv"].filter(function (k) { return k in bl; })[0]; }
   function blockTexts(bl) { var k = blockKind(bl); return k === "list" ? bl.list.slice() : k === "kv" ? [].concat.apply([], bl.kv.map(function (r) { return [r[0], r[1]]; })) : [bl[k]]; }
+  // text boxes that grow with what is typed, so long wording is never hidden behind a scroll bar
+  function grow(el) { el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight + 2, 1600) + "px"; }
+  function autoGrow(el) { el.addEventListener("input", function () { grow(el); }); [60, 350, 900].forEach(function (ms) { setTimeout(function () { grow(el); }, ms); }); return el; }
+  function oneLine(el) { el.addEventListener("keydown", function (ev) { if (ev.key === "Enter") ev.preventDefault(); }); el.addEventListener("paste", function () { setTimeout(function () { var v = el.value.replace(/\s*[\r\n]+\s*/g, " "); if (v !== el.value) { el.value = v; grow(el); } }, 0); }); return el; }
   function emailEditor(e, ov, globals, onChange) {
     ov = ov || {}; var b = ov.body || {}, F = {};
     var allowed = {}; e.needs.concat(globals).forEach(function (k) { allowed[k] = 1; });
@@ -1019,25 +1091,25 @@
       }
     }
     function field(id, label, val, max, hint) {
-      var el = h("input", { class: "in", id: id, maxlength: String(max) }); el.value = val || ""; F[id] = el;
+      var el = oneLine(autoGrow(h("textarea", { class: "in", id: id, rows: "2", maxlength: String(max) }))); el.value = val || ""; F[id] = el;
       return h("div", { class: "field" }, [h("label", { for: id, text: label }), el, hint ? h("small", { class: "muted", text: hint }) : null]);
     }
     var host = h("div", { style: "display:grid;gap:12px" });
     function move(i, d) { var j = i + d; if (j < 0 || j >= cur.length) return; var t = cur[i]; cur[i] = cur[j]; cur[j] = t; draw(); }
     function blockCard(bl, i) {
       var k = blockKind(bl), ctl;
-      if (k === "h") { ctl = h("input", { class: "in", maxlength: "1500" }); ctl.value = bl.h; ctl.addEventListener("input", function () { bl.h = ctl.value; }); }
-      else if (k === "list") { ctl = h("textarea", { class: "in", rows: String(Math.min(9, bl.list.length + 1)), maxlength: "7000" }); ctl.value = bl.list.join("\n"); ctl.addEventListener("input", function () { bl.list = ctl.value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }); }
+      if (k === "h") { ctl = oneLine(autoGrow(h("textarea", { class: "in", rows: "2", maxlength: "1500" }))); ctl.value = bl.h; ctl.addEventListener("input", function () { bl.h = ctl.value; }); }
+      else if (k === "list") { ctl = autoGrow(h("textarea", { class: "in", rows: String(Math.min(9, bl.list.length + 1)), maxlength: "7000" })); ctl.value = bl.list.join("\n"); ctl.addEventListener("input", function () { bl.list = ctl.value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }); }
       else if (k === "kv") {
         ctl = h("div", { style: "display:grid;gap:6px" });
         bl.kv.forEach(function (r, ri) {
-          var l = h("input", { class: "in", maxlength: "120", placeholder: "Label", "aria-label": "Label" }), v = h("input", { class: "in", maxlength: "400", placeholder: "Value", "aria-label": "Value" });
+          var l = oneLine(autoGrow(h("textarea", { class: "in", rows: "2", maxlength: "120", placeholder: "Label", "aria-label": "Label" }))), v = oneLine(autoGrow(h("textarea", { class: "in", rows: "2", maxlength: "400", placeholder: "Value", "aria-label": "Value" })));
           l.value = r[0]; v.value = r[1]; l.addEventListener("input", function () { r[0] = l.value; }); v.addEventListener("input", function () { r[1] = v.value; });
           ctl.appendChild(h("div", { style: "display:grid;grid-template-columns:1fr 1.4fr auto;gap:6px;align-items:center" }, [l, v, h("button", { class: "btn sm", type: "button", title: "Remove this row", text: "✕", onclick: function () { if (bl.kv.length > 1) { bl.kv.splice(ri, 1); draw(); } else toast("A table needs at least one row. Remove the whole table instead.", true); } })]));
           if (r[2]) ctl.appendChild(h("small", { class: "muted", style: "margin-top:-3px", text: "Only shown when " + r[2].replace(/_/g, " ") + " is known." }));
         });
         ctl.appendChild(h("div", null, [h("button", { class: "btn sm", type: "button", text: "Add a row", onclick: function () { if (bl.kv.length < 14) { bl.kv.push(["Label", "Value"]); draw(); } } })]));
-      } else { ctl = h("textarea", { class: "in", rows: k === "p" && bl.p.length < 90 ? "2" : "4", maxlength: "1500" }); ctl.value = bl[k]; ctl.addEventListener("input", function () { bl[k] = ctl.value; }); }
+      } else { ctl = autoGrow(h("textarea", { class: "in", rows: bl[k].length < 90 ? "3" : "5", maxlength: "1500" })); ctl.value = bl[k]; ctl.addEventListener("input", function () { bl[k] = ctl.value; }); }
       return h("div", { class: "sect", style: "padding:10px 12px;border:1px solid var(--line);border-radius:10px" }, [
         h("div", { style: "display:flex;gap:6px;align-items:center;margin-bottom:6px" }, [h("b", { style: "flex:1;font-size:13px", text: BLOCK_NAME[k] + (bl.if ? " (only when " + bl.if.replace(/_/g, " ") + " is known)" : "") }),
           h("button", { class: "btn sm", type: "button", title: "Move up", text: "↑", disabled: i === 0, onclick: function () { move(i, -1); } }), h("button", { class: "btn sm", type: "button", title: "Move down", text: "↓", disabled: i === cur.length - 1, onclick: function () { move(i, 1); } }),
@@ -1063,7 +1135,7 @@
     var out = h("div", { class: "msg", hidden: true });
     blocks.push(out);
     function say(t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; }
-    function val(id) { return (F[id].value || "").trim(); }
+    function val(id) { return (F[id].value || "").replace(/\s*[\r\n]+\s*/g, " ").trim(); }
     function problem() {
       var texts = [val("eSubject"), val("ePre"), val("eTitle")].concat(e.cta ? [val("eCta")] : []), unknown = {};
       if (!val("eSubject")) return "The subject cannot be empty.";
@@ -1161,7 +1233,7 @@
   var pendingTpl = null;
   function templateEditor(t, done) {
     var isNew = !t.id, F = {};
-    var f = function (id, label, max, tag, ph) { var el = h(tag || "input", { class: "in", maxlength: String(max), placeholder: ph || "" }); if (tag === "textarea") el.rows = 8; el.value = t[id] || ""; F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
+    var f = function (id, label, max, tag, ph) { var wide = !tag && max >= 60, el = h(tag || (wide ? "textarea" : "input"), { class: "in", maxlength: String(max), placeholder: ph || "" }); if (tag === "textarea") { el.rows = 8; autoGrow(el); } else if (wide) { el.rows = 2; oneLine(autoGrow(el)); } el.value = t[id] || ""; F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
     var out = h("div", { class: "msg", hidden: true }), save = h("button", { class: "btn pri", text: "Save template" });
     save.addEventListener("click", async function () {
       save.disabled = true;
@@ -1640,8 +1712,8 @@
     var fields = (d.fields || []).map(function (x) { return Object.assign({}, x, { options: (x.options || []).slice() }); });
     var title = h("input", { class: "in", maxlength: "120", value: d.title, placeholder: "For example: Summer challenge sign-up" }), slug = h("input", { class: "in", maxlength: "35", value: d.slug, disabled: !isNew, placeholder: "summer-challenge" });
     title.addEventListener("input", function () { if (isNew && !slug.dataset.edited) slug.value = slugOf(title.value); }); slug.addEventListener("input", function () { slug.dataset.edited = "1"; });
-    var intro = h("textarea", { class: "in", rows: "3", maxlength: "1000", placeholder: "A short line shown above the form" }); intro.value = d.intro;
-    var button = h("input", { class: "in", maxlength: "40", value: d.button }), success = h("textarea", { class: "in", rows: "2", maxlength: "500" }); success.value = d.success;
+    var intro = autoGrow(h("textarea", { class: "in", rows: "3", maxlength: "1000", placeholder: "A short line shown above the form" })); intro.value = d.intro;
+    var button = h("input", { class: "in", maxlength: "40", value: d.button }), success = autoGrow(h("textarea", { class: "in", rows: "2", maxlength: "500" })); success.value = d.success;
     var cb = function (label, on) { var i = h("input", { type: "checkbox", checked: !!on }); return [i, h("label", { style: "display:flex;gap:8px;margin-top:8px;font-size:13.5px;align-items:flex-start" }, [i, h("span", { text: label })])]; };
     var phone = cb("Also ask for a phone number", d.ask_phone), notify = cb("Email the gym when someone sends it", d.notify_staff), reply = cb("Email the person a confirmation (uses your standard email look)", d.autoreply), active = cb("The form is switched on", d.active);
     var list = h("div"), out = h("div", { class: "msg", hidden: true });
