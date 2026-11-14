@@ -402,14 +402,14 @@ fcss = re.sub(r"url\((https://[^)]+)\)", font_rep, fcss)
 final_css = localise(fcss + "\n" + page_css)
 views["mybookings"] = (
     '<section class="view" id="mybookings"><div class="phead"><div class="wrap"><span class="chip">Members</span>'
-    '<h1>My bookings</h1><p>See your upcoming classes and gym sessions, and cancel up to 10 minutes before they start.</p></div></div>'
+    '<h1>My bookings and membership</h1><p>See your plan, credits and upcoming classes. Cancel a class up to 10 minutes before it starts, or ask us to pause, cancel or change your plan.</p></div></div>'
     '<div class="wrap sec" id="mbRoot"><noscript><p>Please turn on JavaScript to manage your bookings, or use the MyGym app.</p></noscript>'
     '<div class="card loginf" id="mbLogin" hidden><h3>Sign in</h3><p class="sub">Use the same email and password as the MyGym app.</p>'
     '<form id="mbForm"><label class="lb" for="mbEmail">Email</label><input id="mbEmail" class="wemail" type="email" autocomplete="username" required>'
     '<label class="lb" for="mbPass">Password</label><input id="mbPass" class="wemail" type="password" autocomplete="current-password" required>'
     '<button class="btn" type="submit" id="mbGo">Sign in</button></form>'
     '<p class="fine">No account yet? <a href="login.html">Find out how to join</a>.</p></div>'
-    '<div id="mbList" hidden><p class="sub">Signed in as <b id="mbWho"></b> <button type="button" class="btn ghost" id="mbOut">Sign out</button></p><div id="mbItems"></div>'
+    '<div id="mbList" hidden><p class="sub">Signed in as <b id="mbWho"></b> <button type="button" class="btn ghost" id="mbOut">Sign out</button></p><div id="mbMem"></div><h3>Upcoming bookings</h3><div id="mbItems"></div>'
     '<p class="fine">Pay as you go classes you cancel in time become a credit for another class. Questions? <a href="mailto:info@mygymlondon.co.uk">info@mygymlondon.co.uk</a></p></div>'
     '<p class="mbmsg" id="mbMsg" role="status" hidden></p></div></section>'
 )
