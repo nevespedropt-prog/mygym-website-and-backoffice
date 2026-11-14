@@ -102,6 +102,13 @@
       nav.appendChild(h("a", { href: "#/" + r.id, "data-r": r.id }, [h("span", { class: "nico", text: r.icon }), r.label]));
     });
   }
+  async function refreshBadges() {
+    if (!me || !can(["admin", "manager"])) return;
+    var n = 0; try { n = (await rpc("admin_membership_requests", { p_status: "received" })).length; } catch (e) { return; }
+    var a = document.querySelector('#nav a[data-r="members"]'); if (!a) return;
+    var old = a.querySelector(".nbadge"); if (old) old.remove();
+    if (n) a.appendChild(h("b", { class: "nbadge", title: n + " membership request" + (n === 1 ? "" : "s") + " waiting", text: String(n) }));
+  }
   function route() {
     var id = (location.hash.replace(/^#\/?/, "") || "dashboard").split("?")[0];
     var r = ROUTES.filter(function (x) { return x.id === id && can(x.roles); })[0] || ROUTES[0];
@@ -141,7 +148,7 @@
     if (!me || !me.role) return showGate("denied");
     $("gate").hidden = true; $("shell").hidden = false;
     $("meName").textContent = me.name || me.email || "Staff"; $("meRole").textContent = ROLE_LABEL[me.role] || me.role; $("meAv").textContent = initials(me.name || me.email);
-    buildNav(); tick(); if (!start.t) start.t = setInterval(tick, 30000);
+    buildNav(); tick(); refreshBadges(); if (!start.t) { start.t = setInterval(tick, 30000); setInterval(refreshBadges, 60000); }
     route();
   }
 
@@ -238,7 +245,9 @@
       return '<div class="li"><span class="time num">' + esc(st) + '</span><div class="tx"><b>' + esc(c.name) + "</b><small>" + esc(c.coach || "No coach set") + " · " + c.booked + "/" + c.capacity + ' booked</small><div class="bar ' + (pc >= 90 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + Math.min(100, pc) + '%"></i></div></div>' + chipH + "</div>";
     }).join("") : '<div class="empty">No classes today.</div>';
 
-    var attn = [];
+    var attn = [], mreq = [];
+    if (can(["admin", "manager"])) { try { mreq = await rpc("admin_membership_requests", { p_status: "received" }); } catch (e) { mreq = []; } }
+    if (mreq.length) attn.push('<a class="li" href="#/members?requests=1" style="background:var(--bads,#fdecec);border-radius:12px"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + mreq.length + " membership request" + (mreq.length === 1 ? "" : "s") + " waiting</b><small>" + esc((mreq[0].name || "") + ": " + ({ pause: "pause", cancel: "cancel", change: "change plan" }[mreq[0].type] || mreq[0].type)) + " · open to reply</small></div></a>");
     if (live && ps.failed) attn.push('<a class="li" href="#/plans"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + ps.failed + " failed payment" + (ps.failed === 1 ? "" : "s") + "</b><small>Open Plans and payments to chase them</small></div></a>");
     if (can(["admin", "manager"]) && smp) attn.push('<div class="li"><span class="ico bad">' + icon("alert") + '</span><div class="tx"><b>' + SAMPLE.failed + " failed payments " + sampleTag() + "</b><small>Retry or contact the members</small></div></div>");
     if (d.enquiries_new) attn.push('<a class="li" href="#/enquiries"><span class="ico acc">' + icon("inbox") + '</span><div class="tx"><b>' + d.enquiries_new + " new enquir" + (d.enquiries_new === 1 ? "y" : "ies") + "</b><small>Newest: " + esc(((d.latest_enquiries || [])[0] || {}).name || "") + "</small></div></a>");
@@ -609,6 +618,7 @@
     return m.status === tab;
   }
   async function vMembers() {
+    if (/[?&]requests/.test(location.hash)) setTimeout(function () { requestsDialog(); }, 120);
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
@@ -796,7 +806,7 @@
     var LBL = { pause: "Pause", cancel: "Cancel", change: "Change plan" };
     async function draw() {
       var d; try { d = await rpc("admin_membership_requests", { p_status: "received" }); } catch (e) { clear(host).appendChild(h("div", { class: "muted", text: e.message })); return; }
-      clear(host);
+      clear(host); refreshBadges();
       host.appendChild(h("p", { class: "muted", text: d.length ? "Members asked for these. Nothing has been changed yet: open the member, press Pause or Cancel on their plan (or change it), then Mark done." : "No requests waiting." }));
       d.forEach(function (q) {
         host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [h("b", { text: q.name }), chip(LBL[q.type] || q.type, q.type === "cancel" ? "bad" : "warn"), h("span", { class: "muted", text: "from " + fDate(q.from_date) })]),
