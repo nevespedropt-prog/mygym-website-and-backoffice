@@ -1064,6 +1064,15 @@
     root.appendChild(pageHead("Messages", "Everything sent through the website forms. Marking an enquiry Joined, Not now or Spam stops the follow-up emails to that person.",
       [h("div", { class: "seg" }, filters.map(function (f) { return h("button", { class: enqFilter === f[0] ? "on" : "", onclick: function () { enqFilter = f[0]; route(); }, text: f[1] }); }))]));
     if (!rows.length) { root.appendChild(card("Nothing here", "", [empty("No enquiries in this view.")])); return root; }
+    if (can(["admin", "manager"])) {
+      var all = h("button", { class: "btn sm dng", type: "button", text: "Delete all " + rows.length + " shown" });
+      all.addEventListener("click", async function () {
+        if (all.dataset.sure !== "1") { all.dataset.sure = "1"; all.textContent = "Yes, delete these " + rows.length + " for good"; setTimeout(function () { all.dataset.sure = ""; all.textContent = "Delete all " + rows.length + " shown"; }, 6000); return; }
+        all.disabled = true;
+        try { await rpc("admin_enquiry_delete", { p_ids: rows.map(function (x) { return x.id; }) }); toast(rows.length + " messages deleted."); route(); } catch (e) { all.disabled = false; toast(e.message, true); }
+      });
+      root.appendChild(h("div", { style: "margin-bottom:12px" }, [all]));
+    }
     var wrap = h("div", { class: "grid", style: "gap:12px" });
     rows.forEach(function (r) { wrap.appendChild(enquiryCard(r)); });
     root.appendChild(wrap); return root;
@@ -1080,6 +1089,15 @@
     }
     ["contacted", "trial", "joined", "not_now", "spam"].forEach(function (s) { btns.appendChild(h("button", { class: "btn sm" + (r.status === s ? " pri" : ""), onclick: function (ev) { save(s, ev.target); }, text: STATUS[s] })); });
     btns.appendChild(h("button", { class: "btn sm ghost", onclick: function (ev) { save(null, ev.target); }, text: "Save note" }));
+    if (can(["admin", "manager"])) {
+      var del = h("button", { class: "btn sm dng", type: "button", text: "Delete" });
+      del.addEventListener("click", async function () {
+        if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Delete for good?"; setTimeout(function () { del.dataset.sure = ""; del.textContent = "Delete"; }, 5000); return; }
+        del.disabled = true;
+        try { await rpc("admin_enquiry_delete", { p_ids: [r.id] }); toast("Message deleted."); route(); } catch (e) { del.disabled = false; toast(e.message, true); }
+      });
+      btns.appendChild(del);
+    }
     var links = []; if (email) links.push(h("a", { href: "mailto:" + email, text: email })); if (email && phone) links.push(document.createTextNode("  ·  ")); if (phone) links.push(h("a", { href: "tel:" + String(phone).replace(/[^+\d]/g, ""), text: phone }));
     return h("section", { class: "card" + (r.status === "new" ? " newq" : "") }, [h("div", { class: "bd" }, [
       h("div", { class: "head" }, [h("b", { text: name }), h("span", { class: "muted", text: (FORMS[r.form_id] || (r.data && r.data.form_title) || r.form_id) + " · " + fDateTime(r.created_at) }), chip(STATUS[r.status] || r.status, r.status === "new" ? "bad" : r.status === "joined" ? "ok" : "plain")]),
