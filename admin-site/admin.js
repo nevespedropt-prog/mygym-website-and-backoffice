@@ -841,6 +841,13 @@
       [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
   }
   var HEALTH_QS = [["heart", "A doctor has told me I have a heart condition"], ["chest", "I get chest pain when I exercise or at rest"], ["dizzy", "I feel dizzy, or have fainted or lost consciousness"], ["joint", "I have a bone, joint or back problem that exercise could make worse"], ["meds", "I take medication for blood pressure or a heart condition"], ["pregnant", "I am pregnant, or gave birth in the last 6 months"], ["other", "I have another health condition or injury that could affect exercise"]];
+  /* every Wix plan, grouped, for the Add member and Change plan lists (plans not on sale yet are included: staff can still record them) */
+  function planGroup(n) { return /payg|pay as you go/i.test(n) ? "Pay as you go" : /personal training/i.test(n) ? "Personal training" : /staff|bhp/i.test(n) ? "Staff" : /annual|yearly/i.test(n) ? "Yearly" : "Memberships"; }
+  function fillPlans(sel, plans) {
+    var order = ["Memberships", "Yearly", "Pay as you go", "Personal training", "Staff"], by = {};
+    plans.forEach(function (p) { (by[planGroup(p.name)] = by[planGroup(p.name)] || []).push(p); });
+    order.forEach(function (g) { if (!by[g]) return; var og = h("optgroup", { label: g }); by[g].sort(function (a, z) { return a.name.localeCompare(z.name); }).forEach(function (p) { og.appendChild(h("option", { value: p.id, text: p.name + (p.amount ? " (\u00A3" + p.amount + ")" : "") })); }); sel.appendChild(og); });
+  }
   async function addMemberDialog() {
     var F = {}, plans = [];
     var inp = function (id, label, type, ph, max) { var el = h("input", { class: "in", type: type || "text", placeholder: ph || "", maxlength: String(max || 80) }); F[id] = el; return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
@@ -860,7 +867,8 @@
       h("div", { class: "sect" }, [h("h4", { text: "4. Agreements (they agree in person)" }), chk("terms", "They accept the MY GYM London terms and conditions"), chk("privacy", "They have seen the privacy notice"), chk("marketing", "They would like news and offers by email (optional)")]),
       h("div", { class: "sect" }, [h("h4", { text: "5. App" }), chk("create_app", "Create their app login and email them a welcome with a link to set a password (needs an email)", true)]), out];
     openDrawer("Add a member", body, [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), go]);
-    fn("admin-add-member", { action: "plans" }, 30).then(function (r) { if (!r.ok) return; plans = r.j.plans || []; plans.forEach(function (p) { planSel.appendChild(h("option", { value: p.id, text: p.name + (p.amount ? " (\u00A3" + p.amount + ")" : "") })); }); });
+    planSel.firstChild.textContent = "Loading plans...";
+    (function loadPlans(tries) { fn("admin-add-member", { action: "plans" }, 30).then(function (r) { if (!r.ok) { if (tries < 2) return setTimeout(function () { loadPlans(tries + 1); }, 1500); planSel.firstChild.textContent = "Could not load the plans. Close this and open it again."; return; } plans = r.j.plans || []; planSel.firstChild.textContent = "No plan yet"; fillPlans(planSel, plans); }); })(0);
     go.addEventListener("click", async function () {
       var pl = plans.filter(function (p) { return p.id === planSel.value; })[0] || {}, ans = {}; HEALTH_QS.forEach(function (q) { ans[q[0]] = F["hq_" + q[0]].checked; }); ans.none = F.hq_none.checked;
       go.disabled = true; say("Adding them...");
@@ -1007,7 +1015,7 @@
     openModal(o ? "Change plan" : "Start a plan", [h("p", { text: (m.name || m.email) + (o ? " is on " + o.plan + "." : " has no plan yet.") }), fld("New plan", planSel), o && o.unit ? fld("When does the old plan stop?", whenSel) : null, fld("Payment", paySel), h("small", { class: "muted", style: "display:block;margin-top:10px", text: note }), out].filter(Boolean), [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
     fn("admin-add-member", { action: "plans" }, 30).then(function (r) {
       clear(planSel); planSel.appendChild(h("option", { value: "", text: r.ok ? "Choose the plan" : "Could not load the plans" }));
-      if (r.ok) { plans = r.j.plans || []; plans.forEach(function (x) { planSel.appendChild(h("option", { value: x.id, text: x.name + (x.amount ? " (\u00A3" + x.amount + ")" : "") })); }); }
+      if (r.ok) { plans = r.j.plans || []; fillPlans(planSel, plans); }
     });
     go.addEventListener("click", async function () {
       var pl = plans.filter(function (x) { return x.id === planSel.value; })[0]; if (!pl) return say("Choose the plan first.", "bad");
