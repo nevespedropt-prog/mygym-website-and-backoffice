@@ -281,6 +281,11 @@
       h("button", { class: "btn sm", onclick: function () { schedDate.setDate(schedDate.getDate() + 1); route(); }, text: "Next ›" }),
       h("button", { class: "btn sm", onclick: function () { schedDate = new Date(); route(); }, text: "Today" })];
     root.appendChild(pageHead("Schedule", fDate(ds) + ": who is booked into each session.", nav));
+    if (can(["admin", "manager", "reception"])) {
+      var reqs = []; try { reqs = await pendingTrials(ds); } catch (e) { reqs = []; }
+      if (reqs.length) root.appendChild(h("div", { style: "margin-bottom:16px" }, [card("Free trial requests waiting for you", reqs.length + " for this day", [h("div", { class: "list" }, reqs.map(function (r) {
+        var d = r.data || {}; return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: d.full_name || d.email }), h("small", { text: reqLine(r) }), h("small", { text: [d.email, d.phone].filter(Boolean).join(" · ") })]), h("button", { class: "btn sm pri", type: "button", text: "Approve", onclick: function () { approveRequest(r, route); } })]); }))])]));
+    }
     var classes = data.filter(function (c) { return c.kind !== "gym"; }), gym = data.filter(function (c) { return c.kind === "gym"; });
     var wrap = h("div", { class: "grid", style: "gap:12px" });
     if (!classes.length) wrap.appendChild(card("Classes", "", [empty("No classes on this day.")]));
@@ -288,12 +293,51 @@
     root.appendChild(wrap);
     var gb = gym.reduce(function (a, c) { return a + c.booked; }, 0);
     var g = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["Hour", "Booked", "Capacity", "Who"].map(function (x) { return h("th", { text: x }); }))]),
-      h("tbody", null, gym.map(function (c) { return h("tr", { style: "cursor:default" }, [h("td", { class: "num", text: String(c.start).slice(0, 5) }), h("td", { class: "num", text: c.booked }), h("td", { class: "num", text: c.capacity }), h("td", null, [document.createTextNode(c.people.map(function (p) { return p.name; }).concat((c.walkins || []).map(function (k) { return k.name + (k.kind === "payg" ? " (pay as you go)" : ""); })).join(", ") || "-"), can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm", style: "margin-left:8px", type: "button", text: "Add", onclick: function () { bookInDialog(c, ds); } }) : null])]); }))])]);
+      h("tbody", null, gym.map(function (c) { return h("tr", { style: "cursor:default" }, [h("td", { class: "num", text: String(c.start).slice(0, 5) }), h("td", { class: "num", text: c.booked }), h("td", { class: "num", text: c.capacity }), h("td", null, [document.createTextNode(c.people.map(function (p) { return p.name; }).concat((c.walkins || []).map(function (k) { return k.name + (k.kind === "payg" ? " (pay as you go)" : k.kind === "trial" ? " (free trial)" : ""); })).join(", ") || "-"), can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm", style: "margin-left:8px", type: "button", text: "Add", onclick: function () { bookInDialog(c, ds); } }) : null])]); }))])]);
     root.appendChild(h("div", { style: "margin-top:16px" }, [card("Gym floor slots", gb + " booked", [gym.length ? g : empty("No gym slots on this day.")])]));
     return root;
   }
   /* ---------- schedule: book a member, or a pay as you go person who pays at the gym, into a session ---------- */
   var DIRC = { at: 0, rows: [] };
+  /* website free class / free gym requests waiting for the team's yes */
+  var MON3 = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  function reqDate(r) {
+    var d = r.data || {};
+    if (r.form_id === "trial-gym") return /^\d{4}-\d{2}-\d{2}$/.test(d.preferred_date || "") ? d.preferred_date : null;
+    var m = /(\d{1,2})\s+([A-Za-z]{3})/.exec(String(d.class_date || "")), mi = m ? MON3.indexOf(m[2].toLowerCase()) : -1;
+    if (!m || mi < 0) return null;
+    var made = String(r.created_at).slice(0, 10), y = Number(made.slice(0, 4)), f = function (yy) { return yy + "-" + String(mi + 1).padStart(2, "0") + "-" + m[1].padStart(2, "0"); };
+    return f(y) < made ? f(y + 1) : f(y);
+  }
+  function reqLine(r) { var d = r.data || {}; return r.form_id === "trial-gym" ? "Free gym session, " + (d.preferred_time || "any time") : "Free class: " + (d.class_name || "") + (d.class_time ? " at " + d.class_time : ""); }
+  async function pendingTrials(ds) {
+    var rows = await rpc("admin_enquiries", { p_status: "open" });
+    return rows.filter(function (r) { return (r.form_id === "free-class" || r.form_id === "trial-gym") && (r.status === "new" || r.status === "contacted") && (!ds || reqDate(r) === ds); });
+  }
+  async function approveRequest(r, after) {
+    var d = r.data || {}, name = d.full_name || d.email || "this person", date = reqDate(r);
+    if (!date) return toast("The date they chose could not be read. Use Add someone on the Schedule page.", true);
+    async function post(p, btn) {
+      if (btn) btn.disabled = true; var x = await fn("admin-book-member", Object.assign({ action: "approve_enquiry", id: r.id }, p), 60);
+      if (!x.ok) { if (btn) btn.disabled = false; toast(x.j.error || "Could not add them.", true); return false; }
+      closeModal(); toast(name + " is booked in as a free trial."); (after || route)(); return true;
+    }
+    if (r.form_id === "free-class") {
+      var go = h("button", { class: "btn pri", text: "Approve and add to the class" });
+      openModal("Approve free class", [h("p", { text: name + " asked to try " + (d.class_name || "a class") + (d.class_time ? " at " + d.class_time : "") + " on " + fDate(date) + ". Approving books them into that class as a free trial (in Wix too) and saves their details. No email is sent from here." })], [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go]);
+      go.addEventListener("click", function () { post({}, go); }); return;
+    }
+    var day; try { day = await rpc("admin_day", { p_date: date }); } catch (e) { return toast(e.message, true); }
+    var slots = day.filter(function (c) { return c.kind === "gym"; }), pick = null, box = h("div", { class: "list", style: "max-height:300px;overflow:auto;margin-top:8px" }), go2 = h("button", { class: "btn pri", text: "Approve and book this hour" });
+    function draw() { clear(box); if (!slots.length) box.appendChild(h("small", { class: "muted", text: "No gym hours on this day." })); slots.forEach(function (c) { box.appendChild(h("div", { class: "li", style: "cursor:pointer" + (pick === c.id ? ";background:var(--accs)" : ""), onclick: function () { pick = c.id; draw(); } }, [h("div", { class: "tx" }, [h("b", { text: String(c.start).slice(0, 5) }), h("small", { text: c.booked + " of " + c.capacity + " booked" })]), pick === c.id ? chip("Chosen", "ok") : null])); }); }
+    openModal("Approve free gym session", [h("p", { text: name + " asked for a free gym session on " + fDate(date) + ", " + (d.preferred_time || "any time") + ". Choose the hour to book them into." }), box], [h("button", { class: "btn", onclick: closeModal, text: "Cancel" }), go2]);
+    draw(); go2.addEventListener("click", function () { if (!pick) return toast("Choose an hour first.", true); post({ class_id: pick }, go2); });
+  }
+  async function freeTrialsDialog() {
+    var rows; try { rows = await rpc("admin_free_trials"); } catch (e) { return toast(e.message, true); }
+    var body = rows.length ? h("div", { class: "list", style: "max-height:60vh;overflow:auto" }, rows.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: "Free trial: " + (t.class || "") + " on " + fDate(t.date) })]), t.member ? chip("Now a member", "ok") : chip("Not a member yet", "plain")]); })) : h("p", { class: "muted", text: "Nobody has had a free trial yet." });
+    openModal("Free trials", [h("p", { class: "muted", text: "Everyone who has had a free trial. If they ask again, offer a membership or pay as you go." }), body], [h("button", { class: "btn", onclick: closeModal, text: "Close" })]);
+  }
   async function bookInDialog(c, ds, after) {
     var gym = c.kind === "gym", tab = "member", picked = null;
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
@@ -315,9 +359,14 @@
     }
     function draw() {
       clear(seg); clear(body);
-      [["member", "Member with a membership"], ["payg", "Pay as you go"]].forEach(function (t) { seg.appendChild(h("button", { type: "button", class: tab === t[0] ? "on" : "", text: t[1], onclick: function () { tab = t[0]; draw(); } })); });
+      [["member", "Member with a membership"], ["payg", "Pay as you go"], ["trial", "Free trial"]].forEach(function (t) { seg.appendChild(h("button", { type: "button", class: tab === t[0] ? "on" : "", text: t[1], onclick: function () { tab = t[0]; draw(); } })); });
       if (tab === "member") { body.appendChild(q); body.appendChild(list); drawList(); go.textContent = "Book member"; }
-      else {
+      else if (tab === "trial") {
+        body.appendChild(h("small", { class: "muted", text: "A free go for someone new. Their details are saved so we know they have had it. If they ask again you will be told, and you can offer a membership or pay as you go. They are booked in Wix too." }));
+        [["Name", nm], ["Phone", ph], ["Email", em]].forEach(function (f) { body.appendChild(h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: f[0] }), f[1]])); });
+        body.appendChild(h("small", { class: "muted", style: "display:block;margin-top:8px", text: "Add an email or a phone number (or both)." }));
+        go.textContent = "Add free trial";
+      } else {
         body.appendChild(h("small", { class: "muted", text: "For someone who pays at the gym. They are booked in Wix too, so the space is taken everywhere." }));
         [["Name", nm], ["Phone", ph], ["Email", em], ["Price (pounds)", amt]].forEach(function (f) { body.appendChild(h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: f[0] }), f[1]])); });
         body.appendChild(h("label", { style: "display:flex;gap:8px;align-items:center;margin-top:10px" }, [paid, document.createTextNode("Paid at the gym")]));
@@ -331,6 +380,7 @@
     go.addEventListener("click", async function () {
       var p = { action: "book", class_id: c.id, date: ds };
       if (tab === "member") { if (!picked) return say("Choose a member first.", "bad"); p.mode = "member"; p.email = picked.email; }
+      else if (tab === "trial") { if (nm.value.trim().length < 2) return say("Add their name.", "bad"); if (!em.value.trim() && ph.value.replace(/\D/g, "").length < 7) return say("Add an email or a phone number.", "bad"); p.mode = "trial"; p.name = nm.value; p.phone = ph.value; p.email = em.value; }
       else { if (nm.value.trim().length < 2) return say("Add their name.", "bad"); p.mode = "payg"; p.name = nm.value; p.phone = ph.value; p.email = em.value; p.amount = Number(amt.value) || 0; p.paid = paid.checked; }
       go.disabled = true; say("Booking...");
       var r = await fn("admin-book-member", p, 60);
@@ -345,7 +395,7 @@
       can(["admin"]) ? h("button", { class: "btn sm " + (c.cancelled ? "" : "dng"), onclick: function () { cancelClass(c, ds); }, text: c.cancelled ? "Cancelled: manage" : "Cancel class" }) : null]);
     var people = c.people.length ? h("div", { class: "people" }, c.people.map(function (p) { return h("span", { class: "chip " + (p.source === "wix" ? "info" : "plain"), text: p.name }); })) : h("small", { class: "muted", text: "Nobody booked through the app yet." });
     var walk = (c.walkins || []).length ? h("div", { class: "people", style: "margin-top:8px" }, (c.walkins || []).map(function (k) {
-      return h("span", { class: "chip warn", style: "display:inline-flex;gap:6px;align-items:center" }, [document.createTextNode(k.name + (k.kind === "payg" ? " · pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " paid" : " NOT PAID") : "")),
+      return h("span", { class: "chip warn", style: "display:inline-flex;gap:6px;align-items:center" }, [document.createTextNode(k.name + (k.kind === "payg" ? " · pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " paid" : " NOT PAID") : k.kind === "trial" ? " · free trial" : "")),
         can(["admin", "manager", "reception"]) ? h("button", { class: "btn sm", type: "button", title: "Remove from this class", text: "×", onclick: async function () { if (!window.confirm("Remove " + k.name + " from this class?")) return; var r = await fn("admin-book-member", { action: "remove", id: k.id }, 60); if (!r.ok) return toast(r.j.error || "Could not remove.", true); toast("Removed."); route(); } }) : null]);
     })) : null;
     return h("section", { class: "card" }, [h("div", { class: "bd" }, [head, people, walk])]);
@@ -505,7 +555,7 @@
             var r = await fn("admin-book-member", { action: "remove_booking", id: p.id }, 60); if (!r.ok) { ev.target.disabled = false; return toast(r.j.error || "Could not remove.", true); } toast("Removed."); draw(); } }) : null]));
       });
       d.walkins.forEach(function (k) {
-        list.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: k.name }), h("small", { text: (k.kind === "payg" ? "Pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " · paid at the gym" : " · NOT PAID") : "Member") + (k.phone ? " · " + k.phone : "") })]),
+        list.appendChild(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: k.name }), h("small", { text: (k.kind === "payg" ? "Pay as you go" + (k.amount ? " £" + k.amount : "") + (k.paid ? " · paid at the gym" : " · NOT PAID") : k.kind === "trial" ? "Free trial" : "Member") + (k.phone ? " · " + k.phone : "") })]),
           canEdit ? h("button", { class: "btn sm dng", type: "button", text: "Remove", onclick: async function (ev) {
             if (!window.confirm("Remove " + k.name + " from this class? Their Wix booking is cancelled.")) return; ev.target.disabled = true;
             var r = await fn("admin-book-member", { action: "remove", id: k.id }, 60); if (!r.ok) { ev.target.disabled = false; return toast(r.j.error || "Could not remove.", true); } toast("Removed."); draw(); } }) : null]));
@@ -704,7 +754,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { requestsDialog(); }, text: "Requests" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { freeTrialsDialog(); }, text: "Free trials" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { requestsDialog(); }, text: "Requests" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -1171,6 +1221,7 @@
     }
     ["contacted", "trial", "joined", "not_now", "spam"].forEach(function (s) { btns.appendChild(h("button", { class: "btn sm" + (r.status === s ? " pri" : ""), onclick: function (ev) { save(s, ev.target); }, text: STATUS[s] })); });
     btns.appendChild(h("button", { class: "btn sm ghost", onclick: function (ev) { save(null, ev.target); }, text: "Save note" }));
+    if ((r.form_id === "free-class" || r.form_id === "trial-gym") && (r.status === "new" || r.status === "contacted") && can(["admin", "manager", "reception"])) btns.insertBefore(h("button", { class: "btn sm pri", type: "button", text: "Approve and add to the timetable", onclick: function () { approveRequest(r, route); } }), btns.firstChild);
     if (can(["admin", "manager"])) {
       var del = h("button", { class: "btn sm dng", type: "button", text: "Delete" });
       del.addEventListener("click", async function () {
