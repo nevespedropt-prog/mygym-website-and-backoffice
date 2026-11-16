@@ -39,12 +39,14 @@
     if (r.error) { var e = new Error(/Not allowed/.test(r.error.message) ? "You do not have access to this." : r.error.message); e.code = r.error.code; throw e; }
     return r.data;
   }
+  var curSess = null;
   async function fn(name, body, seconds) {
     // never leaves the page waiting for ever: a failed network call, a missing sign-in or a slow reply all come back as a readable error
     var ctl = new AbortController(), timer = setTimeout(function () { ctl.abort(); }, (seconds || 60) * 1000);
     try {
-      var got = await Promise.race([sb.auth.getSession(), new Promise(function (res) { setTimeout(function () { res(null); }, 10000); })]);
-      var s = got && got.data && got.data.session;
+      // use the session the page already holds (kept up to date below); only ask the sign-in library when it is missing or about to expire
+      var s = curSess && curSess.expires_at * 1000 > Date.now() + 30000 ? curSess : null;
+      if (!s) { var got = await Promise.race([sb.auth.getSession(), new Promise(function (res) { setTimeout(function () { res(null); }, 10000); })]); s = got && got.data && got.data.session; if (s) curSess = s; }
       if (!s) return { ok: false, j: { error: "Your sign-in could not be checked. Reload the page and sign in again." } };
       var r = await fetch(CFG.SUPABASE_URL + "/functions/v1/" + name, { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json", apikey: CFG.SUPABASE_ANON_KEY, Authorization: "Bearer " + s.access_token }, body: JSON.stringify(body) });
       var j = await r.json().catch(function () { return {}; });
@@ -868,7 +870,7 @@
       h("div", { class: "sect" }, [h("h4", { text: "5. App" }), chk("create_app", "Create their app login and email them a welcome with a link to set a password (needs an email)", true)]), out];
     openDrawer("Add a member", body, [h("button", { class: "btn", onclick: closeDrawer, text: "Cancel" }), go]);
     planSel.firstChild.textContent = "Loading plans...";
-    (function loadPlans(tries) { fn("admin-add-member", { action: "plans" }, 30).then(function (r) { if (!r.ok) { if (tries < 2) return setTimeout(function () { loadPlans(tries + 1); }, 1500); planSel.firstChild.textContent = "Could not load the plans. Close this and open it again."; return; } plans = r.j.plans || []; planSel.firstChild.textContent = "No plan yet"; fillPlans(planSel, plans); }); })(0);
+    (function loadPlans(tries) { fn("admin-add-member", { action: "plans" }, 30).then(function (r) { if (!r.ok) { if (tries < 2) return setTimeout(function () { loadPlans(tries + 1); }, 1500); planSel.firstChild.textContent = "Could not load the plans: " + ((r.j && r.j.error) || "no reason given") + " Close this and open it again."; return; } plans = r.j.plans || []; planSel.firstChild.textContent = "No plan yet"; fillPlans(planSel, plans); }); })(0);
     go.addEventListener("click", async function () {
       var pl = plans.filter(function (p) { return p.id === planSel.value; })[0] || {}, ans = {}; HEALTH_QS.forEach(function (q) { ans[q[0]] = F["hq_" + q[0]].checked; }); ans.none = F.hq_none.checked;
       go.disabled = true; say("Adding them...");
@@ -2054,6 +2056,6 @@
   }
 
   /* ---------- go ---------- */
-  sb.auth.onAuthStateChange(function (ev) { if (ev === "SIGNED_OUT") { me = null; showGate("login"); } });
+  sb.auth.onAuthStateChange(function (ev, sess) { curSess = sess || null; if (ev === "SIGNED_OUT") { me = null; showGate("login"); } });
   start().catch(function () { showGate("login"); });
 })();
