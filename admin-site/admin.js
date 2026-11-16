@@ -344,12 +344,12 @@
     var gym = c.kind === "gym", tab = "member", picked = null;
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
-    var seg = h("div", { class: "seg", style: "margin-bottom:12px" });
+    var seg = h("div", { class: "seg fill", style: "margin-bottom:12px" });
     var body = h("div");
     var nm = h("input", { class: "in", maxlength: "80", placeholder: "Name" }), ph = h("input", { class: "in", maxlength: "30", placeholder: "Phone (optional)", type: "tel" }), em = h("input", { class: "in", maxlength: "120", placeholder: "Email (optional)", type: "email" });
     var price = /pilates/i.test(c.name) ? "7" : gym || /kids/i.test(c.name) ? "4" : "6";
     var amt = h("input", { class: "in", type: "number", min: "0", step: "0.5", value: price }), paid = h("input", { type: "checkbox", checked: true });
-    var q = h("input", { class: "in", placeholder: "Search a member by name or email", "aria-label": "Search members" }), list = h("div", { class: "list", style: "max-height:260px;overflow:auto;margin-top:8px" });
+    var q = h("input", { class: "in", style: "width:100%;box-sizing:border-box", placeholder: "Search a member by name or email", "aria-label": "Search members" }), list = h("div", { class: "list", style: "max-height:260px;overflow:auto;margin-top:8px" });
     function eligible(m) { var t = m.plan_type; return !!m.email && (m.status === "active" || m.status === "failed") && (gym ? (t === "gym" || t === "gym_classes") : (t === "classes" || t === "gym_classes")); }
     function drawList() {
       clear(list); var s = q.value.trim().toLowerCase(), n = 0;
@@ -361,7 +361,7 @@
     }
     function draw() {
       clear(seg); clear(body);
-      [["member", "Member with a membership"], ["payg", "Pay as you go"], ["trial", "Free trial"]].forEach(function (t) { seg.appendChild(h("button", { type: "button", class: tab === t[0] ? "on" : "", text: t[1], onclick: function () { tab = t[0]; draw(); } })); });
+      [["member", "Membership"], ["payg", "Pay as you go"], ["trial", "Free trial"]].forEach(function (t) { seg.appendChild(h("button", { type: "button", class: tab === t[0] ? "on" : "", text: t[1], onclick: function () { tab = t[0]; draw(); } })); });
       if (tab === "member") { body.appendChild(q); body.appendChild(list); drawList(); go.textContent = "Book member"; }
       else if (tab === "trial") {
         body.appendChild(h("small", { class: "muted", text: "A free go for someone new. Their details are saved so we know they have had it. If they ask again you will be told, and you can offer a membership or pay as you go. They are booked in Wix too." }));
