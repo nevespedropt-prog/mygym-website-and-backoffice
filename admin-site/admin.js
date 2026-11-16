@@ -337,11 +337,12 @@
   }
   async function freeTrialsDialog() {
     var rows; try { rows = await rpc("admin_free_trials"); } catch (e) { return toast(e.message, true); }
-    var body = rows.length ? h("div", { class: "list", style: "max-height:60vh;overflow:auto" }, rows.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: "Free trial: " + (t.class || "") + " on " + fDate(t.date) })]), t.member ? chip("Now a member", "ok") : chip("Not a member yet", "plain")]); })) : h("p", { class: "muted", text: "Nobody has had a free trial yet." });
+    var body = rows.length ? h("div", { class: "list", style: "max-height:60vh;overflow:auto" }, rows.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: t.used ? "Free trial: " + (t.class || "") + " on " + fDate(t.date) : "Added with a " + String(t.class || "free trial").toLowerCase() + " on " + fDate(t.date) + ", no session booked yet" })]), h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end" }, [t.used ? null : chip("Waiting for a session", "warn"), t.member ? chip("Now a member", "ok") : chip("Not a member yet", "plain")])]); })) : h("p", { class: "muted", text: "Nobody has had a free trial yet." });
     openModal("Free trials", [h("p", { class: "muted", text: "Everyone who has had a free trial. If they ask again, offer a membership or pay as you go." }), body], [h("button", { class: "btn", onclick: closeModal, text: "Close" })]);
   }
   async function bookInDialog(c, ds, after) {
-    var gym = c.kind === "gym", tab = "member", picked = null;
+    var gym = c.kind === "gym", tab = "member", picked = null, WAITING = [];
+    rpc("admin_free_trials").then(function (rows) { WAITING = (rows || []).filter(function (t) { return !t.used; }); if (tab === "trial") draw(); }).catch(function () { WAITING = []; });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
     var seg = h("div", { class: "seg fill", style: "margin-bottom:12px" });
@@ -365,6 +366,11 @@
       if (tab === "member") { body.appendChild(q); body.appendChild(list); drawList(); go.textContent = "Book member"; }
       else if (tab === "trial") {
         body.appendChild(h("small", { class: "muted", text: "A free go for someone new. Their details are saved so we know they have had it. If they ask again you will be told, and you can offer a membership or pay as you go. They are booked in Wix too." }));
+        var waiting = WAITING.filter(function (t) { return t.class === (gym ? "Gym trial" : "Class trial"); });
+        if (waiting.length) {
+          body.appendChild(h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin:12px 0 4px", text: "Already added with a free " + (gym ? "gym" : "class") + " trial, waiting for a session (tap to fill in)" }));
+          body.appendChild(h("div", { class: "list", style: "max-height:150px;overflow:auto" }, waiting.map(function (t) { return h("div", { class: "li", style: "cursor:pointer", onclick: function () { nm.value = t.name; ph.value = t.phone || ""; em.value = t.email || ""; say("Details filled in for " + t.name + ". Press Add free trial to book them in.", "ok"); } }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") })]), chip("Waiting", "warn")]); })));
+        }
         [["Name", nm], ["Phone", ph], ["Email", em]].forEach(function (f) { body.appendChild(h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: f[0] }), f[1]])); });
         body.appendChild(h("small", { class: "muted", style: "display:block;margin-top:8px", text: "Add an email or a phone number (or both)." }));
         go.textContent = "Add free trial";
@@ -848,6 +854,7 @@
   function fillPlans(sel, plans) {
     var order = ["Memberships", "Yearly", "Pay as you go", "Personal training", "Staff"], by = {};
     plans.forEach(function (p) { (by[planGroup(p.name)] = by[planGroup(p.name)] || []).push(p); });
+    var tg = h("optgroup", { label: "Free trial" }); tg.appendChild(h("option", { value: "trial:class", text: "Free class trial" })); tg.appendChild(h("option", { value: "trial:gym", text: "Free gym trial" })); sel.appendChild(tg);
     order.forEach(function (g) { if (!by[g]) return; var og = h("optgroup", { label: g }); by[g].sort(function (a, z) { return a.name.localeCompare(z.name); }).forEach(function (p) { og.appendChild(h("option", { value: p.id, text: p.name + (p.amount ? " (\u00A3" + p.amount + ")" : "") })); }); sel.appendChild(og); });
   }
   async function addMemberDialog() {
