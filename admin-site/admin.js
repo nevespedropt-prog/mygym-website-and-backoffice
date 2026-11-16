@@ -1617,16 +1617,29 @@
     recallTest(); changed();
     var actions = [];
     var note = null, statsBox = null;
+    function delBtn() { var b = h("button", { class: "btn sm dng", type: "button", text: "Delete campaign", onclick: async function () {
+      if (!window.confirm(c.status === "sent" ? "Delete this campaign from your list? The emails already sent stay sent, and the results shown here are lost." : "Delete this campaign?")) return;
+      try { await rpc("admin_campaign_delete", { p_id: c.id }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } }); return b; }
     if (editable) actions = [bSave, bTest, bGo, h("button", { class: "btn sm", type: "button", text: "Save as template", onclick: function () { templateEditor({ name: "", subject: v("cSubject"), preheader: v("cPre"), title: v("cTitle"), body: v("cBody"), button: v("cBtn"), url: v("cUrl") }, function () { toast("Saved to your templates."); }); } })].concat(savedId ? [h("button", { class: "btn sm dng", type: "button", text: "Delete draft", onclick: async function () { try { await rpc("admin_campaign_delete", { p_id: savedId }); toast("Deleted."); done(); } catch (e) { say(e.message, "bad"); } } })] : []);
     else if (c.status === "scheduled") {
       note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Scheduled for " + fDateTime(c.scheduled_for) + ". " }), document.createTextNode("It goes to " + segLabel(c.segment, c.kind).toLowerCase() + (c.extra_emails ? " and the typed email addresses" : "") + ". Unschedule it to change anything.")])]);
-      actions = [h("button", { class: "btn", type: "button", text: "Unschedule and edit", onclick: async function () { try { await rpc("admin_campaign_unschedule", { p_id: c.id }); toast("Back to a draft."); done(); } catch (e) { say(e.message, "bad"); } } })];
+      actions = [h("button", { class: "btn", type: "button", text: "Unschedule and edit", onclick: async function () { try { await rpc("admin_campaign_unschedule", { p_id: c.id }); toast("Back to a draft."); done(); } catch (e) { say(e.message, "bad"); } } }), delBtn()];
     } else {
       var st = c.stats || {}, pc = function (a) { return c.sent ? " (" + Math.round(100 * a / c.sent) + "%)" : ""; };
       note = h("div", { class: "banner" }, [h("div", null, [h("b", { text: c.status === "sending" ? "This campaign is sending. " : "Sent " + (c.finished_at ? fDateTime(c.finished_at) : "") + ". " }), document.createTextNode(c.status === "sending" ? "If you closed the page it carries on by itself within a minute or two." : "Sent to " + (c.audience != null ? c.audience : c.sent) + " people.")])]);
       statsBox = h("div", { class: "grid g3", style: "margin-top:12px" }, [kpi("Sent", c.sent, c.failed ? c.failed + " failed to send" : ""), kpi("Delivered", st.delivered || 0, pc(st.delivered || 0).trim()), kpi("Clicked a link", st.clicked || 0, pc(st.clicked || 0).trim()),
         kpi("Unsubscribed", st.unsubscribed || 0), kpi("Marked as spam", st.complained || 0, "", (st.complained || 0) > 0), kpi("Bounced", st.bounced || 0, "", (st.bounced || 0) > 0)]);
+      if (c.status === "sent") {
+        var editBtn = h("button", { class: "btn", type: "button", text: "Edit wording", onclick: function () {
+          Object.keys(F).forEach(function (k) { if (["cSubject", "cPre", "cTitle", "cBody", "cBtn", "cUrl"].indexOf(k) >= 0) F[k].disabled = false; });
+          form.addEventListener("input", changed); editBtn.hidden = true; saveSent.hidden = false;
+          say("Changing the wording only updates what is kept here. Emails already sent do not change.", "ok"); } });
+        var saveSent = h("button", { class: "btn pri", type: "button", hidden: true, text: "Save changes", onclick: async function () {
+          try { await rpc("admin_campaign_edit_sent", { p_id: c.id, p_subject: v("cSubject"), p_preheader: v("cPre"), p_title: v("cTitle"), p_body: v("cBody"), p_button: v("cBtn"), p_url: v("cUrl") }); toast("Saved."); done(); } catch (e) { say(e.message, "bad"); } } });
+      }
       actions = [h("button", { class: "btn", type: "button", text: "Duplicate as new draft", onclick: function () { close(); openComposerFn(Object.assign(newForm(), { subject: c.subject, preheader: c.preheader, title: c.title, body: c.body, button: c.button, url: c.url, segment: c.segment, kind: c.kind, extra_emails: c.extra_emails })); } })];
+      if (c.status === "sent") actions = actions.concat([editBtn, saveSent]);
+      if (c.status !== "sending") actions.push(delBtn());
       if (c.status === "sending" || (c.status === "sent" && c.failed > 0)) { savedId = c.id; actions.unshift(h("button", { class: "btn pri", type: "button", text: c.status === "sending" ? "Continue sending" : "Retry the " + c.failed + " that failed", onclick: async function () { lock(true); await sendLoop("Sending"); lock(false); } })); }
     }
     var left = h("div", null, [note, statsBox, form, editable ? h("div", { style: "margin-top:16px" }, [h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin-bottom:6px", text: "Before you send" }), checks]) : null, out,
