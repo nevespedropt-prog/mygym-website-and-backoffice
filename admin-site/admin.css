@@ -72,6 +72,8 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stro
 .seg{display:inline-flex;background:var(--line2);border-radius:var(--rad-s);padding:3px;gap:2px}
 .seg button{height:30px;padding:0 13px;border-radius:7px;font-weight:600;color:var(--mut)}
 .seg button.on{background:var(--panel);color:var(--txt);box-shadow:var(--sh)}
+.seg.fill{display:flex;width:100%;box-sizing:border-box}
+.seg.fill button{flex:1 1 0;min-width:0;height:auto;min-height:36px;padding:7px 6px;line-height:1.2;text-align:center}
 .field{display:flex;flex-direction:column;gap:5px}
 .field label{font-size:12px;font-weight:600;color:var(--mut)}
 .in,.sel{height:38px;border:1px solid var(--line);background:var(--panel);border-radius:var(--rad-s);padding:0 12px;min-width:0}
