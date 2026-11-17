@@ -337,12 +337,12 @@
   }
   async function freeTrialsDialog() {
     var rows; try { rows = await rpc("admin_free_trials"); } catch (e) { return toast(e.message, true); }
-    var body = rows.length ? h("div", { class: "list", style: "max-height:60vh;overflow:auto" }, rows.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: t.used ? "Free trial: " + (t.class || "") + " on " + fDate(t.date) : "Added with a " + String(t.class || "free trial").toLowerCase() + " on " + fDate(t.date) + ", no session booked yet" })]), h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end" }, [t.used ? null : chip("Waiting for a session", "warn"), t.member ? chip("Now a member", "ok") : chip("Not a member yet", "plain")])]); })) : h("p", { class: "muted", text: "Nobody has had a free trial yet." });
+    var body = rows.length ? h("div", { class: "list", style: "max-height:60vh;overflow:auto" }, rows.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: t.state === "waiting" || (!t.state && !t.used) ? "Free trial given (" + String(t.class || "").toLowerCase() + "), no session booked" : t.state === "booked" ? "Booked: " + (t.class || "") + " on " + fDate(t.date) : "Used: " + (t.class || "") + " on " + fDate(t.date) })]), h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end" }, [t.state === "waiting" ? chip("Waiting for a session", "warn") : t.state === "booked" ? chip("Booked", "info") : chip("Used", "plain"), t.member ? chip("Now a member", "ok") : chip("Not a member yet", "plain")])]); })) : h("p", { class: "muted", text: "Nobody has had a free trial yet." });
     openModal("Free trials", [h("p", { class: "muted", text: "Everyone who has had a free trial. If they ask again, offer a membership or pay as you go." }), body], [h("button", { class: "btn", onclick: closeModal, text: "Close" })]);
   }
   async function bookInDialog(c, ds, after) {
     var gym = c.kind === "gym", tab = "member", picked = null, WAITING = [];
-    rpc("admin_free_trials").then(function (rows) { WAITING = (rows || []).filter(function (t) { return !t.used; }); if (tab === "trial") draw(); }).catch(function () { WAITING = []; });
+    rpc("admin_free_trials").then(function (rows) { WAITING = (rows || []).filter(function (t) { return (t.state || (t.used ? "used" : "waiting")) === "waiting"; }); if (tab === "trial") draw(); }).catch(function () { WAITING = []; });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: "Book member" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
     var seg = h("div", { class: "seg fill", style: "margin-bottom:12px" });
@@ -366,7 +366,7 @@
       if (tab === "member") { body.appendChild(q); body.appendChild(list); drawList(); go.textContent = "Book member"; }
       else if (tab === "trial") {
         body.appendChild(h("small", { class: "muted", text: "A free go for someone new. Their details are saved so we know they have had it. If they ask again you will be told, and you can offer a membership or pay as you go. They are booked in Wix too." }));
-        var waiting = WAITING.filter(function (t) { return t.class === (gym ? "Gym trial" : "Class trial"); });
+        var waiting = WAITING.filter(function (t) { return gym ? /gym/i.test(t.class || "") : !/gym/i.test(t.class || ""); });
         if (waiting.length) {
           body.appendChild(h("div", { class: "muted", style: "font-size:12px;font-weight:600;margin:12px 0 4px", text: "Already added with a free " + (gym ? "gym" : "class") + " trial, waiting for a session (tap to fill in)" }));
           body.appendChild(h("div", { class: "list", style: "max-height:150px;overflow:auto" }, waiting.map(function (t) { return h("div", { class: "li", style: "cursor:pointer", onclick: function () { nm.value = t.name; ph.value = t.phone || ""; em.value = t.email || ""; say("Details filled in for " + t.name + ". Press Add free trial to book them in.", "ok"); } }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") })]), chip("Waiting", "warn")]); })));
@@ -851,10 +851,10 @@
   var HEALTH_QS = [["heart", "A doctor has told me I have a heart condition"], ["chest", "I get chest pain when I exercise or at rest"], ["dizzy", "I feel dizzy, or have fainted or lost consciousness"], ["joint", "I have a bone, joint or back problem that exercise could make worse"], ["meds", "I take medication for blood pressure or a heart condition"], ["pregnant", "I am pregnant, or gave birth in the last 6 months"], ["other", "I have another health condition or injury that could affect exercise"]];
   /* every Wix plan, grouped, for the Add member and Change plan lists (plans not on sale yet are included: staff can still record them) */
   function planGroup(n) { return /payg|pay as you go/i.test(n) ? "Pay as you go" : /personal training/i.test(n) ? "Personal training" : /staff|bhp/i.test(n) ? "Staff" : /annual|yearly/i.test(n) ? "Yearly" : "Memberships"; }
-  function fillPlans(sel, plans) {
+  function fillPlans(sel, plans, noTrial) {
     var order = ["Memberships", "Yearly", "Pay as you go", "Personal training", "Staff"], by = {};
     plans.forEach(function (p) { (by[planGroup(p.name)] = by[planGroup(p.name)] || []).push(p); });
-    var tg = h("optgroup", { label: "Free trial" }); tg.appendChild(h("option", { value: "trial:class", text: "Free class trial" })); tg.appendChild(h("option", { value: "trial:gym", text: "Free gym trial" })); sel.appendChild(tg);
+    if (!noTrial) { var tg = h("optgroup", { label: "Free trial" }); tg.appendChild(h("option", { value: "trial:class", text: "Free class trial" })); tg.appendChild(h("option", { value: "trial:gym", text: "Free gym trial" })); sel.appendChild(tg); }
     order.forEach(function (g) { if (!by[g]) return; var og = h("optgroup", { label: g }); by[g].sort(function (a, z) { return a.name.localeCompare(z.name); }).forEach(function (p) { og.appendChild(h("option", { value: p.id, text: p.name + (p.amount ? " (\u00A3" + p.amount + ")" : "") })); }); sel.appendChild(og); });
   }
   async function addMemberDialog() {
@@ -1016,20 +1016,21 @@
     var plans = [], planSel = h("select", { class: "sel" }, [h("option", { value: "", text: "Loading plans..." })]);
     var whenSel = h("select", { class: "sel" }, [h("option", { value: "now", text: "Now" }), h("option", { value: "period_end", text: "At the end of the period they have paid for" })]);
     var paySel = h("select", { class: "sel" }, [h("option", { value: "in_person", text: "They pay in person now (cash or card machine): recorded in Wix" }), h("option", { value: "card_link", text: "They pay by card on the Wix checkout" })]);
+    var emailIn = h("input", { class: "in", type: "email", maxlength: "120", placeholder: "name@example.com" });
     var out = h("div", { class: "msg", hidden: true, style: "margin-top:12px" }), go = h("button", { class: "btn pri", text: o ? "Change plan" : "Start plan" });
     var say = function (t, cls) { out.hidden = false; out.className = "msg" + (cls ? " " + cls : ""); out.textContent = t; };
     var fld = function (label, el) { return h("div", { class: "field", style: "margin-top:10px" }, [h("label", { text: label }), el]); };
     var note = o ? "The new plan is recorded first, then the old one is stopped. No refund or credit for the old plan is worked out here: do that in Wix if needed. If they pay by card, the old plan is stopped but they must complete the Wix checkout themselves, so tell them before you press the button."
       : "The plan is recorded in Wix for this person. If they pay by card they finish the payment on the Wix checkout.";
-    openModal(o ? "Change plan" : "Start a plan", [h("p", { text: (m.name || m.email) + (o ? " is on " + o.plan + "." : " has no plan yet.") }), fld("New plan", planSel), o && o.unit ? fld("When does the old plan stop?", whenSel) : null, fld("Payment", paySel), h("small", { class: "muted", style: "display:block;margin-top:10px", text: note }), out].filter(Boolean), [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
+    openModal(o ? "Change plan" : "Start a plan", [h("p", { text: (m.name || m.email) + (o ? " is on " + o.plan + "." : " has no plan yet.") }), fld("New plan", planSel), m.email ? null : fld("Their email (Wix needs one to record a plan)", emailIn), o && o.unit ? fld("When does the old plan stop?", whenSel) : null, fld("Payment", paySel), h("small", { class: "muted", style: "display:block;margin-top:10px", text: note }), out].filter(Boolean), [h("button", { class: "btn", onclick: closeModal, text: "Close" }), go]);
     fn("admin-add-member", { action: "plans" }, 30).then(function (r) {
       clear(planSel); planSel.appendChild(h("option", { value: "", text: r.ok ? "Choose the plan" : "Could not load the plans" }));
-      if (r.ok) { plans = r.j.plans || []; fillPlans(planSel, plans); }
+      if (r.ok) { plans = r.j.plans || []; fillPlans(planSel, plans, true); }
     });
     go.addEventListener("click", async function () {
       var pl = plans.filter(function (x) { return x.id === planSel.value; })[0]; if (!pl) return say("Choose the plan first.", "bad");
       go.disabled = true; say("Working in Wix... this can take up to a minute.");
-      var r = await fn("admin-edit-member", { action: "change_plan", key: m.key || m.email, plan_id: pl.id, plan_name: pl.name, plan_amount: pl.amount || 0, plan_unit: pl.unit || "", when: whenSel.value, pay: paySel.value, old_order_id: o ? o.id : "", first: String(m.name || "").trim().split(/\s+/)[0] || "", name: m.name || "" }, 120);
+      var r = await fn("admin-edit-member", { action: "change_plan", key: m.key || m.email, plan_id: pl.id, plan_name: pl.name, plan_amount: pl.amount || 0, plan_unit: pl.unit || "", when: whenSel.value, pay: paySel.value, old_order_id: o ? o.id : "", email: m.email ? "" : emailIn.value, first: String(m.name || "").trim().split(/\s+/)[0] || "", name: m.name || "" }, 120);
       var steps = (r.j && r.j.steps) || [];
       if (!r.ok && !steps.length) { go.disabled = false; return say(r.j.error || "Something went wrong.", "bad"); }
       clear(out); out.hidden = false; out.className = "msg " + (r.ok ? "ok" : "bad"); out.appendChild(h("b", { text: r.ok ? "Done. Here is what happened:" : "Something needs your attention:" }));
@@ -1160,9 +1161,10 @@
       host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" }, [m.plan_type ? chip(TYPE_LABEL[m.plan_type], "acc") : chip("No plan", "plain"), chip(STATUS_LABEL[m.status] || m.status, STATUS_CHIP[m.status] || "plain"), m.lapsed ? chip("Not training", "warn") : null, m.cancelling ? chip("Cancelling", "warn") : null]),
         kvOf([["Email", m.email || "None (phone only)"], ["Phone", m.phone], ["Date of birth", m.birthdate ? fDate(m.birthdate) : "Not given yet"], ["Client since", m.joined ? fDate(m.joined) : "-"], ["Last booked", m.last_booking ? fDate(m.last_booking) : "-"], ["Labels in Wix", (c.labels || []).join(", ")]]),
         can(["admin", "manager"]) ? h("div", { style: "margin-top:12px" }, [h("button", { class: "btn sm", type: "button", text: "Edit details", onclick: function () { editDetailsDialog(m, p); } })]) : null]));
+      var mmPlanBtn = can(["admin"]) && p.manual && !p.orders.some(function (o) { return o.status === "active" || o.status === "failed" || o.status === "paused"; }) ? h("button", { class: "btn sm pri", style: "margin:2px 0 12px", type: "button", text: "Change plan", onclick: function () { planDialog(m, null); } }) : null;
       if (p.manual) { var mm = p.manual, hl = mm.health || {}, cs = mm.consents || {};
         host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Signed up in person" }), kvOf([["Added by", hl.taken_by || cs.taken_by || "Staff"], ["On", mm.created_at ? fDateTime(mm.created_at) : "-"], ["Health form", "Taken in person" + (hl.consented_at ? " on " + fDate(hl.consented_at) : "")],
-          ["Terms and privacy", cs.terms && cs.privacy ? "Accepted in person" : "-"], ["News and offers", cs.marketing ? "Agreed in person" : "No"], ["Emergency contact", [mm.emergency_name, mm.emergency_phone].filter(Boolean).join(", ")], ["Plan", mm.plan_name ? mm.plan_name + (mm.paid_how === "in_person" ? " (paid in person)" : mm.paid_how === "card_link" ? " (card via Wix checkout)" : " (payment still to come)") : "None yet"]])])); }
+          ["Terms and privacy", cs.terms && cs.privacy ? "Accepted in person" : "-"], ["News and offers", cs.marketing ? "Agreed in person" : "No"], ["Emergency contact", [mm.emergency_name, mm.emergency_phone].filter(Boolean).join(", ")], ["Plan", mm.plan_name ? mm.plan_name + (mm.paid_how === "in_person" ? " (paid in person)" : mm.paid_how === "card_link" ? " (card via Wix checkout)" : " (payment still to come)") : "None yet"]]), mmPlanBtn])); }
       var orderRows = [];
       p.orders.forEach(function (o) {
         orderRows.push(h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: o.plan }), h("small", { text: (o.started ? "From " + fDate(o.started) : "") + (o.ends ? ", ends " + fDate(o.ends) : "") + (o.cancelling ? ", set to stop at the end of the period" : "") + (o.pay ? " · payment " + String(o.pay).toLowerCase() : "") })]), h("span", { class: "num", text: "£" + Number(o.amount || 0).toFixed(2) }), chip(STATUS_LABEL[o.status] || o.status, STATUS_CHIP[o.status] || "plain")]));
@@ -1170,7 +1172,7 @@
       });
       var hasLive = p.orders.some(function (o) { return o.status === "active" || o.status === "failed" || o.status === "paused"; });
       host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Membership and payments" }), orderRows.length ? h("div", { class: "list" }, orderRows) : h("div", { class: "muted", text: "No membership purchased." }),
-        can(["admin"]) && !hasLive && (m.email || "") ? h("button", { class: "btn sm", style: "margin-top:10px", type: "button", text: "Start a plan", onclick: function () { planDialog(m, null); } }) : null]));
+        can(["admin"]) && !hasLive && !p.manual ? h("button", { class: "btn sm", style: "margin-top:10px", type: "button", text: "Start a plan", onclick: function () { planDialog(m, null); } }) : null]));
       host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "App and emails" }), kvOf([["App account", ap ? "Yes, joined " + fDate(ap.created) : "No"], ["Bookings in the app", ap ? ap.bookings : "-"], ["Health form", ap ? (ap.health_form ? "Done" : "Missing") : "-"],
         ["News and offers", p.consent ? (p.consent.withdrawn ? "Unsubscribed " + fDate(p.consent.withdrawn) : p.consent.confirmed ? "Subscribed " + fDate(p.consent.confirmed) + (p.consent.source ? " (" + p.consent.source + ")" : "") : "Waiting to confirm") : "Not subscribed"], ["Wix newsletter status", (c.subscription || "-").replace(/_/g, " ").toLowerCase()]])]));
       if (p.bookings.length) host.appendChild(h("div", { class: "sect" }, [h("h4", { text: "Recent bookings" }), h("div", { class: "list" }, p.bookings.slice(0, 8).map(function (b) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: b.name }), h("small", { text: fDate(b.date) + " at " + String(b.time).slice(0, 5) })])]); }))]));
