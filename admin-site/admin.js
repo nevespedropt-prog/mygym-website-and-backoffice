@@ -271,6 +271,12 @@
     root.appendChild(fromHtml('<div class="grid g-eq" style="margin-top:16px"><div class="card"><div class="hd"><h3>When people train</h3><span class="sub">average class fill, last 4 weeks</span></div><div class="bd">' + heatHtml(ins.heat) + '</div></div><div class="card"><div class="hd"><h3>Members by plan ' + (smp ? sampleTag() : "") + '</h3></div><div class="bd">' + donutHtml + "</div></div></div>"));
     root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Needs attention</h3></div><div class="bd"><div class="list">' + attn.join("") + '</div></div></div><div class="card"><div class="hd"><h3>Recent activity</h3></div><div class="bd"><div class="list">' + act + "</div></div></div></div>"));
     if (health) root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>System health</h3><span class="sub">automatic jobs</span></div><div class="bd stat-row">' + health + "</div></div>"));
+    if (can(["admin", "manager", "reception"])) {
+      try {
+        var tf = await rpc("admin_trial_funnel", { p_days: 30 });
+        if (tf && tf.given) root.appendChild(h("div", { style: "margin-top:16px" }, [card("Free trials, last 30 days", tf.joined + " joined", [h("div", { class: "grid g4" }, [kpi("Given a free trial", tf.given, tf.waiting ? tf.waiting + " not booked in yet" : "all booked in"), kpi("Booked a session", tf.booked), kpi("Came to a session", tf.done, "the session date has passed"), kpi("Joined", tf.joined, tf.done ? Math.round(100 * tf.joined / tf.done) + "% of those who came" : "")]), h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Open Members, then Free trials, to see each person. A person who has not joined yet gets a follow-up email the day after their session (once the trial emails are switched on)." })])]));
+      } catch (e) { /* the card is optional */ }
+    }
     return root;
   }
 
@@ -1208,9 +1214,11 @@
   }
 
   /* ---------- enquiries ---------- */
-  var enqFilter = "open";
+  var enqFilter = "open", REFMAP = {};
   async function vEnquiries() {
     var rows = await rpc("admin_enquiries", { p_status: enqFilter }), root = h("div");
+    REFMAP = {};
+    try { var codes = []; rows.forEach(function (r) { var m = /[?&]ref=([A-Za-z0-9]{4,10})/.exec((r.data && r.data.page_url) || ""); if (m) codes.push(m[1].toUpperCase()); }); if (codes.length) REFMAP = await rpc("admin_referrers", { p_codes: codes }) || {}; } catch (e) { REFMAP = {}; }
     var filters = [["open", "Open"], ["new", "New"], ["joined", "Joined"], ["not_now", "Not now"], ["spam", "Spam"], ["all", "Everything"]];
     root.appendChild(pageHead("Messages", "Everything sent through the website forms. Marking an enquiry Joined, Not now or Spam stops the follow-up emails to that person.",
       [h("div", { class: "seg" }, filters.map(function (f) { return h("button", { class: enqFilter === f[0] ? "on" : "", onclick: function () { enqFilter = f[0]; route(); }, text: f[1] }); }))]));
@@ -1232,6 +1240,8 @@
     var d = r.data || {}, name = d.full_name || d.parent_name || d.first_name || d.friend_name || d.email || "(no name)", email = d.email || d.friend_email, phone = d.phone;
     var dl = h("dl", { class: "kv" });
     Object.keys(d).forEach(function (k) { if (HIDE[k] || k === "email" || k === "phone" || k === "full_name" || d[k] === "" || d[k] == null) return; dl.appendChild(h("dt", { text: pretty(k) })); dl.appendChild(h("dd", { text: val(d[k]) })); });
+    var refm = /[?&]ref=([A-Za-z0-9]{4,10})/.exec(d.page_url || ""), refName = refm ? REFMAP[refm[1].toUpperCase()] : null;
+    if (refName) { dl.appendChild(h("dt", { text: "Referred by" })); dl.appendChild(h("dd", { text: refName + ". If they join, " + refName + " gets 100% off their next month." })); }
     var note = autoGrow(h("textarea", { class: "in", maxlength: "500", placeholder: "Private note (staff only)", "aria-label": "Note for " + name })); note.value = r.note || "";
     var btns = h("div", { class: "btns" });
     function save(status, b) {

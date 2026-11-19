@@ -273,7 +273,7 @@ w.addEventListener("click",function(e){
    .then(function(r){return r.json().then(function(j){return{ok:r.ok&&j.ok,j:j}})})
    .then(function(res){
     if(!res.ok){m.textContent=(res.j.errors&&res.j.errors[0]&&res.j.errors[0].message)||res.j.error||"Sorry, that did not go through. Please try again or email info@mygymlondon.co.uk.";btn.disabled=false;return}
-    var rec=A.style==="With friends"?["Small Group Personal Training","£60 a month · £15 each per session · minimum 4 sessions"]:A.style==="One to one"?["1-2-1 Personal Training","from £32.50 a session"]:["Your free session first","we'll find your best fit together"];
+    var rec=A.style==="With friends"?["Small Group Personal Training","£90 a month, split between your group · minimum 4 sessions"]:A.style==="One to one"?["1-2-1 Personal Training","from £32.50 a session"]:["Your free session first","we'll find your best fit together"];
     var r=$("wres");
     r.innerHTML="<div class=\"ok\">✓</div><h3>Thanks, we have your request</h3><p>A coach will contact you within one working day to confirm your free <b>"+time+" PT session</b>. We have emailed a copy to <b>"+esc(em)+"</b>.</p><div class=\"rec\"><span>We'd suggest</span><h4>"+rec[0]+"</h4><small>"+rec[1]+"</small></div><p class=\"fine\">Goal: "+esc(A.goal||"")+" · "+esc(A.level||"")+" · "+esc(A.freq||"")+"</p>";
     [].forEach.call(w.querySelectorAll(".step,.wprog,.wtop"),function(x){x.style.display="none"});r.classList.add("on")})
@@ -481,7 +481,7 @@ LLMS_TXT = """# MyGym London
 - Gym membership: 26 pounds a month
 - Exercise class only membership: 26 pounds a month
 - Gym and exercise class membership: 35 pounds a month, or 400 pounds a year (includes a free induction and introductory health check)
-- Small group personal training: 60 pounds a month for 2 to 4 people (15 pounds each per session, minimum 4 sessions a month)
+- Small group personal training: 90 pounds a month for 2 to 4 people, split between the group (minimum 4 sessions a month)
 - Personal training: 30-minute sessions from 32.50 pounds, first session free
 - Kids Gym: 20 pounds a month, Tuesdays and Thursdays 4pm to 5pm, minimum age 8
 
@@ -526,7 +526,7 @@ OFFERS = [
     _offer("Gym Membership", "26.00", "Gym access every month. No contract."),
     _offer("Exercise Class Only Membership", "26.00", "All exercise classes every month. No contract."),
     _offer("Gym & Exercise Class Membership", "35.00", "Gym access and all exercise classes, with free induction and health check. 400 pounds a year as an annual plan."),
-    _offer("Small Group Personal Training", "60.00", "2 to 4 friends train together, 15 pounds each per session, minimum 4 sessions a month."),
+    _offer("Small Group Personal Training", "90.00", "2 to 4 friends train together and split 90 pounds a month between them, minimum 4 sessions a month."),
     _offer("Kids Gym", "20.00", "Kids gym sessions on Tuesdays and Thursdays 4pm to 5pm, minimum age 8."),
 ]
 
