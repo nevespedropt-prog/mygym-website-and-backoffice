@@ -21,6 +21,8 @@ MyGym London is a sole trader business run by Pedro Ricardo Martins Das Neves. R
 - Accounts are for members of MyGym London. Use your own account and keep your login private.
 - Give us correct information and keep it up to date.
 - Tell us straight away if you think someone else has used your account.
+- Your membership and your bookings are personal to you and cannot be transferred. All bookings are made in the name of the registered member. You must not let anyone else use your membership. If you do, we may cancel your membership, and no refund is given for it.
+- Be ready to show your booking or membership when you visit, if we ask. If you cannot, we may refuse entry.
 - We may suspend or close an account that is misused, or that is used to cause harm to others or to us.
 
 ## Memberships and payments
@@ -32,6 +34,7 @@ MyGym London is a sole trader business run by Pedro Ricardo Martins Das Neves. R
 - Payments are taken through Wix.
 - If a payment fails, we try to take it again 5 days after the failed attempt. If the second attempt also fails, your membership is suspended. A suspended member cannot use the gym, classes or booking in the app until they take out a new membership. You can sign up again using the same email address.
 - Gym slots in the app are for members whose plan includes gym access.
+- You can ask us to pause, change or cancel your membership in the app (Account, Membership) or by email. Nothing changes until we confirm it by email. If you ask for a pause for medical or exceptional reasons, we may ask for reasonable evidence.
 
 If you buy online or by phone, you normally have a right to cancel within 14 days. If you start using the service during that time, you must pay for what you have used.
 
@@ -42,13 +45,27 @@ If you buy online or by phone, you normally have a right to cancel within 14 day
 - We do not give refunds for classes or gym sessions. If you cancel a class you paid for as a pay as you go session, we give you a credit to use for another class. Bookings made with a membership plan are not charged separately.
 - We may change or cancel a class or session, for example because of illness or low numbers. If we cancel, we will tell you and you will not be charged for it.
 - The timetable shown on the website and in the app is a guide. Times and availability can change.
+- Please arrive on time. If you are late we may refuse entry for health and safety reasons.
+- Classes can differ from day to day and may be led by different coaches. Some sessions may have restrictions, for example women-only sessions. This may limit what you can use from time to time, and we do not refund or extend a membership for that.
+- The gym may have shorter opening hours or be closed on bank holidays. Where we reasonably can, we give 14 days' notice of any activity, area or equipment that cannot be used. We do not refund fees because something is unavailable, and we will do our best to reopen as quickly as we can.
+
+Nothing in this section affects your legal rights as a consumer.
+
+## Gym rules and conduct
+
+- The gym is on the grounds of Bush Hill Park Primary School. Follow the rules of the gym and the rules of the school site, including the ones displayed on site.
+- Wear suitable clothing and footwear for what you are doing. Tops must be worn at all times.
+- Do not come in, or take part, under the influence of alcohol, illegal drugs or any medication that makes you drowsy.
+- Smoking, vaping and e-cigarettes are not allowed anywhere on the premises or the school site.
+- We, our trainers and the school's site staff may refuse entry, or ask you or someone with you to leave, if the rules are not followed. This includes rude, aggressive or intimidating behaviour, raised voices, and threats of verbal or physical abuse.
+- If we ban you from the gym, your membership ends straight away and we do not refund fees you have paid or sessions you have already booked. This does not affect your legal rights.
 
 ## Health and safety
 
 - Complete the health and safety form honestly before you train, and tell us if your health changes.
 - Exercise carries a risk of injury. You take part at your own risk, but nothing in these terms removes your legal rights or our responsibility where the law does not allow that.
 - Follow the instructions of our trainers and the rules displayed in the gym. Use equipment as shown and put it back.
-- Do not train if you feel unwell, or if a doctor has advised you not to. If you are unsure, check with your doctor first.
+- Do not exercise beyond your ability. Do not train if you feel unwell, or if a doctor has advised you not to. If you are unsure, check with your doctor first.
 - The workouts, exercises and tips in the app are general guidance. They are not medical advice.
 
 ## Personal training
@@ -91,6 +108,8 @@ We are not responsible for lost or stolen belongings left in the gym. Belongings
 
 We handle your personal information as set out in our Privacy policy and Cookie notice.
 
+We will always email you about your bookings, payments and membership. When you create an account the box to hear from us by email about news and offers is ticked. You can untick it when you sign up, or switch it off at any time in the app under Account, Settings, or with the unsubscribe link in any email.
+
 ## Changes and ending
 
 - We may change these terms. We will post the new version here and show the date above. If the change is important, we will tell you.
@@ -110,11 +129,15 @@ If something goes wrong, email info@mygymlondon.co.uk first and we will do our b
 
 ## Who we are
 
-MyGym London ("we", "us") runs a private community gym and the MyGym London website and app. We are the controller of the personal information described in this policy, which means we decide how and why it is used.
+MyGym London ("we", "us") runs a private community gym and the MyGym London website and app. The controller of the personal information described in this policy, which means the organisation responsible for how and why it is used, is Bush Hill Park Primary School. MyGym London runs the gym, website and app day to day.
 
-MyGym London is a sole trader business run by Pedro Ricardo Martins Das Neves, who is the person responsible for your information. Registered address: Binfield Road, Stockwell, SW4 6TD. We use the gym premises under an agreement with Bush Hill Park Primary School.
+MyGym London is a sole trader business run by Pedro Ricardo Martins Das Neves, who runs the gym. Registered address: Binfield Road, Stockwell, SW4 6TD. We use the gym premises under an agreement with Bush Hill Park Primary School.
 
 Gym address: Main Avenue, Bush Hill Park, Enfield, EN1 1DS. Email: info@mygymlondon.co.uk. Phone: 07459 020381.
+
+The school's contact details are: by email, office@bushhillpark.enfield.sch.uk; by post, MyGym London GDPR, Bush Hill Park Primary School, Main Avenue, Bush Hill Park, Enfield, EN1 1DS. The school's Data Protection Officer can be reached at schools.data.protection.officer@enfield.gov.uk, or by post at Data Protection Officer, Enfield Council, Civic Offices, Silver St, Enfield, EN1 3XA.
+
+The school also publishes its own privacy notice, for its pupils, parents, staff and people who use its facilities, at bushhillpark.enfield.sch.uk/school-information/policies/gdpr. This policy is about the information collected for the MyGym London gym, website and app.
 
 ## What this policy covers
 
@@ -131,11 +154,12 @@ Depending on what you use, we collect:
 - Training logs: workouts you record in the app. These are optional.
 - Weight and body fat: only if you separately agree to this in the app. You can switch it off at any time and your measurements are then deleted.
 - Health and safety form: your answers about health conditions, allergies and any notes you add, together with a record of the consents you gave. This is health information, which the law treats as special category data (see below).
-- News and offers: if you tick the box to hear from us by email, we keep a record of the wording you agreed to, the date, and where you ticked it, so we can prove it and respect it if you change your mind.
+- News and offers: we keep a record of the wording you saw, the date, and where it was shown (at sign-up or in the app), and whether you later switched it off, so we can respect your choice.
 - Service emails: we email the address on your account about your bookings and account, such as booking confirmations and cancellations, class reminders and a welcome message. We keep a short technical record of each email and whether it was sent.
 - Website forms: what you type into our contact, personal training, free trial, offer, corporate and Kids Gym forms, the page you came from, and a scrambled (hashed) version of your IP address that we use only to stop spam. For Kids Gym this includes your child's details and any medical information you choose to give.
 - Personal training and enquiries: your email address and the option you choose when you ask for a free personal training session or contact us.
 - Referrals: if you refer a friend, the details needed to apply your reward.
+- Photos, videos and CCTV images: see Cameras and photos below.
 - Sign-up attempts: if you try to create an app account, we keep your IP address and a scrambled (hashed) version of your email address for up to 24 hours, to stop repeated attempts and abuse. Our suppliers may also keep standard technical logs, such as IP addresses.
 - Payments: payments are taken through Wix. We do not store your full card number.
 
@@ -149,23 +173,32 @@ We only use your information where the law allows. The reasons we rely on are:
 - To send class reminders (consent). You choose to switch these on and can switch them off at any time.
 - To keep our service secure, prevent abuse and fix problems (legitimate interests).
 - To keep accounting and tax records (legal obligation).
+- To keep people and the premises safe and secure, using CCTV (legitimate interests).
+- To use photos and videos of you on our website and social media (consent).
 - To email you service messages about your account and bookings, such as confirmations, cancellations and class reminders, and to reply to your enquiries (contract, or steps you ask us to take before a contract). These are not marketing.
-- To send you news and offers by email (consent). We only do this if you opt in, and you can unsubscribe at any time using the link in the email or by contacting us.
+- To send you news and offers by email about our own classes, memberships and gym (our legitimate interests, and the "soft opt-in" rule for existing customers and members). When you create an account the box to hear from us is ticked, and it says so in plain words. You can untick it there, switch it off at any time in the app under Account, Settings, or use the unsubscribe link in any email, and we then stop. If you joined before this change, we only email you news and offers if you ticked the box yourself. We never sell your email address.
 
 ## Health information
 
 Your health and safety form is special category data. We collect it only with your explicit consent, and only to help our trainers keep you safe and to decide when it is sensible to adjust a session.
 
-You can see, correct or delete your answers in the app under Profile, Health and consent. You can withdraw your consent at any time in the same place or by emailing us. If you withdraw, your health answers and any weight and body fat measurements are deleted. Withdrawing consent does not affect anything we did before you withdrew.
+You can see, correct or delete your answers in the app under Account, Health. You can withdraw your consent at any time in the same place or by emailing us. If you withdraw, your health answers and any weight and body fat measurements are deleted. Withdrawing consent does not affect anything we did before you withdrew.
 
 We ask you to complete the form again after 12 months, or sooner if we change the questions.
 
 Only MY GYM London coaches and management who need it can see members' health forms, through a private login. Each member can see only their own answers.
 
+## Cameras and photos
+
+CCTV: there is CCTV on the school site for security and safety. Where it covers the gym or its entrance, the school is responsible for the images, and signs on site tell you. The school keeps the images under its retention schedule, published on its website. If you would like to see images of yourself, or have a concern, contact the school using the details above.
+
+Photos and videos: we may take photos or videos at the gym to show our classes and community on our website and social media. We do this only with the agreement of the people in them. For a child, a parent or guardian must agree. You can withdraw your agreement at any time by emailing info@mygymlondon.co.uk. We then stop using the picture, and take it down from our own website and social media as soon as we reasonably can.
+
 ## Who we share it with
 
-We do not sell your information. We share it only with companies that help us run the service, and only as needed:
+We do not sell your information. We share it only with the school and with companies that help us run the service, and only as needed:
 
+- Bush Hill Park Primary School, which is responsible for the information (see Who we are).
 - Supabase, which hosts the app database, logins and background functions.
 - Hostinger, which hosts the MyGym London website.
 - Instagram (Meta), which supplies the pictures in the photo strip on our home page. Your browser loads them from Instagram's servers, so Meta can see your IP address when the strip loads. We do not add Instagram's tracking code to our pages.
@@ -200,11 +233,11 @@ Under UK data protection law you have the right to:
 - see the information we hold about you;
 - have wrong information corrected;
 - have your information deleted in certain cases;
-- restrict or object to some uses of it;
+- restrict or object to some uses of it, including stopping marketing emails at any time;
 - receive the information you gave us in a portable format;
 - withdraw your consent at any time, where we rely on consent.
 
-To use any of these rights, use the controls in the app or email info@mygymlondon.co.uk. We reply within one month.
+To use any of these rights, use the controls in the app or email info@mygymlondon.co.uk, or contact the school or its Data Protection Officer using the details under Who we are. We reply within one month.
 
 ## Children
 
@@ -222,7 +255,7 @@ We may update this policy. The date at the top shows when it last changed. If a 
 
 ## Contact and complaints
 
-Questions about your information: email info@mygymlondon.co.uk or ask us at the gym.
+Questions about your information: email info@mygymlondon.co.uk or ask us at the gym. You can also contact the school or its Data Protection Officer, using the details under Who we are.
 
 If you are unhappy with how we handle your information, you can complain to the Information Commissioner's Office at ico.org.uk or on 0303 123 1113. We would appreciate the chance to put things right first.
 
