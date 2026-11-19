@@ -40,7 +40,7 @@ w.addEventListener("click",function(e){
    .then(function(r){return r.json().then(function(j){return{ok:r.ok&&j.ok,j:j}})})
    .then(function(res){
     if(!res.ok){m.textContent=(res.j.errors&&res.j.errors[0]&&res.j.errors[0].message)||res.j.error||"Sorry, that did not go through. Please try again or email info@mygymlondon.co.uk.";btn.disabled=false;return}
-    var rec=A.style==="With friends"?["Small Group Personal Training","£60 a month · £15 each per session · minimum 4 sessions"]:A.style==="One to one"?["1-2-1 Personal Training","from £32.50 a session"]:["Your free session first","we'll find your best fit together"];
+    var rec=A.style==="With friends"?["Small Group Personal Training","£90 a month, split between your group · minimum 4 sessions"]:A.style==="One to one"?["1-2-1 Personal Training","from £32.50 a session"]:["Your free session first","we'll find your best fit together"];
     var r=$("wres");
     r.innerHTML="<div class=\"ok\">✓</div><h3>Thanks, we have your request</h3><p>A coach will contact you within one working day to confirm your free <b>"+time+" PT session</b>. We have emailed a copy to <b>"+esc(em)+"</b>.</p><div class=\"rec\"><span>We'd suggest</span><h4>"+rec[0]+"</h4><small>"+rec[1]+"</small></div><p class=\"fine\">Goal: "+esc(A.goal||"")+" · "+esc(A.level||"")+" · "+esc(A.freq||"")+"</p>";
     [].forEach.call(w.querySelectorAll(".step,.wprog,.wtop"),function(x){x.style.display="none"});r.classList.add("on")})
@@ -244,9 +244,10 @@ function done(msg){
   body.appendChild(h("div",{class:"bk-done"},hd,h("p",{},msg||"Thank you. We will be in touch within one working day."),again));
   hd.focus({preventScroll:true});
 }
+function mglRef(){try{var m=/[?&]ref=([A-Za-z0-9]{4,10})/.exec(location.search);if(m){localStorage.setItem("mgl_ref",m[1].toUpperCase())}var r=localStorage.getItem("mgl_ref");return r?"?ref="+r:""}catch(e){return""}}mglRef();
 function send(){
   var v=st.v,form,data,consent={};
-  var page=location.origin+location.pathname;
+  var page=location.origin+location.pathname+mglRef();
   if(st.kind==="cls"){
     form="free-class";consent={health_ready:true};
     data={full_name:v.name.trim(),email:v.email.trim(),phone:v.phone.trim(),class_name:st.pick.name,class_date:st.pick.date,class_time:st.pick.time,class_duration:st.pick.dur,page_url:page};
