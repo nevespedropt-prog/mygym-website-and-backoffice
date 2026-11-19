@@ -80,21 +80,113 @@
   async function signOut() { await sb.auth.signOut(); me = null; showGate("login"); }
   $("signOut").addEventListener("click", signOut); $("deniedOut").addEventListener("click", signOut);
 
+
+  /* ---------- the to-do list: everything that needs a person, in one place ---------- */
+  var TODO = { at: 0, items: [] };
+  function todoDone() { try { return JSON.parse(localStorage.getItem("mgl_todo_done") || "{}"); } catch (e) { return {}; } }
+  function todoMark(id) { try { var o = todoDone(); o[id] = Date.now(); Object.keys(o).forEach(function (k) { if (Date.now() - o[k] > 30 * 864e5) delete o[k]; }); localStorage.setItem("mgl_todo_done", JSON.stringify(o)); } catch (e) { /* not saved */ } }
+  function contactText(d) { var b = [d.email, d.phone].filter(Boolean); return b.length ? " · " + b.join(" · ") : ""; }
+  function afterTodo() { TODO.at = 0; route(); }
+  async function gatherTodo(force) {
+    if (!force && TODO.at && Date.now() - TODO.at < 120000) return TODO.items;
+    var dm = can(["admin", "manager"]), none = function () { return Promise.resolve(null); };
+    var res = await Promise.all([rpc("admin_enquiries", { p_status: "open" }).catch(none), dm ? rpc("admin_membership_requests", { p_status: "received" }).catch(none) : none(), rpc("admin_free_trials").catch(none),
+      rpc("admin_tasks").catch(none), dm ? rpc("admin_insights").catch(none) : none(), dm ? rpc("admin_at_risk").catch(none) : none(), dm ? rpc("admin_dashboard").catch(none) : none()]);
+    var enq = res[0] || [], mreq = res[1] || [], trials = res[2] || [], tasks = res[3] || [], ins = res[4], risk = res[5], dash = res[6], done = todoDone(), items = [], today = iso(new Date()), weekAgo = iso(new Date(Date.now() - 7 * 864e5));
+    enq.forEach(function (r) {
+      if (r.status !== "new" && r.status !== "contacted") return; var d = r.data || {}, who = d.full_name || d.parent_name || d.email || "Someone";
+      if (r.form_id === "free-class" || r.form_id === "trial-gym") items.push({ id: "enq:" + r.id, level: 1, kind: "Free trial request", title: who + " asked for a " + (r.form_id === "trial-gym" ? "free gym session" : "free class"), sub: reqLine(r) + (reqDate(r) ? " on " + fDate(reqDate(r)) : "") + contactText(d), acts: [["Approve", function () { approveRequest(r, afterTodo); }, true], ["Open", "#/enquiries"]] });
+      else if (r.status === "new") items.push({ id: "enq:" + r.id, level: 1, kind: "New message", title: who + ": " + (FORMS[r.form_id] || d.form_title || r.form_id), sub: fDateTime(r.created_at) + contactText(d), acts: [["Open", "#/enquiries", true]] });
+    });
+    mreq.forEach(function (q) { items.push({ id: "mreq:" + q.id, level: 1, kind: "Membership request", title: (q.name || q.email) + " asked to " + ({ pause: "pause", cancel: "cancel", change: "change" }[q.type] || q.type) + " their plan", sub: (q.plan || "") + (q.created_at ? " · sent " + fDateTime(q.created_at) : ""), acts: [["Review", "#/members?requests=1", true]] }); });
+    if (risk) (risk.failed || []).forEach(function (m) { items.push({ id: "fail:" + m.email, level: 1, kind: "Payment failing", title: (m.name || m.email) + ": payment did not go through", sub: (m.plan || "") + (m.amount ? " · £" + m.amount : "") + contactText(m), acts: [m.phone ? ["Call", "tel:" + String(m.phone).replace(/[^+\d]/g, ""), true] : ["Open plans", "#/plans", true], ["Open plans", "#/plans"]] }); });
+    trials.forEach(function (t) {
+      var st = t.state || (t.used ? "used" : "waiting");
+      if (st === "waiting" && !t.member) items.push({ id: "tw:" + t.id, level: 2, kind: "Free trial", title: t.name + " has a free " + (/gym/i.test(t.class || "") ? "gym session" : "class") + " to book", sub: "Given on " + fDate(t.date) + contactText(t), acts: [["Free trials", "#/trials", true]] });
+      if (st === "used" && !t.member && t.date >= weekAgo && !done["tf:" + t.id]) items.push({ id: "tf:" + t.id, level: 2, kind: "Follow up", title: "Follow up with " + t.name, sub: "Came on " + fDate(t.date) + " (" + (t.class || "free trial") + "), has not joined yet" + contactText(t), acts: [t.phone ? ["Call", "tel:" + String(t.phone).replace(/[^+\d]/g, ""), true] : null, t.email ? ["Email", "mailto:" + t.email] : null, ["Done", function () { todoMark("tf:" + t.id); afterTodo(); }]].filter(Boolean) });
+    });
+    tasks.forEach(function (k) {
+      if (k.done) return; var late = k.due && k.due <= today;
+      items.push({ id: "task:" + k.id, level: late ? 1 : 2, kind: "Task", title: k.title, sub: [k.assigned ? "For " + k.assigned : "", k.due ? (late ? "due " : "due ") + fDate(k.due) : ""].filter(Boolean).join(" · "), acts: [["Done", async function () { try { await rpc("admin_task_toggle", { p_id: k.id, p_done: true }); afterTodo(); } catch (e) { toast(e.message, true); } }, true], ["Open", "#/daytoday"]] });
+    });
+    if (ins && ins.health_missing) items.push({ id: "health", level: 3, kind: "Health forms", title: ins.health_missing + " member" + (ins.health_missing === 1 ? " has" : "s have") + " no health form", sub: "They cannot book until it is done.", acts: [["Open members", "#/members", true]] });
+    if (dash && dash.emails_7d_failed) items.push({ id: "emailfail", level: 3, kind: "Emails", title: dash.emails_7d_failed + " email" + (dash.emails_7d_failed === 1 ? "" : "s") + " failed to send this week", sub: "Open the log to see which and why.", acts: [["Open email log", "#/emails", true]] });
+    items.sort(function (a, b) { return a.level - b.level; });
+    TODO.items = items; TODO.at = Date.now(); return items;
+  }
+  function todoActs(it) {
+    return h("div", { class: "acts" }, it.acts.map(function (a) {
+      var cls = "btn sm" + (a[2] ? " pri" : "");
+      if (typeof a[1] === "string") return h("a", { class: cls, href: a[1], text: a[0] });
+      return h("button", { class: cls, type: "button", text: a[0], onclick: function (ev) { ev.target.disabled = true; a[1](); } });
+    }));
+  }
+  function todoRow(it) {
+    return h("div", { class: "li todo" }, [chip(it.kind, it.level === 1 ? "bad" : it.level === 2 ? "warn" : "plain"), h("div", { class: "tx" }, [h("b", { text: it.title }), it.sub ? h("small", { text: it.sub }) : null]), todoActs(it)]);
+  }
+  async function vTodo() {
+    var items = await gatherTodo(true), root = h("div");
+    root.appendChild(pageHead("To do", "Everything that needs a person, in one list. Do it and it disappears.", [h("button", { class: "btn", type: "button", onclick: afterTodo, text: "Refresh" })]));
+    if (!items.length) { root.appendChild(card("All caught up", "", [empty("Nothing is waiting for you right now.")])); return root; }
+    [[1, "Do today", "People waiting on an answer"], [2, "This week", "Follow-ups and jobs"], [3, "When you have a moment", "Housekeeping"]].forEach(function (g) {
+      var l = items.filter(function (i) { return i.level === g[0]; }); if (!l.length) return;
+      root.appendChild(h("div", { style: "margin-bottom:16px" }, [card(g[1], l.length + " · " + g[2], [h("div", { class: "list" }, l.map(todoRow))])]));
+    });
+    return root;
+  }
+  function todoCard(items) {
+    var top = items.slice(0, 5);
+    return h("div", { style: "margin-bottom:16px" }, [card("Needs you today", items.length ? items.length + " to do" : "", [top.length ? h("div", { class: "list" }, top.map(todoRow)) : empty("All caught up. Nothing is waiting for you."),
+      items.length > top.length ? h("div", { style: "margin-top:10px" }, [h("a", { class: "btn sm", href: "#/todo", text: "See all " + items.length })]) : null])]);
+  }
+  /* what is at risk: members drifting away, plans ending, classes nobody comes to */
+  async function atRiskCard(ins) {
+    var risk = null; if (can(["admin", "manager", "reception"])) { try { risk = await rpc("admin_at_risk"); } catch (e) { risk = null; } }
+    var cols = [], who = function (m, extra) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: m.name || m.email }), h("small", { text: extra })]), m.phone ? h("a", { class: "btn sm", href: "tel:" + String(m.phone).replace(/[^+\d]/g, ""), text: "Call" }) : null]); };
+    function col(title, note, rows, empty2, link) { return h("div", null, [h("h4", { style: "margin:0 0 2px", text: title }), h("small", { class: "muted", style: "display:block;margin-bottom:8px", text: note }), rows.length ? h("div", { class: "list" }, rows) : h("small", { class: "muted", text: empty2 }), link ? h("div", { style: "margin-top:8px" }, [h("a", { href: link[1], text: link[0] })]) : null]); }
+    if (risk) {
+      cols.push(col("Not training lately", risk.lapsed.length + " with a plan and no booking for 3 weeks", risk.lapsed.slice(0, 5).map(function (m) { return who(m, (m.plan || "") + " · " + (m.last_booking ? "last booked " + fDate(m.last_booking) : "never booked")); }), "Everyone is training.", risk.lapsed.length > 5 ? ["See all in Members", "#/members"] : null));
+      cols.push(col("Plans ending soon", "in the next 14 days", risk.ending.slice(0, 5).map(function (m) { return who(m, (m.plan || "") + " · ends " + fDate(String(m.ends).slice(0, 10))); }), "None ending soon."));
+    }
+    var quiet = ((ins && ins.heat) || []).filter(function (c) { return c.cap > 0 && !/open gym/i.test(c.name || "") && c.avg / c.cap < 0.4; }).sort(function (a, b) { return a.avg / a.cap - b.avg / b.cap; }).slice(0, 5);
+    cols.push(col("Quiet classes", "under 40% full on average, last 4 weeks", quiet.map(function (c) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: c.name }), h("small", { text: c.day + " " + String(c.time).slice(0, 5) + " · " + Math.round(c.avg * 10) / 10 + " of " + c.cap })])]); }), "Every class is well used.", quiet.length ? ["Review the timetable", "#/timetable"] : null));
+    var busy = (ins && ins.tomorrow_busy) || [];
+    cols.push(col("Busy tomorrow", "almost full", busy.map(function (t) { return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: String(t.time).slice(0, 5) + " · " + t.booked + " of " + t.capacity })])]); }), "Nothing close to full."));
+    return card("At risk", "act before it costs you", [h("div", { class: "grid g2", style: "gap:20px" }, cols)]);
+  }
+  /* free trials: who is waiting, booked, came and joined */
+  async function vTrials() {
+    var rows = await rpc("admin_free_trials"), root = h("div"), tf = null; try { tf = await rpc("admin_trial_funnel", { p_days: 30 }); } catch (e) { tf = null; }
+    root.appendChild(pageHead("Free trials", "Everyone given a free class or gym session. Follow up with the people who came and have not joined yet."));
+    if (tf) root.appendChild(h("div", { class: "grid g4", style: "margin-bottom:16px" }, [kpi("Given, last 30 days", tf.given, tf.waiting ? tf.waiting + " not booked in yet" : ""), kpi("Booked a session", tf.booked), kpi("Came", tf.done), kpi("Joined", tf.joined, tf.done ? Math.round(100 * tf.joined / tf.done) + "% of those who came" : "")]));
+    var line = function (t) { t.state = t.state || (t.used ? "used" : "waiting"); return h("div", { class: "li" }, [h("div", { class: "tx" }, [h("b", { text: t.name }), h("small", { text: [t.email, t.phone].filter(Boolean).join(" · ") }), h("small", { text: (t.state === "waiting" ? "Given " + fDate(t.date) + " (" + (t.class || "") + "), not booked yet" : (t.state === "booked" ? "Booked: " : "Came: ") + (t.class || "") + " on " + fDate(t.date)) })]),
+      h("div", { class: "acts" }, [t.phone ? h("a", { class: "btn sm", href: "tel:" + String(t.phone).replace(/[^+\d]/g, ""), text: "Call" }) : null, t.email ? h("a", { class: "btn sm", href: "mailto:" + t.email, text: "Email" }) : null, t.member ? chip("Now a member", "ok") : null])]); };
+    var groups = [["waiting", "Waiting for a session"], ["booked", "Booked"], ["used", "Came, not joined yet"], ["joined", "Joined"]];
+    var by = { waiting: [], booked: [], used: [], joined: [] }; rows.forEach(function (t) { var st = t.state || (t.used ? "used" : "waiting"); if (t.member && st === "used") by.joined.push(t); else (by[st] || by.used).push(t); });
+    var any = false;
+    groups.forEach(function (g) { if (!by[g[0]].length) return; any = true; root.appendChild(h("div", { style: "margin-bottom:16px" }, [card(g[1], String(by[g[0]].length), [h("div", { class: "list" }, by[g[0]].map(line))])])); });
+    if (!any) root.appendChild(card("No free trials yet", "", [empty("When you add someone with a free trial, or approve a website request, they appear here.")]));
+    root.appendChild(h("small", { class: "muted", text: "To book someone in, use Add someone on the Sessions page (Free trial tab): people waiting for a session are offered there." }));
+    return root;
+  }
+
   /* ---------- shell and routing ---------- */
   var ROUTES = [
     { id: "dashboard", label: "Dashboard", roles: ["admin", "manager", "reception", "coach"], icon: "▦", view: vDashboard, section: "Overview" },
-    { id: "schedule", label: "Schedule", roles: ["admin", "manager", "reception", "coach"], icon: "◷", view: vSchedule, section: "Operations" },
-    { id: "timetable", label: "Timetable", roles: ["admin", "manager", "reception", "coach"], icon: "▤", view: vTimetable },
-    { id: "members", label: "Members", roles: ["admin", "manager", "reception"], icon: "☺", view: vMembers },
-    { id: "daytoday", label: "Day to day", roles: ["admin", "manager", "reception", "coach"], icon: "✓", view: vDayToDay },
-    { id: "analytics", label: "Analytics", roles: ["admin", "manager"], icon: "↗", view: vAnalytics, section: "Growth" },
-    { id: "marketing", label: "Marketing", roles: ["admin", "manager"], icon: "★", view: vMarketing },
-    { id: "plans", label: "Plans and payments", roles: ["admin", "manager"], icon: "£", view: vPlans, section: "Business" },
+    { id: "todo", label: "To do", roles: ["admin", "manager", "reception"], icon: "☑", view: vTodo },
+    { id: "schedule", label: "Sessions", roles: ["admin", "manager", "reception", "coach"], icon: "◷", view: vSchedule, section: "Today" },
+    { id: "daytoday", label: "Check-in and tasks", roles: ["admin", "manager", "reception", "coach"], icon: "✓", view: vDayToDay },
+    { id: "members", label: "Members", roles: ["admin", "manager", "reception"], icon: "☺", view: vMembers, section: "People" },
+    { id: "trials", label: "Free trials", roles: ["admin", "manager", "reception"], icon: "◎", view: vTrials },
     { id: "enquiries", label: "Messages", roles: ["admin", "manager", "reception"], icon: "✉", view: vEnquiries },
+    { id: "plans", label: "Plans and payments", roles: ["admin", "manager"], icon: "£", view: vPlans, section: "Money" },
+    { id: "marketing", label: "Marketing", roles: ["admin", "manager"], icon: "★", view: vMarketing, section: "Grow" },
+    { id: "emails", label: "Email log", roles: ["admin", "manager"], icon: "→", view: vEmails },
+    { id: "analytics", label: "Analytics", roles: ["admin", "manager"], icon: "↗", view: vAnalytics },
+    { id: "timetable", label: "Weekly timetable", roles: ["admin", "manager", "reception", "coach"], icon: "▤", view: vTimetable, section: "Set up" },
+    { id: "templates", label: "Email wording", roles: ["admin", "manager"], icon: "✎", view: vTemplates },
     { id: "forms", label: "Forms and pages", roles: ["admin", "manager", "reception"], icon: "▣", view: vForms },
-    { id: "emails", label: "Emails", roles: ["admin", "manager"], icon: "→", view: vEmails },
-    { id: "templates", label: "Email templates", roles: ["admin", "manager"], icon: "✎", view: vTemplates },
-    { id: "settings", label: "Settings and health", roles: ["admin", "manager"], icon: "⚙", view: vSettingsHub, section: "System" }
+    { id: "settings", label: "Settings and health", roles: ["admin", "manager"], icon: "⚙", view: vSettingsHub }
   ];
   function buildNav() {
     var nav = clear($("nav")), sec = null;
@@ -106,13 +198,14 @@
   }
   async function refreshBadges() {
     if (!me || !can(["admin", "manager"])) return;
+    try { var td = await gatherTodo(false); var ta = document.querySelector('#nav a[data-r="todo"]'); if (ta) { var oldT = ta.querySelector(".nbadge"); if (oldT) oldT.remove(); var urgent = td.filter(function (i) { return i.level === 1; }).length; if (urgent) ta.appendChild(h("b", { class: "nbadge", title: urgent + " to do today", text: String(urgent) })); } } catch (e) { /* the badge is optional */ }
     var n = 0; try { n = (await rpc("admin_membership_requests", { p_status: "received" })).length; } catch (e) { return; }
     var a = document.querySelector('#nav a[data-r="members"]'); if (!a) return;
     var old = a.querySelector(".nbadge"); if (old) old.remove();
     if (n) a.appendChild(h("b", { class: "nbadge", title: n + " membership request" + (n === 1 ? "" : "s") + " waiting", text: String(n) }));
   }
   function route() {
-    var id = (location.hash.replace(/^#\/?/, "") || "dashboard").split("?")[0];
+    var id = (location.hash.replace(/^#\/?/, "") || (me && me.role === "reception" ? "todo" : me && me.role === "coach" ? "schedule" : "dashboard")).split("?")[0];
     var r = ROUTES.filter(function (x) { return x.id === id && can(x.roles); })[0] || ROUTES[0];
     current = r;
     document.querySelectorAll("#nav a").forEach(function (a) { a.classList.toggle("on", a.getAttribute("data-r") === r.id); });
@@ -266,15 +359,21 @@
 
     root.appendChild(pageHead((hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening") + (first ? ", " + first : ""), new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: TZ }) + " · here's how the gym is doing"));
     if (smp && can(["admin", "manager"])) root.appendChild(h("div", { class: "banner" }, [h("div", null, [h("b", { text: "Sample figures. " }), document.createTextNode("Items marked Sample (revenue, failed payments, members by plan) are placeholders until payments are connected. Everything else is real.")])]));
-    root.appendChild(fromHtml('<div class="grid g4">' + k.join("") + "</div>"));
+    if (can(["admin", "manager", "reception"])) { try { root.appendChild(todoCard(await gatherTodo(true))); } catch (e) { /* optional */ } }
+    var kg = fromHtml('<div class="grid g4">' + k.join("") + "</div>");
+    var KGO = [["Bookings", "#/schedule"], ["Spaces left", "#/schedule"], ["Members with", "#/members"], ["Monthly", "#/plans"], ["New sign-ups", "#/members"], ["Average class", "#/analytics"], ["New enquiries", "#/enquiries"], ["Failed payments", "#/plans"]];
+    kg.querySelectorAll(".kpi").forEach(function (c) { var lab = (c.querySelector(".lab") || {}).textContent || "", hit = KGO.filter(function (g) { return lab.trim().indexOf(g[0]) === 0; })[0]; if (!hit || (hit[1] === "#/plans" && !can(["admin", "manager"]))) return; c.style.cursor = "pointer"; c.tabIndex = 0; c.setAttribute("role", "link"); var go = function () { location.hash = hit[1]; }; c.addEventListener("click", go); c.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); }); });
+    root.appendChild(kg);
     root.appendChild(fromHtml('<div class="grid g-main" style="margin-top:16px"><div class="card"><div class="hd"><h3>Bookings, last 14 days</h3><span class="sub">' + spk.reduce(function (a, b) { return a + b; }, 0) + ' in total</span></div><div class="bd">' + barChart(last14, d.today) + '</div></div><div class="card"><div class="hd"><h3>' + (dayLabel === "today" ? "Today's" : dayLabel === "tomorrow" ? "Tomorrow's" : dayLabel + "'s") + ' classes</h3><span class="sub">' + tc.length + ' sessions</span></div><div class="bd"><div class="list">' + tcHtml + "</div></div></div></div>"));
     root.appendChild(fromHtml('<div class="grid g-eq" style="margin-top:16px"><div class="card"><div class="hd"><h3>When people train</h3><span class="sub">average class fill, last 4 weeks</span></div><div class="bd">' + heatHtml(ins.heat) + '</div></div><div class="card"><div class="hd"><h3>Members by plan ' + (smp ? sampleTag() : "") + '</h3></div><div class="bd">' + donutHtml + "</div></div></div>"));
-    root.appendChild(fromHtml('<div class="grid g2" style="margin-top:16px"><div class="card"><div class="hd"><h3>Needs attention</h3></div><div class="bd"><div class="list">' + attn.join("") + '</div></div></div><div class="card"><div class="hd"><h3>Recent activity</h3></div><div class="bd"><div class="list">' + act + "</div></div></div></div>"));
+    var g2n = fromHtml('<div class="grid g2" style="margin-top:16px"><div data-risk></div><div class="card"><div class="hd"><h3>Recent activity</h3></div><div class="bd"><div class="list">' + act + "</div></div></div></div>");
+    try { g2n.querySelector("[data-risk]").replaceWith(await atRiskCard(ins)); } catch (e) { g2n.querySelector("[data-risk]").remove(); }
+    root.appendChild(g2n);
     if (health) root.appendChild(fromHtml('<div class="card" style="margin-top:16px"><div class="hd"><h3>System health</h3><span class="sub">automatic jobs</span></div><div class="bd stat-row">' + health + "</div></div>"));
     if (can(["admin", "manager", "reception"])) {
       try {
         var tf = await rpc("admin_trial_funnel", { p_days: 30 });
-        if (tf && tf.given) root.appendChild(h("div", { style: "margin-top:16px" }, [card("Free trials, last 30 days", tf.joined + " joined", [h("div", { class: "grid g4" }, [kpi("Given a free trial", tf.given, tf.waiting ? tf.waiting + " not booked in yet" : "all booked in"), kpi("Booked a session", tf.booked), kpi("Came to a session", tf.done, "the session date has passed"), kpi("Joined", tf.joined, tf.done ? Math.round(100 * tf.joined / tf.done) + "% of those who came" : "")]), h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Open Members, then Free trials, to see each person. A person who has not joined yet gets a follow-up email the day after their session (once the trial emails are switched on)." })])]));
+        if (tf && tf.given) root.appendChild(h("div", { style: "margin-top:16px" }, [card("Free trials, last 30 days", tf.joined + " joined", [h("div", { class: "grid g4" }, [kpi("Given a free trial", tf.given, tf.waiting ? tf.waiting + " not booked in yet" : "all booked in"), kpi("Booked a session", tf.booked), kpi("Came to a session", tf.done, "the session date has passed"), kpi("Joined", tf.joined, tf.done ? Math.round(100 * tf.joined / tf.done) + "% of those who came" : "")]), h("small", { class: "muted", style: "display:block;margin-top:10px", text: "Open Free trials in the menu to see each person. A person who has not joined yet gets a follow-up email the day after their session (once the trial emails are switched on)." })])]));
       } catch (e) { /* the card is optional */ }
     }
     return root;
@@ -288,7 +387,7 @@
       h("input", { class: "in", type: "date", value: ds, "aria-label": "Date", onchange: function (e) { if (e.target.value) { schedDate = new Date(e.target.value + "T12:00:00"); route(); } } }),
       h("button", { class: "btn sm", onclick: function () { schedDate.setDate(schedDate.getDate() + 1); route(); }, text: "Next ›" }),
       h("button", { class: "btn sm", onclick: function () { schedDate = new Date(); route(); }, text: "Today" })];
-    root.appendChild(pageHead("Schedule", fDate(ds) + ": who is booked into each session.", nav));
+    root.appendChild(pageHead("Sessions", fDate(ds) + ": who is booked into each session.", nav));
     if (can(["admin", "manager", "reception"])) {
       var reqs = []; try { reqs = await pendingTrials(ds); } catch (e) { reqs = []; }
       if (reqs.length) root.appendChild(h("div", { style: "margin-bottom:16px" }, [card("Free trial requests waiting for you", reqs.length + " for this day", [h("div", { class: "list" }, reqs.map(function (r) {
@@ -324,7 +423,7 @@
   }
   async function approveRequest(r, after) {
     var d = r.data || {}, name = d.full_name || d.email || "this person", date = reqDate(r);
-    if (!date) return toast("The date they chose could not be read. Use Add someone on the Schedule page.", true);
+    if (!date) return toast("The date they chose could not be read. Use Add someone on the Sessions page.", true);
     async function post(p, btn) {
       if (btn) btn.disabled = true; var x = await fn("admin-book-member", Object.assign({ action: "approve_enquiry", id: r.id }, p), 60);
       if (!x.ok) { if (btn) btn.disabled = false; toast(x.j.error || "Could not add them.", true); return false; }
@@ -497,7 +596,7 @@
     if (canEdit && !gym) acts.push(h("button", { class: "btn", onclick: function () { ttCoachDays(ctx); }, text: "Coaches by day" }));
     if (canEdit) acts.push(h("button", { class: "btn pri", onclick: function () { ttEdit(null, ctx); }, text: gym ? "Add gym hour" : "Add class" }));
     var lead = legacy ? "Your weekly classes and open gym hours." : canEdit ? "Your weekly classes and open gym hours. Click one to change it, or add a new one." : "Your weekly classes and open gym hours. Ask the owner or a manager to change them.";
-    root.appendChild(pageHead("Timetable", lead, acts));
+    root.appendChild(pageHead("Weekly timetable", lead, acts));
     root.appendChild(ttBanner(ctx));
     if (!list.length) { root.appendChild(card("Nothing here", "", [empty("No sessions to show.")])); return root; }
     root.appendChild(layout === "list" ? ttList(list, gym, ctx) : ttGrid(list, ctx));
@@ -593,7 +692,7 @@
         h("button", { class: "btn", onclick: function () { ttToggle(c); }, text: c.active ? "Switch off" : "Switch on" }),
         h("button", { class: "btn dng", onclick: function () { ttRemove(c); }, text: "Remove" })]));
       if (ctx.mode === "wix" && c.source === "wix") body.push(h("p", { class: "muted", text: "This one came from Wix. Until you take control of the timetable, changes to its day, time, name, length, places or on/off are put back within 10 minutes. A change of coach stays." }));
-      body.push(h("p", { class: "muted", text: "To cancel just one date and email the people booked, use the Schedule page (owner only)." }));
+      body.push(h("p", { class: "muted", text: "To cancel just one date and email the people booked, use the Sessions page (owner only)." }));
     } else {
       body.push(h("p", { class: "muted", text: ctx.legacy ? "To change a class, edit it in Wix. The app and this page follow within minutes." : "Ask the owner or a manager to change this." }));
     }
@@ -674,7 +773,7 @@
   function ttToggle(c) {
     if (!c.active) { ttCall("admin_class_set_active", { p_id: c.id, p_on: true, p_force: false }, "Switched on."); return; }
     var kids = [h("p", { text: ttName(c) + " will disappear from the app and the website. Bookings already made are kept." })];
-    if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Schedule page (owner only)." }));
+    if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Sessions page (owner only)." }));
     ttConfirm("Switch off " + c.name + "?", kids, "Switch off", function () { return ttCall("admin_class_set_active", { p_id: c.id, p_on: false, p_force: true }, "Switched off."); });
   }
   function ttRemove(c) {
@@ -682,7 +781,7 @@
     if (!c.ever) kids.push(h("p", { text: "This deletes " + ttName(c) + " for good. Nobody has ever booked it. It cannot be undone." }));
     else {
       kids.push(h("p", { text: ttName(c) + " has booking history, so it cannot be deleted. It will be switched off instead, and everything already booked is kept." }));
-      if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Schedule page (owner only)." }));
+      if (c.booked_ahead) kids.push(h("p", { text: c.booked_ahead + " people are booked ahead. They are not told automatically. To cancel one date and email them, use the Sessions page (owner only)." }));
     }
     ttConfirm(c.ever ? "Switch off " + c.name + "?" : "Delete " + c.name + "?", kids, c.ever ? "Switch off" : "Delete", function () {
       return ttCall("admin_class_remove", { p_id: c.id, p_force: true }, function (res) { return res && res.deleted ? "Deleted." : "Switched off, booking history kept."; });
@@ -768,7 +867,7 @@
     var all = await rpc("admin_member_directory", { p_limit: 3000 }), root = h("div"), isAdmin = can(["admin", "manager"]);
     var cnt = function (f) { return all.filter(f).length; };
     root.appendChild(pageHead("Members", "Your clients from Wix and the app in one list. Click a name for everything about them.",
-      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("button", { class: "btn", onclick: function () { freeTrialsDialog(); }, text: "Free trials" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { requestsDialog(); }, text: "Requests" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
+      isAdmin ? [h("button", { class: "btn pri", onclick: function () { addMemberDialog(); }, text: "Add member" }), h("button", { class: "btn", onclick: function () { exportSubscribers(); }, text: "Export email list" }), h("button", { class: "btn", onclick: function () { importDialog(); }, text: "Import email list" }), h("a", { class: "btn", href: "#/trials", text: "Free trials" }), h("button", { class: "btn", onclick: function () { duplicatesDialog(); }, text: "Possible duplicates" }), h("button", { class: "btn", onclick: function () { hiddenDialog(); }, text: "Hidden" }), h("button", { class: "btn", onclick: function () { requestsDialog(); }, text: "Requests" }), h("button", { class: "btn", onclick: function () { accessCheck(); }, text: "Check editing access" })] : null));
     root.appendChild(h("div", { class: "grid g4" }, [
       kpi("Active members", cnt(function (m) { return m.status === "active" || m.status === "failed"; }), "paying now"),
       kpi("Gym + Classes", cnt(function (m) { return (m.status === "active" || m.status === "failed") && m.plan_type === "gym_classes"; })),
@@ -1426,7 +1525,7 @@
   /* ---------- emails ---------- */
   async function vEmails() {
     var d = await rpc("admin_emails", { p_limit: 150 }), root = h("div");
-    root.appendChild(pageHead("Emails", "Change the wording of the automatic emails, switch one off, and see what was sent and whether it was delivered."));
+    root.appendChild(pageHead("Email log", "Change the wording of the automatic emails, switch one off, and see what was sent and whether it was delivered."));
     var sent = 0, failed = 0; d.by_template_30d.forEach(function (t) { sent += t.sent; failed += t.failed; });
     root.appendChild(h("div", { class: "grid g3" }, [kpi("Sent in 30 days", sent), kpi("Failed in 30 days", failed, failed ? "see the list below" : "all delivered", failed > 0), kpi("Types of email used", d.by_template_30d.length)]));
     if (can(["admin"])) { try { root.appendChild(h("div", { style: "margin-top:16px" }, [await autoEmailsCard()])); } catch (er) { root.appendChild(errBox(er)); } }
@@ -1455,7 +1554,7 @@
   }
   async function vTemplates() {
     var list = await rpc("admin_templates_list"), root = h("div");
-    root.appendChild(pageHead("Email templates", "Ready-made wording for emails and campaigns. Pick one when you write a new email, change it any time, or save your own.", [h("button", { class: "btn pri", onclick: function () { templateEditor({}, route); }, text: "New template" })]));
+    root.appendChild(pageHead("Email wording", "Ready-made wording for emails and campaigns. Pick one when you write a new email, change it any time, or save your own.", [h("button", { class: "btn pri", onclick: function () { templateEditor({}, route); }, text: "New template" })]));
     var cards = h("div", { class: "grid g2" });
     list.forEach(function (t) {
       cards.appendChild(h("section", { class: "card" }, [h("div", { class: "hd" }, [h("h3", { text: t.name })]), h("div", { class: "bd" }, [h("div", { class: "muted", style: "font-size:12px", text: "Subject" }), h("div", { text: t.subject || "-" }), h("div", { class: "muted", style: "font-size:12px;margin-top:8px", text: "Message" }), h("div", { style: "white-space:pre-wrap;max-height:110px;overflow:hidden", text: t.body }),
@@ -1814,7 +1913,7 @@
   function fld(label, ctrl, grow) { return h("div", { class: "field", style: grow ? "flex:1;min-width:160px" : "" }, [h("label", { text: label }), ctrl]); }
   async function vDayToDay() {
     var root = h("div");
-    root.appendChild(pageHead("Day to day", "Check people in, keep the waitlist, plan the coaches and keep on top of the to-do list."));
+    root.appendChild(pageHead("Check-in and tasks", "Check people in, keep the waitlist, plan the coaches and keep on top of the to-do list."));
     var tabs = [["in", "Check-in"]]; if (can(["admin", "manager", "reception"])) tabs.push(["wait", "Waitlist"]); tabs.push(["rota", "Staff rota"], ["tasks", "Tasks"]);
     if (!tabs.some(function (t) { return t[0] === dtTab; })) dtTab = "in";
     root.appendChild(tabsBar(dtTab, tabs, function (v) { dtTab = v; }));
