@@ -95,6 +95,7 @@
     var pr = await sb.from("profiles").select("full_name").eq("id", sess.user.id).maybeSingle(), name = (pr.data && pr.data.full_name) || "";
     var hr = await sb.from("member_health").select("consent_version").eq("user_id", sess.user.id).maybeSingle(), health = !!(hr.data && hr.data.consent_version);
     var p = m.plan, q = m.request;
+    var classPlan = !!(p && /class/i.test(p.name || "") && !/payg|pay as you go/i.test(p.name || "")), showCredits = !classPlan && m.credits > 0;   // classes are included in a class membership: credits are only for pay as you go
     if (!p && !q && !m.credits) { journey(box, sess.user.id, email, health, wix, L); return; }
 
     if (p) {
@@ -102,7 +103,7 @@
       var u = m.usage;
       if (u) {
         var st = el("div", "hubstats");
-        [[u.month || 0, "visits this month"], [u.d30 || 0, "last 30 days"], [m.credits || 0, m.credits === 1 ? "class credit" : "class credits"]].forEach(function (x) { var s = el("div", "hubstat"); s.appendChild(el("b", null, String(x[0]))); s.appendChild(el("small", null, x[1])); st.appendChild(s); });
+        [[u.month || 0, "visits this month"], [u.d30 || 0, "last 30 days"]].concat(showCredits ? [[m.credits, m.credits === 1 ? "class credit" : "class credits"]] : []).forEach(function (x) { var s = el("div", "hubstat"); s.appendChild(el("b", null, String(x[0]))); s.appendChild(el("small", null, x[1])); st.appendChild(s); });
         box.appendChild(st);
       }
     }
@@ -120,7 +121,7 @@
       var app = el("a", "btn", "Open the app"); app.href = "https://app.mygymlondon.co.uk/#login"; acts.appendChild(app);
       var upd = el("a", "btn ghost", "Update my card or see receipts"); upd.href = wix + (L.cardPage || "/my-subscriptions"); upd.target = "_blank"; upd.rel = "noopener"; acts.appendChild(upd);
     }
-    if (m.credits > 0) card.appendChild(el("p", "mbmsg ok", "🎟️ " + m.credits + (m.credits === 1 ? " class credit" : " class credits") + " available. Ask us at the gym to use it."));
+    if (showCredits) card.appendChild(el("p", "mbmsg ok", "🎟️ " + m.credits + (m.credits === 1 ? " class credit" : " class credits") + " available. Ask us at the gym to use it."));
     if (memSent) { card.appendChild(el("p", "mbmsg ok", memSent)); memSent = ""; }
     var lbl = { pause: "Pause", cancel: "Cancellation", change: "Plan change" };
     if (q && q.status === "received") {
