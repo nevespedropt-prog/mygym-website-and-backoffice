@@ -1064,7 +1064,7 @@
       host.appendChild(h("p", { class: "muted", text: d.length ? "Members asked for these. Nothing has been changed yet: open the member, press Pause or Cancel on their plan (or change it), then Mark done." : "No requests waiting." }));
       d.forEach(function (q) {
         host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, [h("b", { text: q.name }), chip(LBL[q.type] || q.type, q.type === "cancel" ? "bad" : "warn"), h("span", { class: "muted", text: "from " + fDate(q.from_date) })]),
-          h("div", { class: "muted", text: (q.plan || "") + " · sent " + fDateTime(q.created_at) + (q.reason ? " · " + q.reason : "") }), q.message ? h("div", { style: "white-space:pre-wrap;margin-top:6px", text: q.message }) : null,
+          h("div", { class: "muted", text: (q.plan || "") + (q.target ? " → " + q.target : "") + " · sent " + fDateTime(q.created_at) + (q.reason ? " · " + q.reason : "") }), q.message ? h("div", { style: "white-space:pre-wrap;margin-top:6px", text: q.message }) : null,
           h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-top:10px" }, [
             h("button", { class: "btn sm", type: "button", text: "Open member", onclick: function () { closeDrawer(); memberProfile({ email: q.email, key: q.email, name: q.name }); } }),
             h("button", { class: "btn sm pri", type: "button", text: "Mark done", onclick: async function () { try { await rpc("admin_membership_request_resolve", { p_id: q.id, p_status: "done", p_note: null }); toast("Marked done."); draw(); } catch (e) { toast(e.message, true); } } }),

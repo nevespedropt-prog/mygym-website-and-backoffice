@@ -10,7 +10,7 @@
   function paint() {
     var s = mode === "signup";
     $("lgTitle").textContent = s ? "Create your account" : "Log in";
-    $("lgNameRow").hidden = !s; $("lgTermsRow").hidden = !s; $("lgGo").textContent = s ? "Create account" : "Log in";
+    $("lgNameRow").hidden = !s; $("lgTermsRow").hidden = !s; $("lgNewsRow").hidden = !s; $("lgGo").textContent = s ? "Create account" : "Log in";
     $("lgSwap").textContent = s ? "I already have an account" : "Create an account"; $("lgForgot").hidden = s;
     $("lgPass").autocomplete = s ? "new-password" : "current-password"; say("", "");
   }
@@ -20,9 +20,11 @@
     await sb.auth.resetPasswordForEmail(e, { redirectTo: "https://app.mygymlondon.co.uk" });
     say("If that email has an account, a reset link is on its way. Check your inbox and spam.", "ok");
   });
-  async function signIn(email, pass) {
+  async function signIn(email, pass, news) {
     var r = await sb.auth.signInWithPassword({ email: email, password: pass });
-    if (r.error) return false; location.href = next; return true;
+    if (r.error) return false;
+    if (news) { try { await sb.rpc("set_my_marketing_consent", { p_on: true, p_source: "app-signup" }); } catch (e) { /* they can switch it on in Account, Privacy and data */ } }
+    location.href = next; return true;
   }
   $("lgForm").addEventListener("submit", async function (ev) {
     ev.preventDefault(); say("", ""); var go = $("lgGo"); go.disabled = true;
@@ -37,7 +39,7 @@
         var res = await fetch(CFG.supabaseUrl + "/functions/v1/member-signup", { method: "POST", headers: { "Content-Type": "application/json", apikey: CFG.anonKey }, body: JSON.stringify({ email: email, password: pass, name: name }) });
         var j = await res.json().catch(function () { return {}; });
         if (!res.ok) { say(j.error || "Could not create the account. Please try again.", "bad"); go.disabled = false; return; }
-        if (!(await signIn(email, pass))) say("Your account is ready. Please log in.", "ok");
+        if (!(await signIn(email, pass, $("lgNews").checked))) say("Your account is ready. Please log in.", "ok");
       }
     } catch (e) { say("No connection. Please check your internet and try again.", "bad"); }
     go.disabled = false;

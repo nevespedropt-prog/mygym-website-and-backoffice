@@ -50,7 +50,7 @@ PRIVACY = ("Privacy policy", "How MyGym London looks after your personal informa
          "To keep people and the premises safe and secure, using CCTV (legitimate interests).",
          "To use photos and videos of you on our website and social media (consent).",
          "To email you service messages about your account and bookings, such as confirmations, cancellations and class reminders, and to reply to your enquiries (contract, or steps you ask us to take before a contract). These are not marketing.",
-         "To send you news and offers by email about our own classes, memberships and gym (our legitimate interests, and the \"soft opt-in\" rule for existing customers and members). When you create an account the box to hear from us is ticked, and it says so in plain words. You can untick it there, switch it off at any time in the app under Account, Settings, or use the unsubscribe link in any email, and we then stop. If you joined before this change, we only email you news and offers if you ticked the box yourself. We never sell your email address."],
+         "To send you news and offers by email about our own classes, memberships and gym (our legitimate interests, and the \"soft opt-in\" rule for existing customers and members). When you create an account the box to hear from us is ticked, and it says so in plain words. You can untick it there, switch it off at any time in the app under Account, Privacy and data, or use the unsubscribe link in any email, and we then stop. If you joined before this change, we only email you news and offers if you ticked the box yourself. We never sell your email address."],
     ]),
     ("Health information", [
         "Your health and safety form is special category data. We collect it only with your explicit consent, and only to help our trainers keep you safe and to decide when it is sensible to adjust a session.",
@@ -196,7 +196,7 @@ TERMS = ("Terms and conditions", "The rules for using the MyGym London website a
     ]),
     ("Your information", [
         "We handle your personal information as set out in our Privacy policy and Cookie notice.",
-        "We will always email you about your bookings, payments and membership. When you create an account the box to hear from us by email about news and offers is ticked. You can untick it when you sign up, or switch it off at any time in the app under Account, Settings, or with the unsubscribe link in any email.",
+        "We will always email you about your bookings, payments and membership. When you create an account the box to hear from us by email about news and offers is ticked. You can untick it when you sign up, or switch it off at any time in the app under Account, Privacy and data, or with the unsubscribe link in any email.",
     ]),
     ("Changes and ending", [
         ["We may change these terms. We will post the new version here and show the date above. If the change is important, we will tell you.",
