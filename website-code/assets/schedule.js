@@ -15,7 +15,7 @@
   var SLUG = { "cardio n abs": "cardio-n-abs", "hiit": "hiit", "hiit glow": "hiit-glow", "boxfit": "boxfit", "strength": "strength", "vitality 50+ circuit": "vitality-50-circuit", "abs attack": "abs-attack", "pilates": "pilates", "body conditioning": "body-conditioning", "circuit training": "circuit-training" };
   var page = (location.pathname.split("/").pop() || "").toLowerCase(); if (!/^[a-z0-9-]+\.html$/.test(page)) page = KIND === "gym" ? "book.html" : "classes.html";
 
-  var rows = [], view = "day", flt = "all", sess = null, ctx = null, loaded = false, mine = {};   // mine: "classId|date" -> booking id
+  var rows = [], view = "day", flt = "all", sess = null, ctx = null, loaded = false, mine = {}, cx = {};   // mine: "classId|date" -> booking id; cx: dates the gym has cancelled
   var today = londonToday(), selDate = today, monthFirst = today.slice(0, 8) + "01";
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -55,8 +55,9 @@
       var soon = startsInMinutes(date, r) < 10; if (soon) { b.disabled = true; b.title = "Too late to cancel (less than 10 minutes to start)"; }
       return b;
     }
-    b = el("button", KIND === "gym" ? "gslot" : "btn sm", KIND === "gym" ? hm(r) : (st ? "Started" : (sess ? "Book" : "Log in to book")));
-    b.type = "button"; b.disabled = st; b.setAttribute("data-slot", r.id); b.setAttribute("data-date", date); b.setAttribute("data-name", r.name);
+    var cxl = !!cx[key];
+    b = el("button", KIND === "gym" ? "gslot" : "btn sm", KIND === "gym" ? hm(r) + (cxl ? " · cancelled" : "") : (cxl ? "Cancelled" : st ? "Started" : (sess ? "Book" : "Log in to book")));
+    b.type = "button"; b.disabled = st || cxl; b.setAttribute("data-slot", r.id); b.setAttribute("data-date", date); b.setAttribute("data-name", r.name);
     if (KIND === "gym") b.title = (st ? "Already started" : (sess ? "Book " : "Log in to book ") + hm(r));
     return b;
   }
@@ -282,6 +283,7 @@
     var go = function () { selDate = p.date; view = "day"; draw(); var row = rows.filter(function (r) { return String(r.id) === String(p.id); })[0]; if (row && ctx && ctx.free && ctx.free.eligible && !(KIND === "class" ? hasClassPlan() : hasGymPlan())) freeDialog(row, p.date); };
     if (loaded) go(); else { var n = 0, t = setInterval(function () { if (loaded || ++n > 40) { clearInterval(t); go(); } }, 150); }
   }
+  function loadCx() { fetch(CFG.supabaseUrl + "/rest/v1/class_cancellations?select=class_id,date&date=gte." + today, { headers: { apikey: CFG.anonKey, Authorization: "Bearer " + CFG.anonKey } }).then(function (r) { return r.ok ? r.json() : []; }).then(function (d) { cx = {}; d.forEach(function (x) { cx[x.class_id + "|" + x.date] = 1; }); draw(); }).catch(function () {}); }
   root.innerHTML = "";
   var tools = el("div", null); tools.id = "stools"; var msg = el("p", "note", ""); msg.id = "smsg"; msg.hidden = true; msg.setAttribute("role", "status"); var body = el("div", null); body.id = "sbody";
   root.appendChild(tools); root.appendChild(msg); root.appendChild(body); draw();
@@ -289,6 +291,6 @@
   sb.auth.getSession().then(function (r) { sess = r.data.session; if (loaded) draw(); if (sess) { loadMine().then(function () { draw(); }).catch(function () {}); loadCtx().then(resumePending).catch(function () {}); } });
   fetch(CFG.supabaseUrl + "/rest/v1/classes?select=id,day_name,start_time,name,coach,info,capacity&active=eq.true&kind=eq." + KIND + "&order=sort", { headers: { apikey: CFG.anonKey, Authorization: "Bearer " + CFG.anonKey } })
     .then(function (r) { if (!r.ok) throw 0; return r.json(); })
-    .then(function (d) { rows = d; loaded = true; if (sub) sub.textContent = KIND === "gym" ? "Open gym hours, one hour at a time. Choose a day, a week or a month." : "The same timetable as the MyGym app. Choose a day, a week or a month, then book."; draw(); })
+    .then(function (d) { rows = d; loaded = true; loadCx(); if (sub) sub.textContent = KIND === "gym" ? "Open gym hours, one hour at a time. Choose a day, a week or a month." : "The same timetable as the MyGym app. Choose a day, a week or a month, then book."; draw(); })
     .catch(function () { loaded = true; if (sub) { sub.textContent = ""; sub.appendChild(document.createTextNode("We could not load the timetable. ")); var a = el("a", null, "Open it in the app"); a.href = "https://app.mygymlondon.co.uk/#timetable"; sub.appendChild(a); } draw(); });
 })();

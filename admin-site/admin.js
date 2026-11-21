@@ -620,14 +620,13 @@
       bEmailCancel.hidden = cancelled || !checked || emailable() === 0; bCancel.hidden = cancelled;
       bEmail.hidden = !cancelled || !checked || emailable() === 0; bRestore.hidden = !cancelled;
     }
-    var wixBox = h("input", { type: "checkbox", id: "ccWix" }), wixRow = h("label", { class: "chk", hidden: true }, [wixBox, h("span", { text: "Also cancel their bookings in Wix, one by one (no Wix email). Only used when you press a button that emails people." })]);
-    function callFn(action) { return fn("admin-class-cancelled", { action: action, class_id: c.id, date: ds, reason: reason.value, cancel_wix: action === "send" && wixBox.checked }, 90); }
-    function wixNote(j) { return j.wix_cancelled !== undefined ? " Cancelled " + j.wix_cancelled + " in Wix" + (j.wix_failed ? " (" + j.wix_failed + " could not be cancelled: cancel them in Wix)" : "") + "." : ""; }
+    function callFn(action) { return fn("admin-class-cancelled", { action: action, class_id: c.id, date: ds, reason: reason.value }, 90); }
+    function wixNote(j) { return j && j.wix_cancelled !== undefined ? " " + j.wix_cancelled + " cancelled in Wix too" + (j.wix_failed ? " (" + j.wix_failed + " could not be: cancel those in Wix)" : "") + "." : ""; }
     async function look() {
       busy = true; labels(); say("Checking who is booked, including the website..."); clear(list);
       var r = await callFn("preview"); busy = false;
       if (!r.ok) { checked = { count: 0, no_email: 0, wix_ok: false }; labels(); return say(r.j.error || "Something went wrong.", "bad"); }
-      checked = r.j; wixRow.hidden = !r.j.count;
+      checked = r.j;
       r.j.people.forEach(function (p) { list.appendChild(h("span", { class: "chip " + (p.source === "website" ? "info" : "plain"), title: p.source === "website" ? "Booked on the website" : "Booked in the app", text: p.name + (p.source === "website" ? " (website)" : "") + (p.can_email ? "" : " (no email)") })); });
       var after = ttMode === "backoffice" ? "" : " The website still shows the session, so cancel it in Wix as well.";
       say((r.j.count ? r.j.count + " booked: " + r.j.app_count + " in the app, " + r.j.website_count + " on the website only." : "Nobody is booked on this class on this date.") + (r.j.wix_ok ? "" : " The website could not be checked just now, so this list may be missing people.") + (r.j.no_email ? " " + r.j.no_email + " have no email on file." : "") + " " + (cancelled ? "This class is cancelled: the app shows it as cancelled and nobody can book it." : "Cancelling hides it from members' upcoming lists and stops new bookings. Their bookings stay in the history. Emailing them is optional.") + (cancelled ? "" : after), r.j.wix_ok ? "" : "bad");
@@ -637,13 +636,17 @@
       busy = true; pending = ""; labels(); say("Cancelling...");
       try { await rpc("admin_class_date_cancel", { p_class: c.id, p_date: ds, p_reason: reason.value }); } catch (e) { busy = false; labels(); return say(e.message, "bad"); }
       cancelled = true; changedAny = true;
-      if (!withEmail) { busy = false; labels(); say("Cancelled. The app now shows this class as cancelled. Nobody was emailed.", "ok"); return; }
-      say("Cancelled. Emailing the people booked...");
-      var r = await callFn("send"); busy = false; labels();
-      if (!r.ok) return say("Cancelled, but the emails did not go: " + (r.j.error || "something went wrong") + " Press Email them to try again.", "bad");
-      say("Cancelled. Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : ".") + wixNote(r.j), r.j.failed ? "bad" : "ok");
+      // email first (website-only people are found through their Wix booking, which is gone once it is cancelled), then cancel in Wix
+      var r = null;
+      if (withEmail) { say("Cancelled. Emailing the people booked..."); r = await callFn("send"); }
+      say("Cancelling their bookings in Wix...");
+      var w = await callFn("wix"), wnote = w.ok ? wixNote(w.j) : " Their Wix bookings could not be cancelled just now (" + (w.j.error || "something went wrong") + ") so cancel them in Wix.", wbad = !w.ok || !!w.j.wix_failed;
+      busy = false; labels();
+      if (!withEmail) return say("Cancelled. The app now shows this class as cancelled. Nobody was emailed." + wnote, wbad ? "bad" : "ok");
+      if (!r.ok) return say("Cancelled." + wnote + " But the emails did not go: " + (r.j.error || "something went wrong") + " Press Email them to try again.", "bad");
+      say("Cancelled. Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : ".") + wnote, r.j.failed || wbad ? "bad" : "ok");
     }
-    function twoStep(key, go) { return function () { if (busy) return; if (pending !== key) { pending = key; labels(); say(key === "restore" ? "This puts the class back on the timetable for members. Press the button again to confirm." : "This stops bookings and hides the class from members. Press the button again to confirm.", "bad"); return; } go(); }; }
+    function twoStep(key, go) { return function () { if (busy) return; if (pending !== key) { pending = key; labels(); say(key === "restore" ? "This puts the class back on the timetable for members. Press the button again to confirm." : "This stops bookings, hides the class from members and cancels everyone's booking in Wix. Press the button again to confirm.", "bad"); return; } go(); }; }
     bEmailCancel.addEventListener("click", twoStep("emailcancel", function () { doCancel(true); }));
     bCancel.addEventListener("click", twoStep("cancel", function () { doCancel(false); }));
     bRestore.addEventListener("click", twoStep("restore", async function () {
@@ -654,10 +657,10 @@
       if (busy || !checked || !checked.wix_ok) return; busy = true; labels(); say("Sending...");
       var r = await callFn("send"); busy = false; labels();
       if (!r.ok) return say(r.j.error || "Something went wrong.", "bad");
-      say("Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : ".") + wixNote(r.j), r.j.failed ? "bad" : "ok");
+      say("Emailed " + r.j.sent + " of " + r.j.count + (r.j.skipped ? " (" + r.j.skipped + " skipped: no email)" : "") + (r.j.failed ? ". " + r.j.failed + " failed: press Email them to try again." : "."), r.j.failed ? "bad" : "ok");
     });
     reason.addEventListener("input", function () { pending = ""; labels(); });
-    openModal(cancelled ? "Cancelled class" : "Cancel class", [h("p", { text: c.name + ", " + fDate(ds) + " at " + String(c.start).slice(0, 5) + ". Everyone booked is listed below, in the app and on the website." }), list, h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Reason (optional, shown in the email)" }), reason]), wixRow, out],
+    openModal(cancelled ? "Cancelled class" : "Cancel class", [h("p", { text: c.name + ", " + fDate(ds) + " at " + String(c.start).slice(0, 5) + ". Everyone booked is listed below, in the app and on the website." }), list, h("div", { class: "field", style: "margin-top:12px" }, [h("label", { text: "Reason (optional, shown in the email)" }), reason]), out],
       [bClose, bRestore, bCancel, bEmailCancel, bEmail]);
     labels(); look();
   }
