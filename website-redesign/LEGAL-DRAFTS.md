@@ -22,6 +22,7 @@ MyGym London is a sole trader business run by Pedro Ricardo Martins Das Neves. R
 - Give us correct information and keep it up to date.
 - Tell us straight away if you think someone else has used your account.
 - Your membership and your bookings are personal to you and cannot be transferred. All bookings are made in the name of the registered member. You must not let anyone else use your membership. If you do, we may cancel your membership, and no refund is given for it.
+- Add a photo of yourself to your account, ideally of your face, so we know you are a real person and can recognise you when you come to the gym. We do not use face recognition, and you can change your photo at any time. If we cannot recognise you at the gym, we may ask you to update it.
 - Be ready to show your booking or membership when you visit, if we ask. If you cannot, we may refuse entry.
 - We may suspend or close an account that is misused, or that is used to cause harm to others or to us.
 
@@ -159,6 +160,7 @@ Depending on what you use, we collect:
 - Website forms: what you type into our contact, personal training, free trial, offer, corporate and Kids Gym forms, the page you came from, and a scrambled (hashed) version of your IP address that we use only to stop spam. For Kids Gym this includes your child's details and any medical information you choose to give.
 - Personal training and enquiries: your email address and the option you choose when you ask for a free personal training session or contact us.
 - Referrals: if you refer a friend, the details needed to apply your reward.
+- Your member photo: a picture of yourself that you add to your account (ideally of your face), kept in private storage, so we know you are a real person and our team can recognise you when you come to the gym. We do not use face recognition software, and we do not reject a photo.
 - Photos, videos and CCTV images: see Cameras and photos below.
 - Sign-up attempts: if you try to create an app account, we keep your IP address and a scrambled (hashed) version of your email address for up to 24 hours, to stop repeated attempts and abuse. Our suppliers may also keep standard technical logs, such as IP addresses.
 - Payments: payments are taken through Wix. We do not store your full card number.
@@ -175,6 +177,7 @@ We only use your information where the law allows. The reasons we rely on are:
 - To keep accounting and tax records (legal obligation).
 - To keep people and the premises safe and secure, using CCTV (legitimate interests).
 - To use photos and videos of you on our website and social media (consent).
+- To check that an account belongs to a real person, to recognise members when they come to the gym and to help prevent misuse of memberships, using the photo you add to your account (legitimate interests). You choose the picture, and you can replace or remove it at any time in the app or on the website. We do not use face recognition or any automated matching.
 - To email you service messages about your account and bookings, such as confirmations, cancellations and class reminders, and to reply to your enquiries (contract, or steps you ask us to take before a contract). These are not marketing.
 - To send you news and offers by email about our own classes, memberships and gym (our legitimate interests, and the "soft opt-in" rule for existing customers and members). When you create an account the box to hear from us is ticked, and it says so in plain words. You can untick it there, switch it off at any time in the app under Account, Privacy and data, or use the unsubscribe link in any email, and we then stop. If you joined before this change, we only email you news and offers if you ticked the box yourself. We never sell your email address.
 
@@ -187,6 +190,8 @@ You can see, correct or delete your answers in the app under Account, Health. Yo
 We ask you to complete the form again after 12 months, or sooner if we change the questions.
 
 Only MY GYM London coaches and management who need it can see members' health forms, through a private login. Each member can see only their own answers.
+
+Your member photo is seen only by you and by our coaches and management, through a private login. It is never shown to other members, and we never use it for marketing.
 
 ## Cameras and photos
 
@@ -214,6 +219,7 @@ We may also share information where the law requires it, for example with the po
 - Account and booking records: while your account is open and for 12 months afterwards.
 - Health and safety form answers: until you delete them or withdraw consent, until you delete your account, or after 12 months of not signing in to the app, whichever comes first. They are then deleted automatically.
 - Weight and body fat measurements: until you switch the option off or delete your account.
+- Your member photo: until you remove it or delete your account.
 - Reminder addresses: until you switch reminders off, log out on that device, or delete your account.
 - Payment and accounting records: usually 6 years, as tax law requires.
 - Website form enquiries: 2 years. Kids Gym registrations: 1 year.

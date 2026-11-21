@@ -49,14 +49,14 @@
   }
 
   /* new members: four steps from account to the app, and a way to tell us about a different checkout email */
-  function journey(box, uid, email, health, wix, L) {
+  function journey(box, uid, email, health, wix, L, free, elig) {
     var card = el("div", "card loginf"); box.appendChild(card);
     card.appendChild(el("h3", null, "Welcome to MyGym"));
     card.appendChild(el("p", "sub", "Four steps to become a member and start booking."));
     var steps = [
       { t: "Create your account", d: "Done. You are signed in as " + email + ".", done: true },
       { t: "Complete the health form", d: health ? "Done. Thank you." : "Needed before you can book. It takes about 2 minutes in the app.", done: health, link: health ? null : ["Open the app to fill it in", "https://app.mygymlondon.co.uk/#login"] },
-      { t: "Choose your plan", d: "Join a membership, or pay as you go for a single class. No joining fees.", done: false, link: ["See memberships", wix + (L.memberships || "/pricing-plans/memberships")], link2: ["Pay as you go", "classes.html"] },
+      { t: "Choose your plan", d: "Join a membership, or pay as you go for a single class. No joining fees.", done: false, link: ["See memberships", "join.html"], link2: ["Try a free class or gym session", "classes.html"] },
       { t: "Open the app", d: "Once your plan is active, your membership and bookings appear here and in the app.", done: false, link: ["Open the app", "https://app.mygymlondon.co.uk/#login"] }
     ];
     var ol = el("ol", "hubsteps"); card.appendChild(ol);
@@ -66,6 +66,7 @@
       [s.link, s.link2].forEach(function (k) { if (k) { var a = el("a", "btn sm ghost", k[0]); a.href = k[1]; if (/^https?:/.test(k[1]) && k[1].indexOf("mygymlondon.co.uk/#") === -1 && k[1].indexOf("app.mygymlondon") === -1) { a.target = "_blank"; a.rel = "noopener"; } b.appendChild(a); } });
       li.appendChild(n); li.appendChild(b); ol.appendChild(li);
     });
+    freeCard(box, free, elig);
     /* paid with another email? staff check it and link it */
     var help = el("div", "card loginf"); box.appendChild(help);
     help.appendChild(el("h3", null, "Paid but cannot see your plan?"));
@@ -86,6 +87,26 @@
     });
   }
 
+  /* free sessions (2 in total): what was asked for, what happened, and a membership suggestion once they have tried one */
+  function freeCard(box, free, elig) {
+    free = free || []; elig = elig || {};
+    if (!free.length && !(elig.eligible)) return;
+    var card = el("div", "card loginf freecard"); box.appendChild(card);
+    card.appendChild(el("h3", null, "Your free sessions"));
+    var left = elig.remaining != null ? elig.remaining : 2;
+    card.appendChild(el("p", "sub", left > 0 ? "You have " + left + " free " + (left === 1 ? "session" : "sessions") + " left. Try any class or gym session, in any mix." : "You have used your free sessions."));
+    var LBL = { requested: "Requested", booked: "Confirmed", done: "Done", closed: "Closed" };
+    free.forEach(function (f) {
+      var r = el("div", "freerow"), i = el("div", "mbinfo");
+      i.appendChild(el("b", null, f.what + (f.date ? " · " + fmtShort(f.date) : "") + (f.when ? " · " + String(f.when).split(" (")[0].toLowerCase() : "")));
+      i.appendChild(el("span", null, f.state === "requested" ? "We will email you to confirm." : f.state === "booked" ? "Your place is booked. See you there." : f.state === "done" ? "Thanks for coming." : "This request was closed."));
+      r.appendChild(i); r.appendChild(el("span", "freestate " + f.state, LBL[f.state] || f.state)); card.appendChild(r);
+    });
+    var acts = el("div", "hubacts");
+    if (left > 0) { var a = el("a", "btn", "Choose a class"); a.href = "classes.html"; acts.appendChild(a); var g = el("a", "btn ghost", "Choose a gym hour"); g.href = "book.html"; acts.appendChild(g); card.appendChild(acts); }
+    if (free.length && window.MGLSuggest) { var sug = el("div", null); box.appendChild(sug); window.MGLSuggest.render(sb, sug, free[0].kind); }
+  }
+
   async function renderMem() {
     var box = $("mbMem"); if (!box) return; while (box.firstChild) box.removeChild(box.firstChild);
     var sess = (await sb.auth.getSession()).data.session; if (!sess) return;
@@ -96,7 +117,10 @@
     var hr = await sb.from("member_health").select("consent_version").eq("user_id", sess.user.id).maybeSingle(), health = !!(hr.data && hr.data.consent_version);
     var p = m.plan, q = m.request;
     var classPlan = !!(p && /class/i.test(p.name || "") && !/payg|pay as you go/i.test(p.name || "")), showCredits = !classPlan && m.credits > 0;   // classes are included in a class membership: credits are only for pay as you go
-    if (!p && !q && !m.credits) { journey(box, sess.user.id, email, health, wix, L); return; }
+    if (!p && !q && !m.credits) {
+      var fr = await sb.rpc("my_free_requests"), el2 = await sb.rpc("my_free_class_eligible");
+      journey(box, sess.user.id, email, health, wix, L, fr.data || [], el2.data || {}); return;
+    }
 
     if (p) {
       box.appendChild(planCard(m, name));
@@ -222,6 +246,7 @@
     while (list.firstChild) list.removeChild(list.firstChild);
     $("mbWho").textContent = s.user.email;
     renderMem();
+    if (window.MGLPhoto && $("mbPhoto")) window.MGLPhoto.card(sb, $("mbPhoto"));
     loadPast(s.user.id);
     if (!rows.length) { list.appendChild(el("p", "sub", "You have no upcoming bookings. Book a class in the app.")); return; }
     rows.forEach(function (r) {
