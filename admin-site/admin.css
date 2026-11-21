@@ -315,3 +315,6 @@ a.li{color:inherit}a.li:hover{background:var(--panel2)}
 @media (max-width:560px){.drawer .dh2,.drawer .df{padding-left:14px;padding-right:14px}.drawer .db{padding:16px 14px}.drawer .df .btn{flex:1 1 140px;justify-content:center}}
 .nbadge{margin-left:auto;background:#c0392b;color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;font-weight:800;line-height:1.5}
 .li.todo{align-items:flex-start;gap:12px;flex-wrap:wrap}.li.todo .tx{flex:1 1 220px;min-width:0}.li.todo .acts,.acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}.li.todo .chip{white-space:nowrap}.kpi[role=link]:hover{box-shadow:0 2px 10px rgba(0,0,0,.08)}.kpi[role=link]:focus-visible{outline:2px solid var(--acc)}
+.mphoto{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.mph{width:120px;height:120px;border-radius:50%;object-fit:cover;flex:0 0 120px;box-shadow:0 0 0 3px #fff,0 0 0 5px var(--line)}
+.mph.empty{display:grid;place-items:center;background:var(--bg);color:var(--mut);font-weight:700;font-size:13px;text-align:center}

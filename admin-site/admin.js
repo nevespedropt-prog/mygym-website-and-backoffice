@@ -87,6 +87,27 @@
   function todoMark(id) { try { var o = todoDone(); o[id] = Date.now(); Object.keys(o).forEach(function (k) { if (Date.now() - o[k] > 30 * 864e5) delete o[k]; }); localStorage.setItem("mgl_todo_done", JSON.stringify(o)); } catch (e) { /* not saved */ } }
   function contactText(d) { var b = [d.email, d.phone].filter(Boolean); return b.length ? " · " + b.join(" · ") : ""; }
   function afterTodo() { TODO.at = 0; route(); }
+  /* member photos: who has one, and the picture itself (private storage, staff only) */
+  var PH = { at: 0, ids: {}, missing: 0 };
+  async function photosInfo(force) {
+    if (!force && PH.at && Date.now() - PH.at < 120000) return PH;
+    try { var r = await rpc("admin_photos"); PH.ids = {}; (r.with || []).forEach(function (i) { PH.ids[i] = 1; }); PH.missing = r.missing_members || 0; PH.at = Date.now(); } catch (e) { /* keep what we had */ }
+    return PH;
+  }
+  function photoDataUrl(uid) {
+    return sb.storage.from("member-photos").download(uid + "/photo.jpg").then(function (r) {
+      if (r.error || !r.data) return null;
+      return new Promise(function (res) { var fr = new FileReader(); fr.onload = function () { res(fr.result); }; fr.readAsDataURL(r.data); });
+    }).catch(function () { return null; });
+  }
+  function photoBlock(m) {
+    var box = h("div", { class: "mphoto" }, [h("div", { class: "mph empty", text: "…" })]);
+    photosInfo().then(function (ph) {
+      if (!ph.ids[m.user_id]) { clear(box); box.appendChild(h("div", { class: "mph empty", text: "No photo" })); box.appendChild(h("div", { class: "muted", text: "They are asked to add one in the app and on the website." })); return; }
+      photoDataUrl(m.user_id).then(function (u) { clear(box); if (u) { box.appendChild(h("img", { class: "mph", src: u, alt: "Photo of " + (m.name || "member") })); box.appendChild(h("div", { class: "muted", text: "Photo added by the member. Private: only the team sees it." })); } else box.appendChild(h("div", { class: "mph empty", text: "No photo" })); });
+    });
+    return box;
+  }
   async function gatherTodo(force) {
     if (!force && TODO.at && Date.now() - TODO.at < 120000) return TODO.items;
     var dm = can(["admin", "manager"]), none = function () { return Promise.resolve(null); };
@@ -110,6 +131,7 @@
       items.push({ id: "task:" + k.id, level: late ? 1 : 2, kind: "Task", title: k.title, sub: [k.assigned ? "For " + k.assigned : "", k.due ? (late ? "due " : "due ") + fDate(k.due) : ""].filter(Boolean).join(" · "), acts: [["Done", async function () { try { await rpc("admin_task_toggle", { p_id: k.id, p_done: true }); afterTodo(); } catch (e) { toast(e.message, true); } }, true], ["Open", "#/daytoday"]] });
     });
     if (ins && ins.health_missing) items.push({ id: "health", level: 3, kind: "Health forms", title: ins.health_missing + " member" + (ins.health_missing === 1 ? " has" : "s have") + " no health form", sub: "They cannot book until it is done.", acts: [["Open members", "#/members", true]] });
+    if (dm) { var phi = await photosInfo(force); if (phi.missing > 0) items.push({ id: "photos", level: 3, kind: "Photos", title: phi.missing + " member" + (phi.missing === 1 ? " has" : "s have") + " no photo yet", sub: "Every member is asked to add a photo of themselves. Remind them at the door so you can recognise them.", acts: [["Open members", "#/members", true]] }); }
     if (dash && dash.emails_7d_failed) items.push({ id: "emailfail", level: 3, kind: "Emails", title: dash.emails_7d_failed + " email" + (dash.emails_7d_failed === 1 ? "" : "s") + " failed to send this week", sub: "Open the log to see which and why.", acts: [["Open email log", "#/emails", true]] });
     items.sort(function (a, b) { return a.level - b.level; });
     TODO.items = items; TODO.at = Date.now(); return items;
@@ -1262,6 +1284,7 @@
     try {
       var p = await rpc("admin_member_profile", { p_email: m.key || m.email }); clear(host);
       var kvOf = function (pairs) { var kv = h("dl", { class: "kv" }); pairs.forEach(function (x) { kv.appendChild(h("dt", { text: x[0] })); kv.appendChild(h("dd", { text: x[1] == null || x[1] === "" ? "-" : x[1] })); }); return kv; };
+      if (m.user_id) host.appendChild(photoBlock(m));
       var c = p.contact || {}, ap = p.app;
       host.appendChild(h("div", { class: "sect" }, [h("div", { style: "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" }, [m.plan_type ? chip(TYPE_LABEL[m.plan_type], "acc") : chip("No plan", "plain"), chip(STATUS_LABEL[m.status] || m.status, STATUS_CHIP[m.status] || "plain"), m.lapsed ? chip("Not training", "warn") : null, m.cancelling ? chip("Cancelling", "warn") : null]),
         kvOf([["Email", m.email || "None (phone only)"], ["Phone", m.phone], ["Date of birth", m.birthdate ? fDate(m.birthdate) : "Not given yet"], ["Client since", m.joined ? fDate(m.joined) : "-"], ["Last booked", m.last_booking ? fDate(m.last_booking) : "-"], ["Labels in Wix", (c.labels || []).join(", ")]]),
