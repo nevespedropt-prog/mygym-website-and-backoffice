@@ -651,7 +651,7 @@
     bCancel.addEventListener("click", twoStep("cancel", function () { doCancel(false); }));
     bRestore.addEventListener("click", twoStep("restore", async function () {
       busy = true; pending = ""; labels();
-      try { await rpc("admin_class_date_restore", { p_class: c.id, p_date: ds }); cancelled = false; changedAny = true; busy = false; labels(); say("Restored. Members can book this class again.", "ok"); } catch (e) { busy = false; labels(); say(e.message, "bad"); }
+      try { await rpc("admin_class_date_restore", { p_class: c.id, p_date: ds }); cancelled = false; changedAny = true; busy = false; labels(); say("Restored. Members can book this class again. People who were booked had their bookings cancelled, so they need to book again.", "ok"); } catch (e) { busy = false; labels(); say(e.message, "bad"); }
     }));
     bEmail.addEventListener("click", async function () {
       if (busy || !checked || !checked.wix_ok) return; busy = true; labels(); say("Sending...");
