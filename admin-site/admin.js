@@ -80,6 +80,68 @@
   async function signOut() { await sb.auth.signOut(); me = null; showGate("login"); }
   $("signOut").addEventListener("click", signOut); $("deniedOut").addEventListener("click", signOut);
 
+  /* ---------- passwords: change my own (forced at first sign-in when the owner chose the first one) ---------- */
+  var pwForced = false;
+  function pwProblem(p) { if (!p || p.length < 10) return "Use at least 10 characters."; if (p.length > 72) return "That is too long (72 characters at most)."; if (!/[A-Za-z]/.test(p) || !/\d/.test(p)) return "Use letters and at least one number."; return null; }
+  function pwField(id, label, auto) { return h("div", { class: "field" }, [h("label", { for: id, text: label }), h("input", { class: "in", id: id, type: "password", autocomplete: auto || "new-password" })]); }
+  function changeMyPassword(forced) {
+    pwForced = !!forced;
+    var msg = h("div", { class: "msg", role: "alert", hidden: true }), go = h("button", { class: "btn pri", type: "button", text: "Save new password" });
+    var cancel = forced ? null : h("button", { class: "btn", type: "button", text: "Cancel", onclick: closeModal });
+    var body = [h("p", { text: forced ? "The owner chose your first password. Please choose your own now. You will use it from now on." : "Choose a new password for this back office." }), pwField("pw1", "New password"), pwField("pw2", "Type it again"), h("p", { class: "hint", text: "At least 10 characters, with letters and a number." }), msg];
+    openModal(forced ? "Choose your own password" : "Change my password", body, [cancel, go]);
+    $("modal").classList.toggle("force", !!forced);
+    go.addEventListener("click", async function () {
+      var a = $("pw1").value, b = $("pw2").value, bad = pwProblem(a) || (a !== b ? "The two passwords are not the same." : null);
+      if (bad) { msg.textContent = bad; msg.hidden = false; return; }
+      go.disabled = true;
+      var r = await sb.auth.updateUser({ password: a, data: { must_change_password: false } });
+      go.disabled = false;
+      if (r.error) { msg.textContent = /same|different/i.test(r.error.message) ? "Please choose a password you have not used before." : "We could not change it: " + r.error.message; msg.hidden = false; return; }
+      pwForced = false; closeModal(); toast("Password changed");
+    });
+  }
+  $("myPwBtn").addEventListener("click", function () { changeMyPassword(false); });
+
+  /* ---------- team: add a co-worker or admin with a first password the owner chooses ---------- */
+  function makePassword() { var A = "abcdefghjkmnpqrstuvwxyz", N = "23456789", out = "", a = new Uint32Array(10); crypto.getRandomValues(a); for (var i = 0; i < 9; i++) out += A[a[i] % A.length]; return out + N[a[9] % N.length]; }
+  function addTeamDialog() {
+    var name = h("input", { class: "in", id: "tmName", autocomplete: "off" }), email = h("input", { class: "in", id: "tmEmail", type: "email", autocomplete: "off" });
+    var role = h("select", { class: "in sel", id: "tmRole" }, [["admin", "Admin (full access, like the owner)"], ["manager", "Manager"], ["reception", "Reception"], ["coach", "Coach"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
+    var pw = h("input", { class: "in", id: "tmPw", type: "text", autocomplete: "off", spellcheck: false });
+    var gen = h("button", { class: "btn sm", type: "button", text: "Make one", onclick: function () { pw.value = makePassword(); } });
+    var must = h("input", { type: "checkbox", id: "tmMust", checked: true });
+    var msg = h("div", { class: "msg", role: "alert", hidden: true }), go = h("button", { class: "btn pri", type: "button", text: "Add person" });
+    openModal("Add a co-worker or admin", [
+      h("div", { class: "field" }, [h("label", { for: "tmName", text: "Their name" }), name]),
+      h("div", { class: "field" }, [h("label", { for: "tmEmail", text: "Their email" }), email]),
+      h("div", { class: "field" }, [h("label", { for: "tmRole", text: "What they can do" }), role]),
+      h("div", { class: "field" }, [h("label", { for: "tmPw", text: "First password (you choose it and tell them)" }), h("div", { style: "display:flex;gap:8px" }, [pw, gen]), h("small", { class: "hint", text: "At least 10 characters, with letters and a number. If they already have a member account, their own password stays and this is ignored." })]),
+      h("label", { class: "chk" }, [must, h("span", { text: "They must choose their own password when they first sign in (recommended)" })]), msg
+    ], [h("button", { class: "btn", type: "button", text: "Cancel", onclick: closeModal }), go]);
+    go.addEventListener("click", async function () {
+      var bad = name.value.trim().length < 2 ? "Please add their name." : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.value.trim()) ? "That email does not look right." : pwProblem(pw.value) && "First password: " + pwProblem(pw.value);
+      if (bad) { msg.textContent = bad; msg.hidden = false; return; }
+      go.disabled = true; msg.hidden = true;
+      var r = await fn("admin-team", { action: "add", name: name.value.trim(), email: email.value.trim(), role: role.value, password: pw.value, must_change: must.checked });
+      go.disabled = false;
+      if (!r.ok) { msg.textContent = r.j.error || "Could not add them."; msg.hidden = false; return; }
+      closeModal(); toast(r.j.existed ? "Added. They already had an account, so they keep their own password." : "Added. Tell them the password you chose."); setTab = "team"; location.hash.indexOf("settings") < 0 ? (location.hash = "#settings") : route();
+    });
+  }
+  function setPasswordDialog(s) {
+    var pw = h("input", { class: "in", id: "spPw", type: "text", autocomplete: "off", spellcheck: false }), gen = h("button", { class: "btn sm", type: "button", text: "Make one", onclick: function () { pw.value = makePassword(); } });
+    var must = h("input", { type: "checkbox", checked: true }), msg = h("div", { class: "msg", role: "alert", hidden: true }), go = h("button", { class: "btn pri", type: "button", text: "Save password" });
+    openModal("New password for " + (s.name || s.email), [h("p", { text: "Use this when they are locked out. Tell them the new password." }), h("div", { class: "field" }, [h("label", { for: "spPw", text: "New password" }), h("div", { style: "display:flex;gap:8px" }, [pw, gen])]), h("label", { class: "chk" }, [must, h("span", { text: "They must choose their own at next sign-in" })]), msg], [h("button", { class: "btn", type: "button", text: "Cancel", onclick: closeModal }), go]);
+    go.addEventListener("click", async function () {
+      var bad = pwProblem(pw.value); if (bad) { msg.textContent = bad; msg.hidden = false; return; }
+      go.disabled = true; var r = await fn("admin-team", { action: "set_password", user_id: s.user_id, password: pw.value, must_change: must.checked }); go.disabled = false;
+      if (!r.ok) { msg.textContent = r.j.error || "Could not change it."; msg.hidden = false; return; }
+      closeModal(); toast("Password changed. Tell them the new one.");
+    });
+  }
+  $("addTeamBtn").addEventListener("click", addTeamDialog);
+
 
   /* ---------- the to-do list: everything that needs a person, in one place ---------- */
   var TODO = { at: 0, items: [] };
@@ -251,10 +313,10 @@
     m.appendChild(h("div", { class: "row" }, buttons)); m.classList.add("on"); $("scrim").classList.add("on");
   }
   function closeModal() { $("modal").classList.remove("on"); if (!$("drawer").classList.contains("on") && !$("side").classList.contains("on")) $("scrim").classList.remove("on"); }
-  $("scrim").addEventListener("click", function () { closeSide(); closeDrawer(); closeModal(); });
+  $("scrim").addEventListener("click", function () { if (pwForced) return; closeSide(); closeDrawer(); closeModal(); });
   $("burger").addEventListener("click", openSide);
   $("refresh").addEventListener("click", route);
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeSide(); closeDrawer(); closeModal(); } });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !pwForced) { closeSide(); closeDrawer(); closeModal(); } });
   window.addEventListener("hashchange", route);
   function tick() { $("clock").textContent = new Date().toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: TZ }); }
 
@@ -265,8 +327,10 @@
     if (!me || !me.role) return showGate("denied");
     $("gate").hidden = true; $("shell").hidden = false;
     $("meName").textContent = me.name || me.email || "Staff"; $("meRole").textContent = ROLE_LABEL[me.role] || me.role; $("meAv").textContent = initials(me.name || me.email);
+    $("addTeamBtn").hidden = me.role !== "admin";
     buildNav(); tick(); refreshBadges(); if (!start.t) { start.t = setInterval(tick, 30000); setInterval(refreshBadges, 60000); }
     route();
+    if (s.user && s.user.user_metadata && s.user.user_metadata.must_change_password) changeMyPassword(true);
   }
 
   /* ---------- dashboard (same design as the 25 October mock-up, real data; Wix-dependent figures are SAMPLE until connected) ---------- */
@@ -2179,16 +2243,15 @@
   async function vSettings() {
     var staff = await rpc("admin_staff_list"), audit = await rpc("admin_audit", { p_limit: 60 }), root = h("div");
     root.appendChild(pageHead("Team and settings", "Who can sign in to this back office, and what they can see."));
-    var email = h("input", { class: "in", type: "email", placeholder: "Their app account email", "aria-label": "Staff email" });
-    var role = h("select", { class: "in sel", "aria-label": "Role" }, [["manager", "Manager"], ["reception", "Reception"], ["coach", "Coach"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
-    var add = h("button", { class: "btn pri", text: "Add to team", onclick: function () {
-      if (!email.value.trim()) return;
-      rpc("admin_staff_set", { p_email: email.value, p_role: role.value }).then(function () { toast("Added"); route(); }).catch(function (e) { toast(e.message, true); });
-    } });
-    var rows = h("tbody", null, staff.map(function (s) { return h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: s.name || s.email }), h("small", { class: "block muted", text: s.email })]), h("td", null, [chip(ROLE_LABEL[s.role] || s.role, s.role === "admin" ? "info" : "plain")]), h("td", { class: "num", text: fDate(s.since) }),
-      h("td", { class: "r" }, [s.role === "admin" ? null : h("button", { class: "btn sm dng", text: "Remove", onclick: function () { if (window.confirm("Remove " + s.email + " from the team?")) rpc("admin_staff_remove", { p_user: s.user_id }).then(function () { toast("Removed"); route(); }).catch(function (e) { toast(e.message, true); }); } })])]); }));
+    function act(body, okMsg) { return fn("admin-team", body).then(function (r) { if (!r.ok) { toast(r.j.error || "Could not do that.", true); return; } toast(okMsg); route(); }); }
+    var rows = h("tbody", null, staff.map(function (s) {
+      var self = s.email && me && me.email && s.email.toLowerCase() === String(me.email).toLowerCase();
+      var roleSel = self ? chip(ROLE_LABEL[s.role] || s.role, "info") : h("select", { class: "in sel", "aria-label": "Role for " + s.email, onchange: function (ev) { act({ action: "set_role", user_id: s.user_id, role: ev.target.value }, "Role changed"); } }, [["admin", "Admin"], ["manager", "Manager"], ["reception", "Reception"], ["coach", "Coach"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: o[0] === s.role }); }));
+      return h("tr", { style: "cursor:default" }, [h("td", null, [h("b", { text: (s.name || s.email) + (self ? " (you)" : "") }), h("small", { class: "block muted", text: s.email })]), h("td", null, [roleSel]), h("td", { class: "num", text: fDate(s.since) }),
+        h("td", { class: "r" }, self ? [] : [h("button", { class: "btn sm", text: "New password", onclick: function () { setPasswordDialog(s); } }), " ", h("button", { class: "btn sm dng", text: "Remove", onclick: function () { if (window.confirm("Take away " + (s.name || s.email) + "'s team access? Their login stays (a member keeps their app).")) act({ action: "remove", user_id: s.user_id }, "Removed"); } })])]);
+    }));
     var tbl = h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:0" }, [h("thead", null, [h("tr", null, [h("th", { text: "Person" }), h("th", { text: "Role" }), h("th", { text: "Since" }), h("th")])]), rows])]);
-    root.appendChild(card("Team", staff.length + " with access", [tbl, h("div", { class: "toolbar", style: "padding:14px 0 0;border:0" }, [email, role, add]), h("p", { class: "muted", style: "margin-top:10px", text: "The person must already have an app account (they sign up in the member app). Owner = full access." })]));
+    root.appendChild(card("Team", staff.length + " with access", [tbl, h("div", { class: "toolbar", style: "padding:14px 0 0;border:0" }, [h("button", { class: "btn pri", text: "+ Add a co-worker or admin", onclick: addTeamDialog })]), h("p", { class: "muted", style: "margin-top:10px", text: "You choose their first password and tell them. They are asked to choose their own when they first sign in. Admin has full access, like the owner." })]));
     var perms = [["Dashboard, schedule", "Owner, Manager, Reception, Coach"], ["Members and enquiries", "Owner, Manager, Reception"], ["Health forms (every view is logged)", "Owner, Manager (coach access comes later)"], ["Emails, marketing, plans", "Owner, Manager"], ["Team and settings, cancel a class", "Owner only"]];
     root.appendChild(h("div", { style: "margin-top:16px" }, [card("What each role can see", "", [h("div", { class: "tbl-wrap" }, [h("table", { class: "t", style: "min-width:0" }, [h("tbody", null, perms.map(function (p) { return h("tr", { style: "cursor:default" }, [h("td", { text: p[0] }), h("td", { class: "muted", text: p[1] })]); }))])])])]));
     var log = h("div", { class: "tbl-wrap" }, [h("table", { class: "t" }, [h("thead", null, [h("tr", null, ["When", "Who", "Did", "Target"].map(function (x) { return h("th", { text: x }); }))]), h("tbody", null, audit.map(function (a) { return h("tr", { style: "cursor:default" }, [h("td", { class: "num", text: fDateTime(a.at) }), h("td", { text: a.who || "" }), h("td", { text: a.action.replace(/_/g, " ") }), h("td", { class: "muted", text: (a.target || "").slice(0, 40) })]); }))])]);
